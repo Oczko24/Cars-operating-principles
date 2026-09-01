@@ -5,6 +5,44 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
+import {
+  CRANK_PRESETS,
+  resolveFiringSequence,
+  resolveCrankPinAngles,
+  analyzeEngineBalance,
+  RadialCrankUI
+} from './crankshaft_solver.js';
+
+export const GEARBOX_PRESETS = {
+  opel_f17: {
+    name: "Saab 9-3 1.8i (5-biegowa FWD)",
+    desc: "Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie.",
+    ratios: { '1': 3.73, '2': 2.14, '3': 1.41, '4': 1.12, '5': 0.89, '6': 0.75, 'R': -3.31, 'N': 0 },
+    finalDrive: 3.94,
+    speeds: 5
+  },
+  bmw_zf_gs6: {
+    name: "BMW ZF GS6-37BZ (6-biegowa RWD)",
+    desc: "Sportowa 6-biegowa skrzynia wzdłużna (BMW E46/E90 330i, Z4). Bieg 5 bezpośredni (1.00), bieg 6 to nadbieg.",
+    ratios: { '1': 4.35, '2': 2.50, '3': 1.66, '4': 1.23, '5': 1.00, '6': 0.85, 'R': -3.93, 'N': 0 },
+    finalDrive: 3.23,
+    speeds: 6
+  },
+  tremec_t56: {
+    name: "Tremec T56 Magnum (6-biegowa V8)",
+    desc: "Wytrzymała skrzynia do potężnego momentu obrotowego (Corvette, Viper, Mustang Cobra). Podwójny nadbieg (5 i 6).",
+    ratios: { '1': 2.66, '2': 1.78, '3': 1.30, '4': 1.00, '5': 0.74, '6': 0.50, 'R': -2.90, 'N': 0 },
+    finalDrive: 3.73,
+    speeds: 6
+  },
+  rally_dogbox: {
+    name: "Rajdowa Kłowa (6-biegowa Dogbox)",
+    desc: "Wyczynowa krótka skrzynia ze sprzęgłami kłowymi do motorsportu. Ciasno zestopniowane biegi i wysokie przełożenie główne.",
+    ratios: { '1': 3.00, '2': 2.20, '3': 1.70, '4': 1.35, '5': 1.10, '6': 0.92, 'R': -3.00, 'N': 0 },
+    finalDrive: 4.50,
+    speeds: 6
+  }
+};
 
 export class Scene3D {
   constructor(container, onFrameStats) {
@@ -12,7 +50,7 @@ export class Scene3D {
     this.onFrameStats = onFrameStats || (() => {});
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0f172a); 
+    this.scene.background = new THREE.Color(0x140e0a); 
 
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(2.5, 1.8, 3.5);
@@ -37,18 +75,38 @@ export class Scene3D {
     this.isPlaying = true;
     this.explodedFactor = 0.0;
     this.isCutaway = true;
+    this.radialUI = null;
+    this.currentBalanceReport = null;
     this.config = {
       layout: "Inline",
       stroke: 4,
       rpm: 1000,
       valves: 4,
       cylinders: 4,
+      boreMm: 84.0,
+      strokeMm: 90.0,
+      exhaustPipes: "single",
       vAngle: 60,
+      v8CrankType: "crossplane",
+      customOverride: false,
+      customCrankPins: null,
+      customFiringAngles: null,
       drivetrain: "drive_rwd",
       suspension: "susp_wishbone",
       clutchType: "single",
       clutchEngaged: true,
       diffType: "open",
+      gearboxPreset: "opel_f17",
+      gearboxCustomRatios: {
+        '1': 3.73,
+        '2': 2.14,
+        '3': 1.41,
+        '4': 1.12,
+        '5': 0.89,
+        '6': 0.75,
+        'R': -3.31,
+        'N': 0
+      },
       currentGear: "1",
       finalDrive: 3.94,
       placement: "front",
@@ -75,6 +133,13 @@ export class Scene3D {
     this.setupEnvironment();
     this.setupTooltip();
     this.setupDevPanel();
+
+    // Cache elementów DOM do telemetrii w pętli animacji
+    this.cachedDom = {
+      wheelSpeed: document.getElementById('dev_wheel_speed'),
+      wheelRpm: document.getElementById('dev_wheel_rpm'),
+      totalRed: document.getElementById('dev_total_reduction')
+    };
 
     // Podłączenie canvas wibracji (panel Fizyka & Wyważenie)
     this.vibCanvas = document.getElementById('dev_vibration_canvas');
@@ -178,11 +243,24 @@ export class Scene3D {
       });
     };
 
+    const updateDisplacementDisplay = () => {
+      const bore = this.config.boreMm || 84.0;
+      const stroke = this.config.strokeMm || 90.0;
+      const cyls = this.config.cylinders || 4;
+      const dispCm3 = cyls * Math.PI * Math.pow(bore / 20, 2) * (stroke / 10);
+      const dispL = (dispCm3 / 1000).toFixed(2);
+      const dispRounded = Math.round(dispCm3);
+      const dispEl = document.getElementById('dev_disp_val');
+      if (dispEl) {
+        dispEl.innerText = `${dispRounded} cm³ (${dispL}L)`;
+      }
+    };
+
     setupButtonGroup('dev_layout', (val) => {
       this.config.layout = val;
       const angleContainer = document.getElementById('dev_angle_container');
       if (angleContainer) {
-          angleContainer.style.display = (val === 'Inline' || val === 'Boxer') ? 'none' : 'block';
+          angleContainer.style.display = (val === 'Inline' || val === 'VR' || val === 'Boxer') ? 'none' : 'block';
       }
       if (val === 'VR') {
         const devAngle = document.getElementById('dev_angle');
@@ -191,6 +269,8 @@ export class Scene3D {
         if (devAngleVal) devAngleVal.innerText = 15;
         this.config.vAngle = 15;
       }
+      this.updateV8UI();
+      updateDisplacementDisplay();
       this.rebuildFullCar();
     });
 
@@ -200,6 +280,32 @@ export class Scene3D {
         const valEl = document.getElementById('dev_cyl_val');
         if (valEl) valEl.innerText = e.target.value;
         this.config.cylinders = parseInt(e.target.value);
+        this.updateV8UI();
+        updateDisplacementDisplay();
+        this.rebuildFullCar();
+      });
+    }
+
+    const devBore = document.getElementById('dev_bore');
+    if (devBore) {
+      devBore.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        const valEl = document.getElementById('dev_bore_val');
+        if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
+        this.config.boreMm = val;
+        updateDisplacementDisplay();
+        this.rebuildFullCar();
+      });
+    }
+
+    const devStrokeLen = document.getElementById('dev_stroke_len');
+    if (devStrokeLen) {
+      devStrokeLen.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        const valEl = document.getElementById('dev_stroke_len_val');
+        if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
+        this.config.strokeMm = val;
+        updateDisplacementDisplay();
         this.rebuildFullCar();
       });
     }
@@ -211,6 +317,63 @@ export class Scene3D {
         if (valEl) valEl.innerText = e.target.value;
         this.config.vAngle = parseInt(e.target.value);
         this.rebuildFullCar();
+      });
+    }
+
+    // ═══ WYBÓR UKŁADU WYDECHOWEGO (1 vs 2 rury) ═══
+    setupButtonGroup('dev_exhaust_pipes', (val) => {
+      this.config.exhaustPipes = val;
+      this.rebuildFullCar();
+    });
+
+    // ═══ WYBÓR WAŁU DLA V8 (Crossplane vs Flatplane) ═══
+    setupButtonGroup('dev_v8_crank', (val) => {
+      this.config.v8CrankType = val;
+      this.updateV8UI();
+      this.rebuildFullCar();
+    });
+
+    // ═══ TRYB WAŁU (Wzorce vs Własny Tuning) ═══
+    setupButtonGroup('dev_crank_mode', (val) => {
+      this.config.customOverride = (val === 'custom');
+      const radialContainer = document.getElementById('radial_tuning_container');
+      const presetCard = document.getElementById('crank_preset_card');
+      if (radialContainer) radialContainer.style.display = (val === 'custom') ? 'block' : 'none';
+      if (presetCard) presetCard.style.display = (val === 'custom') ? 'none' : 'block';
+
+      if (val === 'custom' && this.radialUI && this.movingCylinders.length > 0) {
+        const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+        this.radialUI.setAngles(angles);
+      }
+      this.rebuildFullCar();
+    });
+
+    // ═══ INTERAKTYWNY RADIAL UI (Biegunowa Tarcza 360°) ═══
+    const radialCanvas = document.getElementById('radial_crank_canvas');
+    if (radialCanvas) {
+      this.radialUI = new RadialCrankUI(radialCanvas, (newAnglesDeg) => {
+        this.config.customOverride = true;
+        this.config.customCrankPins = [...newAnglesDeg];
+        this.rebuildFullCar();
+      });
+    }
+
+    const btnResetCrank = document.getElementById('btn_reset_crank');
+    if (btnResetCrank) {
+      btnResetCrank.addEventListener('click', () => {
+        this.config.customCrankPins = null;
+        this.rebuildFullCar();
+        if (this.radialUI && this.movingCylinders.length > 0) {
+          const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+          this.radialUI.setAngles(angles);
+        }
+      });
+    }
+
+    const chkSnap15 = document.getElementById('radial_snap_15');
+    if (chkSnap15) {
+      chkSnap15.addEventListener('change', (e) => {
+        if (this.radialUI) this.radialUI.snapToGrid = e.target.checked;
       });
     }
 
@@ -274,6 +437,14 @@ export class Scene3D {
       });
     }
 
+    // ═══ ZWIJANIE ZAKŁADEK (COLLAPSIBLE ACCORDION) ═══
+    document.querySelectorAll('.panel-section.collapsible .section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const section = header.closest('.panel-section');
+        if (section) section.classList.toggle('collapsed');
+      });
+    });
+
     const devRpm = document.getElementById('dev_rpm');
     if (devRpm) {
       devRpm.addEventListener('input', (e) => {
@@ -294,21 +465,59 @@ export class Scene3D {
     if (devFinalDrive) {
       devFinalDrive.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_final_drive_val');
-        if (valEl) valEl.innerText = e.target.value;
+        if (valEl) valEl.innerText = parseFloat(e.target.value).toFixed(2);
         this.config.finalDrive = parseFloat(e.target.value);
       });
     }
 
+    // ═══ PRESETY SKRZYNI BIEGÓW ═══
+    setupButtonGroup('dev_gearbox_preset', (val) => {
+      this.config.gearboxPreset = val;
+      const customContainer = document.getElementById('custom_gearbox_container');
+      const descEl = document.getElementById('dev_gearbox_desc');
+      const btnG6 = document.getElementById('btn_gear_6');
+      const finalDriveSlider = document.getElementById('dev_final_drive');
+      const finalDriveVal = document.getElementById('dev_final_drive_val');
+
+      if (val === 'custom') {
+        if (customContainer) customContainer.style.display = 'block';
+        if (descEl) descEl.innerHTML = `🛠 <b>Własne stopniowanie:</b> Dopasuj przełożenia poszczególnych biegów oraz dyferencjału do charakterystyki silnika.`;
+        if (btnG6) btnG6.style.display = 'inline-block';
+      } else {
+        if (customContainer) customContainer.style.display = 'none';
+        const preset = GEARBOX_PRESETS[val] || GEARBOX_PRESETS.opel_f17;
+        if (descEl) descEl.innerText = preset.desc;
+        if (btnG6) btnG6.style.display = (preset.speeds === 6) ? 'inline-block' : 'none';
+        if (preset.speeds === 5 && this.config.currentGear === '6') {
+          this.config.currentGear = '5';
+          const btns = document.querySelectorAll('#dev_gearbox button');
+          btns.forEach(b => b.classList.remove('active'));
+          document.querySelector('#dev_gearbox button[data-gear="5"]')?.classList.add('active');
+        }
+        this.config.finalDrive = preset.finalDrive;
+        if (finalDriveSlider) finalDriveSlider.value = preset.finalDrive;
+        if (finalDriveVal) finalDriveVal.innerText = preset.finalDrive.toFixed(2);
+      }
+    });
+
+    // ═══ SUWAKI WŁASNYCH PRZEŁOŻEŃ (Custom Gearbox) ═══
+    ['1', '2', '3', '4', '5', '6', 'r'].forEach(gKey => {
+      const slider = document.getElementById(`slider_g${gKey}`);
+      const valEl = document.getElementById(`val_g${gKey}`);
+      if (slider) {
+        slider.addEventListener('input', (e) => {
+          const ratioVal = parseFloat(e.target.value);
+          const actualKey = gKey === 'r' ? 'R' : gKey;
+          const finalVal = gKey === 'r' ? -ratioVal : ratioVal;
+          this.config.gearboxCustomRatios[actualKey] = finalVal;
+          if (valEl) valEl.innerText = (gKey === 'r' ? '-' : '') + ratioVal.toFixed(2);
+        });
+      }
+    });
+
+    // ═══ WYBÓR AKTUALNEGO BIEGU (R, N, 1..6) ═══
     setupButtonGroup('dev_gearbox', (val) => {
-        this.config.gearboxChoice = val;
-        let r = 0;
-        if (val === 'R') r = -3.5;
-        else if (val === '1') r = 3.5;
-        else if (val === '2') r = 2.1;
-        else if (val === '3') r = 1.4;
-        else if (val === '4') r = 1.0;
-        else if (val === '5') r = 0.8;
-        this.config.gearRatio = r;
+      this.config.currentGear = val;
     });
 
     setupButtonGroup('dev_clutch', (val) => {
@@ -339,6 +548,100 @@ export class Scene3D {
     }
   }
 
+  getCurrentGearRatio() {
+    const currentG = this.config.currentGear || '1';
+    if (currentG === 'N') return 0;
+    if (this.config.gearboxPreset === 'custom') {
+      return this.config.gearboxCustomRatios[currentG] !== undefined ? this.config.gearboxCustomRatios[currentG] : 1.0;
+    }
+    const preset = GEARBOX_PRESETS[this.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
+    return preset.ratios[currentG] !== undefined ? preset.ratios[currentG] : 1.0;
+  }
+
+  updateCrankshaftUI() {
+    this.updateV8UI();
+    this.updatePresetCard();
+    this.updateBalanceUI();
+
+    if (this.radialUI && !this.config.customOverride && this.movingCylinders && this.movingCylinders.length > 0) {
+      const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+      this.radialUI.setCylinderCount(this.config.cylinders, angles);
+    }
+  }
+
+  updateV8UI() {
+    const v8Container = document.getElementById('dev_v8_crank_container');
+    const noteEl = document.getElementById('v8_crank_note');
+    if (v8Container) {
+      const isV8 = (this.config.layout === 'V' && this.config.cylinders === 8);
+      v8Container.style.display = isV8 ? 'block' : 'none';
+      if (isV8 && noteEl) {
+        if (this.config.v8CrankType === 'crossplane') {
+          noteEl.innerHTML = `🇺🇸 <b>Crossplane (90°):</b> Klasyczny bulgot V8 (AMG, Corvette). Eliminacja drgań I/II rzędu dzięki ciężkim przeciwciężarom.`;
+        } else {
+          noteEl.innerHTML = `🏎️ <b>Flat-Plane (180°):</b> Wyścigowy krzyk (Ferrari, Shelby GT350). Lekki wał wkręca się natychmiast na 9000 RPM, generując wibracje drugiego rzędu.`;
+        }
+      }
+    }
+  }
+
+  updatePresetCard() {
+    const card = document.getElementById('crank_preset_card');
+    const nameEl = document.getElementById('crank_preset_name');
+    const descEl = document.getElementById('crank_preset_desc');
+    const techEl = document.getElementById('crank_preset_tech');
+    const badgeEl = document.getElementById('crank_preset_badge');
+
+    if (!card) return;
+
+    const key = (this.config.layout === 'V' && this.config.cylinders === 8)
+      ? `V_8_${this.config.v8CrankType || 'crossplane'}`
+      : `${this.config.layout}_${this.config.cylinders}`;
+
+    const preset = CRANK_PRESETS[key];
+    if (preset) {
+      if (nameEl) nameEl.innerText = preset.name;
+      if (descEl) descEl.innerText = preset.description;
+      if (techEl) techEl.innerText = preset.technicalNote;
+      if (badgeEl) {
+        badgeEl.innerText = 'Preset Inżynieryjny';
+        badgeEl.className = 'crank-badge engineered';
+      }
+    } else {
+      const cycle = this.config.stroke === 2 ? 360 : 720;
+      const dGamma = (cycle / this.config.cylinders).toFixed(1);
+      if (nameEl) nameEl.innerText = `${this.config.layout}-${this.config.cylinders} (Even-Fire)`;
+      if (descEl) descEl.innerText = `Niestandardowa architektura. Algorytm proceduralnie wyznaczył równomierny zapłon co ${dGamma}° z czopami dzielonymi (split-pin).`;
+      if (techEl) techEl.innerText = `Interwał zapłonu Δγ = ${dGamma}°`;
+      if (badgeEl) {
+        badgeEl.innerText = 'Algorytm Zapasowy (Fallback)';
+        badgeEl.className = 'crank-badge fallback';
+      }
+    }
+  }
+
+  updateBalanceUI() {
+    const box = document.getElementById('crank_diagnostics_box');
+    const icon = document.getElementById('diag_status_icon');
+    const title = document.getElementById('diag_title');
+    const msg = document.getElementById('diag_message');
+    const rec = document.getElementById('diag_rec');
+
+    if (!this.currentBalanceReport || !box) return;
+    const report = this.currentBalanceReport;
+
+    box.className = `crank-diag-box ${report.status}`;
+    if (icon) {
+      if (report.status === 'perfect') icon.innerText = '🌟';
+      else if (report.status === 'warning-secondary') icon.innerText = '⚡';
+      else if (report.status === 'warning-moment') icon.innerText = '🔄';
+      else icon.innerText = '⚠️';
+    }
+    if (title) title.innerText = report.title;
+    if (msg) msg.innerText = report.message;
+    if (rec) rec.innerText = report.recommendation;
+  }
+
   updateWireframeVisibility() {
     const v = this.config.showWireframes;
     if (this.movingCylinders) {
@@ -364,11 +667,11 @@ export class Scene3D {
     this.mouse = new THREE.Vector2(-9999, -9999);
     this.tooltip = document.createElement('div');
     this.tooltip.style.position = 'fixed';
-    this.tooltip.style.background = 'rgba(15, 23, 42, 0.95)';
-    this.tooltip.style.color = '#38bdf8';
+    this.tooltip.style.background = 'rgba(26, 19, 14, 0.95)';
+    this.tooltip.style.color = '#f59e0b';
     this.tooltip.style.padding = '6px 14px';
     this.tooltip.style.borderRadius = '6px';
-    this.tooltip.style.border = '1px solid #38bdf8';
+    this.tooltip.style.border = '1px solid #f59e0b';
     this.tooltip.style.pointerEvents = 'none';
     this.tooltip.style.display = 'none';
     this.tooltip.style.fontFamily = 'monospace';
@@ -520,31 +823,31 @@ export class Scene3D {
     this.matStreamlineFuel = new THREE.LineBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0, depthWrite: false });
     this.matStreamlineMainExhaust = new THREE.LineBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.4, depthWrite: false });
     
-    this.lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45 });
-    this.crankcaseLineMat = new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.3 });
+    this.lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.45 });
+    this.crankcaseLineMat = new THREE.LineBasicMaterial({ color: 0xa8a29e, transparent: true, opacity: 0.3 });
     
     // Datum / Engineering Reference Materials
-    this.matDatumLine = new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8, depthWrite: false });
-    this.matDatumNode = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+    this.matDatumLine = new THREE.LineBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.8, depthWrite: false });
+    this.matDatumNode = new THREE.MeshBasicMaterial({ color: 0xfde047 });
     this.matDatumOrigin = new THREE.MeshBasicMaterial({ color: 0xff007f });
     this.matDatumAxisX = new THREE.LineBasicMaterial({ color: 0xef4444, depthWrite: false });
     this.matDatumAxisY = new THREE.LineBasicMaterial({ color: 0x10b981, depthWrite: false });
-    this.matDatumAxisZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, depthWrite: false });
+    this.matDatumAxisZ = new THREE.LineBasicMaterial({ color: 0xf59e0b, depthWrite: false });
   }
 
   setupLighting() {
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0f172a, 1.2);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x140e0a, 1.2);
     this.scene.add(hemiLight);
     const mainLight = new THREE.DirectionalLight(0xffffff, 2.5);
     mainLight.position.set(8, 12, 10);
     this.scene.add(mainLight);
-    const fillLight = new THREE.DirectionalLight(0x7dd3fc, 1.5);
+    const fillLight = new THREE.DirectionalLight(0xfde68a, 1.5);
     fillLight.position.set(-8, 6, -8);
     this.scene.add(fillLight);
   }
 
   setupEnvironment() {
-    const grid = new THREE.GridHelper(30, 60, 0x38bdf8, 0x1e293b);
+    const grid = new THREE.GridHelper(30, 60, 0xf59e0b, 0x291f1a);
     grid.position.y = -0.45;
     this.scene.add(grid);
   }
@@ -602,6 +905,8 @@ export class Scene3D {
     this.buildEngineAssembly();
     this.buildDrivetrainAssembly();
     // this.buildSuspensionAssembly(); // Hidden per user request
+
+    this.updateCrankshaftUI();
   }
 
   buildChassisFrame() {
@@ -633,43 +938,71 @@ export class Scene3D {
     const layout = this.config.layout;
     const cylCount = this.config.cylinders;
     const vAngle = this.config.vAngle * Math.PI / 180;
-    const zSpacing = 0.24;
-    const startZ = -(cylCount - 1) * zSpacing / 2;
+    
+    // Skalowanie fizyczne z średnicy tłoka (Bore mm)
+    const boreMm = this.config.boreMm || 84.0;
+    const strokeMm = this.config.strokeMm || 90.0;
+    const boreScale = boreMm / 84.0;
+    const boreRadius = 0.105 * boreScale;
+    const sleeveRadius = boreRadius + 0.008;
     const sleeveCenter = 0.55;
+
+    // Odstęp między cylindrami (zSpacing / Bore Pitch)
+    // Zapewnia stałą, bezpieczną grubość ścianki bloku i płaszcza chłodzenia
+    let zSpacing = Math.max(0.18, sleeveRadius * 2 + 0.024);
+    let vrStaggerZ = zSpacing * 0.50;
+
+    if (layout === "VR") {
+      // W silnikach VR (kąt rozwarcia 15° w jednej głowicy) przesunięcie poprzeczne wynosi dx
+      const vrAngleRad = 15 * Math.PI / 180;
+      const dx = 2 * sleeveCenter * Math.sin(vrAngleRad / 2); // ~0.143 m
+      const minRequiredDist = 2 * sleeveRadius + 0.020; // bezpieczny prześwit między sąsiednimi tulejami
+      const minRequiredDz = Math.sqrt(Math.max(0.012, minRequiredDist * minRequiredDist - dx * dx));
+      vrStaggerZ = Math.max(zSpacing * 0.50, minRequiredDz);
+      zSpacing = vrStaggerZ * 2.0;
+    }
+
+    const startZ = -(cylCount - 1) * zSpacing / 2;
+
+    const bankAngles = [];
+    for (let i = 0; i < cylCount; i++) {
+      let bank = 0;
+      if (layout === "V" || layout === "VR") {
+        const actualAngle = layout === "VR" ? 15 * Math.PI / 180 : vAngle;
+        bank = (i % 2 === 0) ? -actualAngle / 2 : actualAngle / 2;
+      } else if (layout === "W") {
+        const vAngleW = 72 * Math.PI / 180;
+        const vrAngle = 15 * Math.PI / 180;
+        if (i % 4 === 0) bank = -vAngleW/2 - vrAngle/2;
+        else if (i % 4 === 1) bank = -vAngleW/2 + vrAngle/2;
+        else if (i % 4 === 2) bank = vAngleW/2 - vrAngle/2;
+        else if (i % 4 === 3) bank = vAngleW/2 + vrAngle/2;
+      } else if (layout === "Boxer") {
+        bank = (i % 2 === 0) ? -Math.PI / 2 : Math.PI / 2;
+      }
+      bankAngles.push(bank);
+    }
+
+    const firingAnglesDeg = resolveFiringSequence(this.config);
+    const crankPinAngles = resolveCrankPinAngles(this.config, bankAngles);
 
     let cylinderConfigs = [];
     for (let i = 0; i < cylCount; i++) {
-      let bank = 0;
+      const bank = bankAngles[i];
       let z = startZ + i * zSpacing;
-      
-      if (layout === "V" || layout === "VR") {
-        const actualAngle = layout === "VR" ? 15 * Math.PI/180 : vAngle;
-        bank = (i % 2 === 0) ? -actualAngle/2 : actualAngle/2;
-        z = -(Math.ceil(cylCount/2) - 1) * zSpacing / 2 + Math.floor(i/2) * zSpacing;
-        if (i % 2 !== 0) z += zSpacing * 0.45;
-      } else if (layout === "Boxer") {
-        bank = (i % 2 === 0) ? -Math.PI/2 : Math.PI/2;
-        z = -(Math.ceil(cylCount/2) - 1) * zSpacing / 2 + Math.floor(i/2) * zSpacing;
-        if (i % 2 !== 0) z += zSpacing * 0.45;
+
+      if (layout === "V" || layout === "VR" || layout === "Boxer") {
+        z = -(Math.ceil(cylCount / 2) - 1) * zSpacing / 2 + Math.floor(i / 2) * zSpacing;
+        if (i % 2 !== 0) z += (layout === "VR" ? vrStaggerZ : zSpacing * 0.45);
+      } else if (layout === "W") {
+        z = -(Math.ceil(cylCount / 4) - 1) * zSpacing / 2 + Math.floor(i / 4) * zSpacing;
+        if (i % 4 === 1 || i % 4 === 3) z += (layout === "W" ? vrStaggerZ : zSpacing * 0.45);
       }
 
-      let firing = 0;
-      if (layout === "Inline") {
-          if (cylCount === 4) firing = [0, 540, 180, 360][i];
-          else if (cylCount === 6) firing = [0, 480, 240, 600, 120, 360][i];
-          else firing = i * (720 / cylCount);
-      } else if (layout === "Boxer") {
-          let pairFiring = Math.floor(i / 2) * (720 / cylCount);
-          firing = (i % 2 === 0) ? pairFiring : (pairFiring + 360);
-      } else {
-          if (cylCount === 8) firing = [0, 540, 270, 90, 630, 450, 360, 180][i];
-          else firing = i * (720 / cylCount);
-      }
-      if (this.config.stroke === 2) firing /= 2;
+      const firing = firingAnglesDeg[i];
+      const crankPin = crankPinAngles[i];
+      const cfg = this.createCylConfig(i + 1, z, bank, firing, crankPin);
 
-      let crankPin = (firing * Math.PI / 180) + bank;
-      const cfg = this.createCylConfig(i+1, z, bank, firing, crankPin);
-      
       // Calculate datum vectors
       cfg.u = new THREE.Vector3(-Math.sin(bank), Math.cos(bank), 0);
       cfg.n = new THREE.Vector3(Math.cos(bank), Math.sin(bank), 0);
@@ -688,7 +1021,9 @@ export class Scene3D {
     const minZ = Math.min(...cylinderConfigs.map(c => c.z)) - 0.15;
     const engineLength = maxZ - minZ;
 
-    return { cylinderConfigs, centroid, maxZ, minZ, engineLength };
+    this.currentBalanceReport = analyzeEngineBalance(cylinderConfigs, this.config);
+
+    return { cylinderConfigs, centroid, maxZ, minZ, engineLength, zSpacing, boreScale, boreRadius, sleeveRadius };
   }
 
   createDatumLabel(text, color = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)') {
@@ -739,7 +1074,7 @@ export class Scene3D {
       this.datumGroup.add(node);
 
       // Etykieta wektora cylindra
-      const cylLabel = this.createDatumLabel(`Oś Cyl #${cfg.id}`, '#38bdf8');
+      const cylLabel = this.createDatumLabel(`Oś Cyl #${cfg.id}`, '#f59e0b');
       cylLabel.position.copy(topPt).add(new THREE.Vector3(0, 0.04, 0));
       this.datumGroup.add(cylLabel);
     });
@@ -782,7 +1117,7 @@ export class Scene3D {
 
   buildEngineAssembly() {
     const datum = this.computeEngineDatum();
-    const { cylinderConfigs, maxZ, minZ, engineLength } = datum;
+    const { cylinderConfigs, maxZ, minZ, engineLength, zSpacing, boreScale, boreRadius, sleeveRadius } = datum;
 
     this.engineMountGroup = new THREE.Group();
     
@@ -809,13 +1144,26 @@ export class Scene3D {
     const layout = this.config.layout;
     const cylCount = this.config.cylinders;
     const vAngle = this.config.vAngle * Math.PI / 180;
-    const crankRadius = 0.16;
-    const rodLength = 0.48;
-    const zSpacing = 0.24;
 
-    // Crankcase as Wireframe to not obscure internals
+    // Skalowanie fizyczne (Bore mm -> Three units, Stroke mm -> Three units)
+    const strokeMm = this.config.strokeMm || 90.0;
+    const crankRadius = 0.16 * (strokeMm / 90.0);
+    const rodLength = 0.48 * (strokeMm / 90.0);
+    const strokeLength = crankRadius * 2;
+    const sleeveLength = Math.max(0.46, strokeLength + 0.14);
+    const pistonLength = Math.max(0.12, boreRadius * 1.5);
+    const sleeveCenter = 0.55;
+
+    // Crankcase as Wireframe: szerokość i długość rozszerzają się wraz z rozmiarem tłoków i układem
+    let blockWidth = Math.max(0.56, 2 * sleeveRadius + 0.36);
+    if (layout === 'V' || layout === 'W') {
+      blockWidth = Math.max(0.68, (sleeveCenter + sleeveRadius) * 2 * Math.sin(vAngle / 2) + 0.25);
+    } else if (layout === 'Boxer') {
+      blockWidth = Math.max(1.10, (sleeveCenter + sleeveRadius) * 2 + 0.20);
+    }
+
     const crankcase = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(0.56, 0.22, engineLength + 0.1)), 
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(blockWidth, 0.22, engineLength + 0.12)), 
       this.crankcaseLineMat
     );
     crankcase.position.set(0, -0.11, (maxZ+minZ)/2);
@@ -823,7 +1171,7 @@ export class Scene3D {
     engineGroup.add(crankcase);
 
     const crankMaster = new THREE.Group();
-    // ═══ SEGMENTOWE CZOpy GŁÓWNE I WYKORBIENIA WAŁU KORBOWEGO ═══
+    // ═══ SEGMENTOWE CZOPY GŁÓWNE I WYKORBIENIA WAŁU KORBOWEGO ═══
     const pinWidth = 0.055;
     const webThick = 0.022;
     const throwHalfWidth = pinWidth / 2 + webThick; // ~0.0495
@@ -955,7 +1303,7 @@ export class Scene3D {
       crankMaster.add(throwG);
     });
 
-    // ═══ CZOpy GŁÓWNE (Main Journals) NA OSI OBROTU (0, 0) ═══
+    // ═══ CZOPY GŁÓWNE (Main Journals) NA OSI OBROTU (0, 0) ═══
     // Tworzone wyłącznie pomiędzy wykorbieniami oraz na końcach wału
     const allCylZ = cylinderConfigs.map(c => c.z);
     const minCylZ = Math.min(...allCylZ);
@@ -963,39 +1311,42 @@ export class Scene3D {
     const uniqueZ = [...new Set(allCylZ)].sort((a, b) => a - b);
 
     // 1. Czopy pośrednie pomiędzy sąsiednimi wykorbieniami
-    for (let i = 0; i < uniqueZ.length - 1; i++) {
-      const zStart = uniqueZ[i] + throwHalfWidth;
-      const zEnd = uniqueZ[i + 1] - throwHalfWidth;
-      if (zEnd > zStart + 0.002) {
-        const jLen = zEnd - zStart;
-        const jMid = (zStart + zEnd) / 2;
-        const mainJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, jLen, 32), this.matSteel);
-        mainJ.rotation.x = Math.PI / 2;
-        mainJ.position.set(0, 0, jMid);
-        mainJ.userData.name = "Czop główny wału korbowego";
-        crankMaster.add(mainJ);
+    for (let k = 0; k < uniqueZ.length - 1; k++) {
+      const zA = uniqueZ[k];
+      const zB = uniqueZ[k + 1];
+      const jStart = zA + throwHalfWidth;
+      const jEnd = zB - throwHalfWidth;
+      const jLen = jEnd - jStart;
+      if (jLen > 0.004) {
+        const midJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, jLen, 24), this.matSteel);
+        midJ.rotation.x = Math.PI / 2;
+        midJ.position.set(0, 0, (jStart + jEnd) / 2);
+        midJ.userData.name = `Czop główny wału (Segment ${k + 1})`;
+        crankMaster.add(midJ);
       }
     }
 
-    // 2. Przedni czop główny i czop napędu rozrządu (Snout)
+    // 2. Czop główny przedni (od pierwszego wykorbienia do koła zębatego)
     const frontStart = maxCylZ + throwHalfWidth;
-    const frontEnd = maxZ + 0.08;
-    const frontLen = Math.max(0.02, frontEnd - frontStart);
-    const frontJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, frontLen, 32), this.matSteel);
-    frontJ.rotation.x = Math.PI / 2;
-    frontJ.position.set(0, 0, (frontStart + frontEnd) / 2);
-    frontJ.userData.name = "Czop główny przedni (Snout)";
-    crankMaster.add(frontJ);
+    const frontEnd = maxZ + 0.05;
+    if (frontEnd > frontStart) {
+      const frontJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, frontEnd - frontStart, 24), this.matSteel);
+      frontJ.rotation.x = Math.PI / 2;
+      frontJ.position.set(0, 0, (frontStart + frontEnd) / 2);
+      frontJ.userData.name = "Czop główny przedni wału";
+      crankMaster.add(frontJ);
+    }
 
-    // 3. Tylny czop główny i kołnierz koła zamachowego
-    const rearStart = minZ - 0.04;
+    // 3. Czop główny tylny (od ostatniego wykorbienia do koła zamachowego)
+    const rearStart = minZ - 0.01;
     const rearEnd = minCylZ - throwHalfWidth;
-    const rearLen = Math.max(0.02, rearEnd - rearStart);
-    const rearJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, rearLen, 32), this.matSteel);
-    rearJ.rotation.x = Math.PI / 2;
-    rearJ.position.set(0, 0, (rearStart + rearEnd) / 2);
-    rearJ.userData.name = "Czop główny tylny wału";
-    crankMaster.add(rearJ);
+    if (rearEnd > rearStart) {
+      const rearJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, rearEnd - rearStart, 24), this.matSteel);
+      rearJ.rotation.x = Math.PI / 2;
+      rearJ.position.set(0, 0, (rearStart + rearEnd) / 2);
+      rearJ.userData.name = "Czop główny tylny wału";
+      crankMaster.add(rearJ);
+    }
 
     // Kołnierz montażowy koła zamachowego (Flywheel Flange)
     const flywheelFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.012, 32), this.matDarkSteel);
@@ -1016,14 +1367,10 @@ export class Scene3D {
     });
 
     this.banksData = [];
-    const boreRadius = 0.105;
-    const sleeveRadius = 0.11;
-    const sleeveLength = 0.46;
-    const pistonLength = 0.16;
-    const sleeveCenter = 0.55; 
     const headBase = 0.82 + explodeDist * 1.5; 
     const isOHV = this.config.valvetrain === "OHV" || this.config.valvetrain === "valve_ohv";
     const trueCamY = isOHV ? (0.28 + explodeDist * 0.5) : (1.020 + explodeDist * 1.5);
+    const camOffsetX = (this.config.valves === 4 ? 0.048 : 0.038) * boreScale;
     
     let firstBankOHV = true;
 
@@ -1031,7 +1378,8 @@ export class Scene3D {
       const bankAngle = parseFloat(bankAngleStr);
       const cylinders = banks[bankAngleStr];
 
-      const flipBank = (this.config.layout === 'V' || this.config.layout === 'VR' || this.config.layout === 'Boxer') && bankAngle > 0.001;
+      // Dla VR: jedna wspólna głowica cross-flow (dolot po lewej inSign=-1, wydech po prawej exSign=1 dla obu rzędów)
+      const flipBank = (this.config.layout === 'V' || this.config.layout === 'W' || this.config.layout === 'Boxer') && bankAngle > 0.001;
       const inSign = flipBank ? 1 : -1;
       const exSign = -inSign;
 
@@ -1049,7 +1397,7 @@ export class Scene3D {
       camBaseIn.add(camShaftIn);
       camBaseEx.add(camShaftEx);
       
-      const bMinZ = Math.min(...cylinders.map(c => c.z)) - 0.05;
+      const bMinZ = Math.min(...cylinders.map(c => c.z)) - (0.05 * boreScale);
       const bMaxZ = maxZ + 0.08; 
       const len = bMaxZ - bMinZ;
       const midZ = (bMinZ + bMaxZ) / 2;
@@ -1060,8 +1408,8 @@ export class Scene3D {
       let localY = 0;
 
       if (isOHV) {
-          const globalCamX = (this.config.layout === 'Inline') ? 0.14 : 0;
-          const globalCamY = (this.config.layout === 'Inline') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
+          const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.14 * boreScale : 0;
+          const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
           
           localX = globalCamX * Math.cos(bankAngle) + globalCamY * Math.sin(bankAngle);
           localY = -globalCamX * Math.sin(bankAngle) + globalCamY * Math.cos(bankAngle);
@@ -1084,8 +1432,8 @@ export class Scene3D {
           }
           this.camshafts.push(camShaftEx);
       } else {
-          camBaseIn.position.set(inSign * 0.045, trueCamY, 0);
-          camBaseEx.position.set(exSign * 0.045, trueCamY, 0);
+          camBaseIn.position.set(inSign * camOffsetX, trueCamY, 0);
+          camBaseEx.position.set(exSign * camOffsetX, trueCamY, 0);
           
           const meshIn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.matBronze);
           meshIn.rotation.x = Math.PI / 2;
@@ -1126,32 +1474,47 @@ export class Scene3D {
         sleeve.visible = this.config.showWireframes !== false;
         cylG.add(sleeve);
 
-        const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.28, 0.16, zSpacing - 0.02)), this.lineMat);
+        const headWidth = Math.max(0.28, 2 * sleeveRadius + 0.06);
+        const headDepth = zSpacing - 0.02;
+        const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16, headDepth)), this.lineMat);
         head.position.set(0, headBase + 0.08, 0);
+        if (this.config.layout === 'VR') {
+           head.scale.set(1.45, 1, 2.0); // scale Z to bridge gap between offset cylinders
+           head.rotation.z = -bankAngle;
+           head.position.x = -bankAngle * 0.2; // slight shift to center
+        } else if (this.config.layout === 'W') {
+           head.scale.set(1.45, 1, 2.0);
+           const wVRBaseAngle = bankAngle > 0 ? (72 * Math.PI/180)/2 : -(72 * Math.PI/180)/2;
+           head.rotation.z = -(bankAngle - wVRBaseAngle);
+        }
         head.userData.name = "Głowica cylindra (Zarys)";
         head.visible = this.config.showWireframes !== false;
         cylG.add(head);
 
         const valvesList = [];
+        const vOffZ = (this.config.valves === 4 ? 0.045 : 0) * boreScale;
+        const vOffX = 0.045 * boreScale;
+        const vDiscR = (this.config.valves === 4 ? 0.024 : 0.035) * boreScale;
+
         if (this.config.valves === 4) {
-            const vIn1 = this.createValve(this.matSteel, "Ssący 1");
-            const vIn2 = this.createValve(this.matSteel, "Ssący 2");
-            const vEx1 = this.createValve(this.matSteel, "Wydechowy 1");
-            const vEx2 = this.createValve(this.matSteel, "Wydechowy 2");
+            const vIn1 = this.createValve(this.matSteel, "Ssący 1", vDiscR);
+            const vIn2 = this.createValve(this.matSteel, "Ssący 2", vDiscR);
+            const vEx1 = this.createValve(this.matSteel, "Wydechowy 1", vDiscR);
+            const vEx2 = this.createValve(this.matSteel, "Wydechowy 2", vDiscR);
             const sIn1 = this.createSpringMesh();
             const sIn2 = this.createSpringMesh();
             const sEx1 = this.createSpringMesh();
             const sEx2 = this.createSpringMesh();
             cylG.add(vIn1, vIn2, vEx1, vEx2, sIn1, sIn2, sEx1, sEx2);
             valvesList.push(
-                { vg: vIn1, sp: sIn1, type: 'in', offZ: -0.045 },
-                { vg: vIn2, sp: sIn2, type: 'in', offZ: 0.045 },
-                { vg: vEx1, sp: sEx1, type: 'ex', offZ: -0.045 },
-                { vg: vEx2, sp: sEx2, type: 'ex', offZ: 0.045 }
+                { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ },
+                { vg: vIn2, sp: sIn2, type: 'in', offZ: vOffZ },
+                { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ },
+                { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ }
             );
         } else {
-            const vIn = this.createValve(this.matSteel, "Ssący");
-            const vEx = this.createValve(this.matSteel, "Wydechowy");
+            const vIn = this.createValve(this.matSteel, "Ssący", vDiscR);
+            const vEx = this.createValve(this.matSteel, "Wydechowy", vDiscR);
             const sIn = this.createSpringMesh();
             const sEx = this.createSpringMesh();
             cylG.add(vIn, vEx, sIn, sEx);
@@ -1166,26 +1529,25 @@ export class Scene3D {
         cylG.add(sparkPlug);
 
         const fireMat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0 });
-        const fireMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), fireMat);
+        const fireMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09 * boreScale, 16, 16), fireMat);
         fireMesh.position.set(0, 0.76 + explodeDist, 0); 
         cylG.add(fireMesh);
 
-        // ═══ SFERA SSANIA (Intake Gas) — wizualizacja powietrza wchodzącego do cylindra ═══
-        const inGasMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0, depthWrite: false });
-        const inGas = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), inGasMat);
-        inGas.position.set(inSign * 0.06, headBase + 0.02, 0); // port ssący — strona intake
+        // ═══ SFERA SSANIA (Intake Gas) ═══
+        const inGasMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0, depthWrite: false });
+        const inGas = new THREE.Mesh(new THREE.SphereGeometry(0.06 * boreScale, 12, 12), inGasMat);
+        inGas.position.set(inSign * (0.06 * boreScale), headBase + 0.02, 0);
         inGas.userData.name = "Gazy ssące (powietrze)";
         cylG.add(inGas);
 
         // ═══ SFERA WYDECHU (Exhaust Gas) ═══
         const exGasMat = new THREE.MeshBasicMaterial({ color: 0xfb923c, transparent: true, opacity: 0, depthWrite: false });
-        const exGas = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), exGasMat);
-        exGas.position.set(exSign * 0.06, headBase + 0.02, 0); // port wydechowy — strona exhaust
+        const exGas = new THREE.Mesh(new THREE.SphereGeometry(0.06 * boreScale, 12, 12), exGasMat);
+        exGas.position.set(exSign * (0.06 * boreScale), headBase + 0.02, 0);
         exGas.userData.name = "Spaliny (exhaust)";
         cylG.add(exGas);
 
         // ═══ WTRYSKIWACZ PALIWA (Fuel Injector) ═══
-        // Pozycja: na kołnierzu dolotowym, skierowany pod kątem w stronę zaworów ssących
         const injectorG = new THREE.Group();
         const injBody = new THREE.Mesh(
           new THREE.CylinderGeometry(0.007, 0.009, 0.05, 12), this.matDarkSteel
@@ -1204,7 +1566,7 @@ export class Scene3D {
         const sprayRays = 8;
         for (let s = 0; s < sprayRays; s++) {
           const sprayAng = (s / sprayRays) * Math.PI * 2;
-          const spreadR = 0.02;
+          const spreadR = 0.02 * boreScale;
           sprayPoints.push(new THREE.Vector3(0, -0.035, 0));
           sprayPoints.push(new THREE.Vector3(
             Math.cos(sprayAng) * spreadR,
@@ -1218,15 +1580,15 @@ export class Scene3D {
         sprayLines.userData.name = "Strumień wtrysku paliwa";
         injectorG.add(sprayLines);
 
-        injectorG.position.set(inSign * 0.07, headBase + 0.06, 0);
+        injectorG.position.set(inSign * (0.07 * boreScale), headBase + 0.06, 0);
         injectorG.rotation.z = -inSign * (20 * Math.PI / 180);
         injectorG.userData.name = "Wtryskiwacz";
         cylG.add(injectorG);
 
         // ═══ OBLICZENIA MATEMATYCZNE TRANSFORMACJI PORTÓW DO UKŁADU SILNIKA ═══
-        const localInPortX = inSign * 0.06;
+        const localInPortX = inSign * (0.06 * boreScale);
         const localInPortY = headBase + 0.03;
-        const localExPortX = exSign * 0.06;
+        const localExPortX = exSign * (0.06 * boreScale);
         const localExPortY = headBase + 0.03;
 
         const inPortEngine = new THREE.Vector3(
@@ -1305,33 +1667,46 @@ export class Scene3D {
             lobe.rotation.z = lobeRot;
             camGroup.add(lobe);
             
-            let pushrod = null;
-            let rocker = null;
-            if (isOHV) {
-                pushrod = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 1.0, 8), this.matSteel);
-                cylG.add(pushrod);
-                
-                rocker = new THREE.Group();
-                const rockerArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.008, 0.012), this.matGold);
-                const rockerPivot = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.02, 16), this.matSteel);
-                rockerPivot.rotation.x = Math.PI / 2;
-                rocker.add(rockerArm);
-                rocker.add(rockerPivot);
-                cylG.add(rocker);
-            }
+            let pr = null;
+            let ra = null;
+            let prGeo = null;
+            let prMesh = null;
             
+            if (isOHV) {
+                // Rocker arm & Pushrod for OHV
+                ra = this.createRockerArm();
+                ra.position.set(valveSign * vOffX, headBase + 0.12, cfg.z + lobeZOffset);
+                ra.rotation.y = (valveSign < 0) ? Math.PI : 0;
+                bankG.add(ra);
+                
+                prGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(localX, localY + 0.02, cfg.z + lobeZOffset),
+                    new THREE.Vector3(valveSign * (0.07 * boreScale), headBase + 0.12, cfg.z + lobeZOffset)
+                ]);
+                prMesh = new THREE.Line(prGeo, this.matSteel);
+                prMesh.userData.name = "Laska popychacza (Pushrod)";
+                bankG.add(prMesh);
+            }
+
             this.valvesToDrive.push({
+                vg: vData.vg,
+                sp: vData.sp,
                 valveG: vData.vg,
                 spring: vData.sp,
-                pushrod: pushrod,
-                rocker: rocker,
-                prX: isOHV ? localX : 0,
-                prY: isOHV ? localY : 0,
-                prZ: lobeZOffset,
+                pushrod: prMesh,
+                rocker: ra,
+                ra: ra,
+                prMesh: prMesh,
+                prGeo: prGeo,
+                localCamX: localX,
+                localCamY: localY,
                 camGroup: camGroup,
                 lobeRot: lobeRot,
-                offsetX: valveSign * 0.045,
+                bankAngle: bankAngle,
+                baseY: headBase + 0.08,
+                offsetX: valveSign * vOffX,
                 offsetZ: vData.offZ,
+                prZ: cfg.z + lobeZOffset,
                 isOHV: isOHV
             });
         });
@@ -1340,8 +1715,8 @@ export class Scene3D {
       let bankBelt = null;
       if (isOHV) {
         if (firstBankOHV) {
-            const globalCamX = (this.config.layout === 'Inline') ? 0.14 : 0;
-            const globalCamY = (this.config.layout === 'Inline') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
+            const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.14 * boreScale : 0;
+            const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
             const beltPath = new THREE.CatmullRomCurve3([
               new THREE.Vector3(0, -0.045, 0),
               new THREE.Vector3(0.045, 0, 0),
@@ -1359,14 +1734,14 @@ export class Scene3D {
         }
       } else {
         const beltPath = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(-0.045, 0, 0),
-          new THREE.Vector3(-0.06, trueCamY / 2, 0),
-          new THREE.Vector3(-0.087, trueCamY, 0),
-          new THREE.Vector3(-0.045, trueCamY + 0.042, 0),
-          new THREE.Vector3(0.045, trueCamY + 0.042, 0),
-          new THREE.Vector3(0.087, trueCamY, 0),
-          new THREE.Vector3(0.06, trueCamY / 2, 0),
-          new THREE.Vector3(0.045, 0, 0)
+          new THREE.Vector3(-camOffsetX, 0, 0),
+          new THREE.Vector3(-camOffsetX - 0.015, trueCamY / 2, 0),
+          new THREE.Vector3(-camOffsetX - 0.042, trueCamY, 0),
+          new THREE.Vector3(-camOffsetX, trueCamY + 0.042, 0),
+          new THREE.Vector3(camOffsetX, trueCamY + 0.042, 0),
+          new THREE.Vector3(camOffsetX + 0.042, trueCamY, 0),
+          new THREE.Vector3(camOffsetX + 0.015, trueCamY / 2, 0),
+          new THREE.Vector3(camOffsetX, 0, 0)
         ], true);
         bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), this.matBelt);
         bankBelt.position.set(0, 0, gearZ);
@@ -1374,7 +1749,7 @@ export class Scene3D {
         bankG.add(bankBelt); // Added per-bank for DOHC
       }
 
-      this.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle });
+      this.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle, inSign, exSign });
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1382,18 +1757,18 @@ export class Scene3D {
     // ════════════════════════════════════════════════════════════════════════
     const intakeG = new THREE.Group();
     const plenumMidZ = (maxZ + minZ) / 2;
-    const plenumLen = Math.max(0.18, engineLength * 0.7);
+    const plenumLen = Math.max(0.20, engineLength * 0.72);
 
     let plenumX = 0;
     let plenumY = 0;
-    let plenumR = 0.045;
+    let plenumR = 0.045 * boreScale;
 
-    if (layout === 'Inline') {
-      plenumX = -0.18;
+    if (layout === 'Inline' || layout === 'VR') {
+      plenumX = -Math.max(0.18, 0.18 * boreScale + 0.04);
       plenumY = headBase + 0.12;
-    } else if (layout === 'V' || layout === 'VR') {
+    } else if (layout === 'V' || layout === 'W') {
       plenumX = 0.0;
-      plenumY = (layout === 'VR') ? headBase + 0.12 : (headBase * Math.cos(vAngle / 2) + 0.10);
+      plenumY = headBase * Math.cos(vAngle / 2) + 0.10;
     } else if (layout === 'Boxer') {
       // Dla Boxera: centralna puszka dolotu na szczycie bloku (Subaru style)
       plenumX = 0.0;
@@ -1449,21 +1824,21 @@ export class Scene3D {
     intakeG.add(tbG);
 
     // ═══ LISTWY PALIWOWE (Fuel Rails) ═══
-    if (layout === 'Inline') {
+    if (layout === 'Inline' || layout === 'VR') {
       const fuelRail = new THREE.Mesh(
         new THREE.CylinderGeometry(0.010, 0.010, engineLength + 0.08, 16), this.matExhaust
       );
       fuelRail.rotation.x = Math.PI / 2;
-      fuelRail.position.set(-0.13, headBase + 0.08, plenumMidZ);
+      fuelRail.position.set(-Math.max(0.13, 0.13 * boreScale + 0.02), headBase + 0.08, plenumMidZ);
       fuelRail.userData.name = "Listwa wtryskowa (Fuel Rail)";
       intakeG.add(fuelRail);
     } else {
-      // Dla V / VR / Boxer — dwie listwy paliwowe wzdłuż każdego banku
+      // Dla V / Boxer / W — dwie listwy paliwowe wzdłuż każdego banku
       [-1, 1].forEach((side, bIdx) => {
         const railZ = plenumMidZ;
-        const bAng = (layout === 'Boxer') ? (side * Math.PI / 2) : (side * (layout === 'VR' ? 7.5 : vAngle * 180 / Math.PI / 2) * Math.PI / 180);
+        const bAng = (layout === 'Boxer') ? (side * Math.PI / 2) : (side * (vAngle * 180 / Math.PI / 2) * Math.PI / 180);
         const inSideSign = (bAng > 0.001) ? 1 : -1;
-        const railLocalX = inSideSign * 0.08;
+        const railLocalX = inSideSign * (0.08 * boreScale);
         const railX = railLocalX * Math.cos(bAng) - (headBase + 0.08) * Math.sin(bAng);
         const railY = railLocalX * Math.sin(bAng) + (headBase + 0.08) * Math.cos(bAng);
         const fuelRail = new THREE.Mesh(
@@ -1484,59 +1859,44 @@ export class Scene3D {
       let pMid2 = new THREE.Vector3();
       const pEnd = cyl.inPort.clone();
 
-      if (layout === 'Inline') {
+      if (layout === 'Inline' || layout === 'VR') {
         pStart.set(plenumX + 0.02, plenumY - 0.02, cyl.z);
-        pMid1.set(plenumX + 0.05, plenumY - 0.04, cyl.z);
+        pMid1.set(plenumX * 0.7, plenumY + 0.04, cyl.z);
         pMid2.set(pEnd.x - 0.04, pEnd.y + 0.04, cyl.z);
-      } else if (layout === 'V' || layout === 'VR') {
-        const sideSign = cyl.inPort.x < 0 ? -1 : 1;
-        pStart.set(plenumX + sideSign * 0.03, plenumY - 0.03, cyl.z);
-        pMid1.set(plenumX + sideSign * 0.07, plenumY - 0.05, cyl.z);
-        pMid2.set(pEnd.x - sideSign * 0.03, pEnd.y + 0.03, cyl.z);
+      } else if (layout === 'V' || layout === 'W') {
+        const sideSign = cyl.inPort.x < 0 ? 1 : -1;
+        pStart.set(sideSign * 0.02, plenumY, cyl.z);
+        pMid1.set(sideSign * 0.08, plenumY + 0.02, cyl.z);
+        pMid2.set(pEnd.x + cyl.inNorm.x * 0.05, pEnd.y + cyl.inNorm.y * 0.05, cyl.z);
       } else if (layout === 'Boxer') {
-        // Dla Boxera: rury rozchodzą się na boki i łukiem opadają na górę poziomej głowicy
         const sideSign = cyl.inPort.x < 0 ? -1 : 1;
-        pStart.set(plenumX + sideSign * 0.04, plenumY, cyl.z);
-        pMid1.set(pEnd.x * 0.5, plenumY + 0.06, cyl.z);
-        pMid2.set(pEnd.x, pEnd.y + 0.08, cyl.z);
+        pStart.set(sideSign * 0.04, plenumY + 0.02, cyl.z);
+        pMid1.set(sideSign * 0.16, plenumY + 0.08, cyl.z);
+        pMid2.set(pEnd.x + cyl.inNorm.x * 0.06, pEnd.y + 0.08, cyl.z);
       }
 
       const runnerCurve = new THREE.CatmullRomCurve3([pStart, pMid1, pMid2, pEnd], false, 'catmullrom', 0.2);
       const runnerMesh = new THREE.Mesh(
-        new THREE.TubeGeometry(runnerCurve, 20, 0.016, 10, false), this.matIntake
+        new THREE.TubeGeometry(runnerCurve, 20, 0.016, 12, false), this.matIntake
       );
-      runnerMesh.userData.name = `Kolektor dolotowy (Runner #${idx + 1})`;
+      runnerMesh.userData.name = `Kolektor dolotowy (Kanał #${idx + 1})`;
       intakeG.add(runnerMesh);
 
-      // ═══ DYNAMICZNE LINIE PRZEPŁYWU POWIETRZA (Streamlines) ═══
-      const streamLinesGroup = new THREE.Group();
-      const numStreams = 3;
+      // Dynamiczne linie przepływu powietrza
       const streamDashes = [];
-
+      const numStreams = 3;
       for (let s = 0; s < numStreams; s++) {
-        const offsetAngle = (s / numStreams) * Math.PI * 2;
-        const radius = 0.006;
-        const curvePoints = runnerCurve.getPoints(24);
-        
-        // Zastosuj lekki offset radialny wzdłuż tuby
-        const offsetPoints = curvePoints.map((pt, pIdx) => {
-          const tangent = runnerCurve.getTangent(pIdx / 24);
-          const norm = new THREE.Vector3(-tangent.y, tangent.x, 0).normalize();
-          return pt.clone().addScaledVector(norm, Math.cos(offsetAngle) * radius);
-        });
-
-        const lineGeo = new THREE.BufferGeometry().setFromPoints(offsetPoints);
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(runnerCurve.getPoints(30));
         const lineMat = new THREE.LineBasicMaterial({
-          color: 0x00f0ff,
+          color: 0x00e5ff,
           transparent: true,
           opacity: 0,
           depthWrite: false
         });
         const lineMesh = new THREE.Line(lineGeo, lineMat);
-        streamLinesGroup.add(lineMesh);
-        streamDashes.push({ lineMesh, lineMat, origPoints: offsetPoints, curve: runnerCurve });
+        intakeG.add(lineMesh);
+        streamDashes.push({ lineMesh, lineMat, offset: s / numStreams });
       }
-      intakeG.add(streamLinesGroup);
 
       this.flowStreamlines.push({
         type: 'intake',
@@ -1551,35 +1911,36 @@ export class Scene3D {
     // ═══ 2. UNIWERSALNY KOLEKTOR WYDECHOWY (Exhaust Manifold & Headers) ═══
     // ════════════════════════════════════════════════════════════════════════
     const exhaustG = new THREE.Group();
-    const exhaustX = 0.28; // Położenie traktu wydechowego na ~1/4 szerokości auta z zapasem od koła zamachowego
+    const exhaustX = Math.max(0.32, sleeveRadius + 0.20); // Położenie traktu wydechowego poza obrysem koła zamachowego
     let exhaustMergePoint = new THREE.Vector3(exhaustX, -0.12, minZ - 0.20);
 
-    if (layout === 'Inline') {
-      // 4-1 Header po prawej stronie silnika
-      const colX = exhaustX, colY = -0.12, colZ = minZ - 0.08;
+    if (layout === 'Inline' || layout === 'VR') {
+      // 4-1 Header po prawej stronie silnika - kolektor zbiorczy na środku silnika (Z = 0)
+      const colX = exhaustX, colY = -0.10, colZ = 0.0;
       const collectorPoint = new THREE.Vector3(colX, colY, colZ);
-      exhaustMergePoint.set(colX, colY, colZ);
+      exhaustMergePoint.set(colX, -0.12, minZ - 0.15);
 
-      // Zbiornik 4-1
+      // Zbiornik / złącze 4-1 (Pyramid / Merge Collector)
       const collectorMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.038, 0.028, 0.15, 16), this.matDarkSteel
+        new THREE.CylinderGeometry(0.040, 0.026, 0.14, 16), this.matDarkSteel
       );
-      collectorMesh.rotation.x = Math.PI / 2 - 0.3;
+      collectorMesh.rotation.x = Math.PI / 2 - 0.2;
       collectorMesh.position.set(colX, colY, colZ);
-      collectorMesh.userData.name = "Kolektor zbiorczy 4-1";
+      collectorMesh.userData.name = "Kolektor zbiorczy (Centrum Z=0)";
       exhaustG.add(collectorMesh);
 
+      // Rury wydechowe (runners) z poszczególnych cylindrów zbiegające się w punkcie Z = 0
       this.cylinderPositions.forEach((cyl, idx) => {
         const pStart = cyl.exPort.clone();
-        // Wyprowadzenie rury poziomo z głowicy na zewnątrz poza obrys bloku i korbowodów (X >= 0.32)
-        const p1 = new THREE.Vector3(colX + 0.04, pStart.y + 0.01, pStart.z);
-        const perpOffset = 0.035 * Math.sin((idx / Math.max(1, this.cylinderPositions.length - 1)) * Math.PI);
-        const p2 = new THREE.Vector3(colX + 0.06, pStart.y * 0.2 + colY * 0.8 + perpOffset, pStart.z * 0.3 + colZ * 0.7);
+        // Wyprowadzenie rury poziomo z głowicy na zewnątrz poza obrys bloku
+        const p1 = new THREE.Vector3(colX + 0.045, pStart.y + 0.005, pStart.z);
+        const perpOffset = 0.032 * Math.sin((idx / Math.max(1, this.cylinderPositions.length - 1)) * Math.PI);
+        const p2 = new THREE.Vector3(colX + 0.055, pStart.y * 0.35 + colY * 0.65 + perpOffset, pStart.z * 0.4 + colZ * 0.6);
         const pEnd = collectorPoint.clone();
 
-        const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'catmullrom', 0.2);
+        const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'catmullrom', 0.25);
         const headerMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(headerCurve, 20, 0.016, 10, false), this.matExhaust
+          new THREE.TubeGeometry(headerCurve, 24, 0.016, 12, false), this.matExhaust
         );
         headerMesh.userData.name = `Kolektor wydechowy (Rura #${idx + 1})`;
         exhaustG.add(headerMesh);
@@ -1603,10 +1964,24 @@ export class Scene3D {
           lineMat
         });
       });
-    } else if (layout === 'V' || layout === 'VR') {
-      // Dwa kolektory po bokach (Lewy i Prawy) łączące się w Y-pipe
-      const colL = new THREE.Vector3(-0.32, -0.10, minZ - 0.05);
-      const colR = new THREE.Vector3(0.32, -0.10, minZ - 0.05);
+
+      // Rura spustowa (Downpipe) od kolektora 4-1 (Z=0) do traktu podwozia - omija bezpiecznie koło zamachowe
+      const downpipeCurve = new THREE.CatmullRomCurve3([
+        collectorPoint.clone().add(new THREE.Vector3(0, -0.01, -0.06)),
+        new THREE.Vector3(colX + 0.02, colY - 0.04, (colZ + exhaustMergePoint.z) * 0.5),
+        exhaustMergePoint
+      ]);
+      const downpipeMesh = new THREE.Mesh(
+        new THREE.TubeGeometry(downpipeCurve, 16, 0.022, 12, false), this.matExhaustPipe
+      );
+      downpipeMesh.userData.name = "Rura spustowa kolektora (Downpipe)";
+      exhaustG.add(downpipeMesh);
+    } else if (layout === 'V' || layout === 'W') {
+      // Dwa kolektory po bokach (Lewy i Prawy) wyprowadzone na zewnątrz głowic i łączące się w Y-pipe
+      const maxExX = Math.max(...this.cylinderPositions.map(c => Math.abs(c.exPort.x)), 0.38);
+      const colXOffset = maxExX + 0.08; // kolektor bezpiecznie poza obrysem cylindrów i świec
+      const colL = new THREE.Vector3(-colXOffset, -0.10, minZ - 0.05);
+      const colR = new THREE.Vector3(colXOffset, -0.10, minZ - 0.05);
       exhaustMergePoint.set(exhaustX, -0.12, minZ - 0.20);
 
       this.cylinderPositions.forEach((cyl, idx) => {
@@ -1614,8 +1989,15 @@ export class Scene3D {
         const targetCol = isLeft ? colL : colR;
         const sideSign = isLeft ? -1 : 1;
         const pStart = cyl.exPort.clone();
-        const p1 = new THREE.Vector3(sideSign * 0.35, pStart.y, pStart.z);
-        const p2 = new THREE.Vector3(sideSign * 0.36, pStart.y * 0.2 + targetCol.y * 0.8, pStart.z * 0.4 + targetCol.z * 0.6);
+        
+        // P1 odsuwa się w kierunku wektora normalnego wylotu (na zewnątrz głowicy z dala od świecy)
+        const p1 = pStart.clone().addScaledVector(cyl.exNorm, 0.07);
+        // P2 schodzi w dół po zewnętrznej stronie silnika ku kolektorowi zbiorczemu
+        const p2 = new THREE.Vector3(
+          sideSign * (colXOffset + 0.02),
+          pStart.y * 0.3 + targetCol.y * 0.7,
+          pStart.z * 0.4 + targetCol.z * 0.6
+        );
         const pEnd = targetCol.clone();
 
         const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'catmullrom', 0.2);
@@ -1644,9 +2026,18 @@ export class Scene3D {
         });
       });
 
-      // Rury Y-Pipe łączące lewy i prawy kolektor
-      const yLeftCurve = new THREE.CatmullRomCurve3([colL, new THREE.Vector3(0.00, -0.10, minZ - 0.12), exhaustMergePoint]);
-      const yRightCurve = new THREE.CatmullRomCurve3([colR, new THREE.Vector3(0.22, -0.07, minZ - 0.12), exhaustMergePoint]);
+      // Y-Pipe łączący oba banki do głównego układu wydechowego (exhaustMergePoint)
+      const yLeftCurve = new THREE.CatmullRomCurve3([
+        colL,
+        new THREE.Vector3(-colXOffset * 0.5, -0.12, minZ - 0.12),
+        new THREE.Vector3(0.00, -0.12, minZ - 0.16),
+        exhaustMergePoint
+      ]);
+      const yRightCurve = new THREE.CatmullRomCurve3([
+        colR,
+        new THREE.Vector3(colXOffset * 0.6, -0.10, minZ - 0.12),
+        exhaustMergePoint
+      ]);
       const yLeftMesh = new THREE.Mesh(new THREE.TubeGeometry(yLeftCurve, 16, 0.020, 8, false), this.matExhaustPipe);
       const yRightMesh = new THREE.Mesh(new THREE.TubeGeometry(yRightCurve, 16, 0.020, 8, false), this.matExhaustPipe);
       yLeftMesh.userData.name = "Rura Y-Pipe (Lewa)";
@@ -1695,86 +2086,137 @@ export class Scene3D {
     engineGroup.add(exhaustG);
 
     // ════════════════════════════════════════════════════════════════════════
-    // ═══ 3. PEŁNY UKŁAD WYDECHOWY DO TYŁU POJAZDU (Exhaust to Rear) ════════
+    // ═══ 3. PEŁNY UKŁAD WYDECHOWY DO TYŁU POJAZDU (Single / Dual Exhaust) ══
     // ════════════════════════════════════════════════════════════════════════
     const fullExhaustG = new THREE.Group();
+    const isDual = this.config.exhaustPipes === 'dual';
 
-    // 1. Złącze elastyczne (Flex pipe)
-    const flexStart = exhaustMergePoint.clone();
-    const flexEnd = new THREE.Vector3(exhaustX, -0.06, exhaustMergePoint.z - 0.16);
-    const flexCurve = new THREE.CatmullRomCurve3([flexStart, flexEnd]);
-    const flexMesh = new THREE.Mesh(new THREE.TubeGeometry(flexCurve, 10, 0.024, 12, false), this.matFlexPipe);
-    flexMesh.userData.name = "Złącze elastyczne wydechu (Flex Pipe)";
-    fullExhaustG.add(flexMesh);
+    // Rysowanie traktu wydechowego dla wybranej strony (+1 prawa, -1 lewa)
+    const buildExhaustTract = (tractSign, namePrefix) => {
+      const posX = tractSign * exhaustX;
+      const flexStart = (tractSign === 1) 
+        ? exhaustMergePoint.clone() 
+        : new THREE.Vector3(posX, exhaustMergePoint.y, exhaustMergePoint.z);
+      
+      // Jeśli dual i lewa strona, dodaj rurę łączącą od mergePoint do lewego traktu
+      if (isDual && tractSign === -1) {
+        const xCrossoverCurve = new THREE.CatmullRomCurve3([
+          exhaustMergePoint.clone(),
+          new THREE.Vector3(0, -0.11, exhaustMergePoint.z - 0.08),
+          flexStart
+        ]);
+        const xCrossoverMesh = new THREE.Mesh(new THREE.TubeGeometry(xCrossoverCurve, 12, 0.020, 8, false), this.matExhaustPipe);
+        xCrossoverMesh.userData.name = "Rura rozdzielająca wydech (Dual X-Pipe)";
+        fullExhaustG.add(xCrossoverMesh);
+      }
 
-    // 2. Katalizator (Catalytic Converter)
-    const catZ = flexEnd.z - 0.18;
-    const catMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.055, 0.22, 20), this.matCatalyst
-    );
-    catMesh.rotation.x = Math.PI / 2;
-    catMesh.position.set(exhaustX, -0.06, catZ);
-    catMesh.scale.set(1.3, 1, 0.8); // spłaszczony owalny kształt katalizatora
-    catMesh.userData.name = "Katalizator spalin (Catalytic Converter)";
-    fullExhaustG.add(catMesh);
+      const flexEnd = new THREE.Vector3(posX, -0.06, exhaustMergePoint.z - 0.16);
+      const flexCurve = new THREE.CatmullRomCurve3([flexStart, flexEnd]);
+      const flexMesh = new THREE.Mesh(new THREE.TubeGeometry(flexCurve, 10, 0.024, 12, false), this.matFlexPipe);
+      flexMesh.userData.name = `${namePrefix} Złącze elastyczne (Flex Pipe)`;
+      fullExhaustG.add(flexMesh);
 
-    // 3. Tłumik środkowy (Resonator / Center Muffler)
-    // Dynamiczny offset zapobiegający kolizji z katalizatorem dla każdego typu silnika
-    const resZ = Math.min(catZ - 0.45, -1.45);
-    const resMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.065, 0.065, 0.35, 20), this.matMuffler
-    );
-    resMesh.rotation.x = Math.PI / 2;
-    resMesh.position.set(exhaustX, -0.05, resZ);
-    resMesh.userData.name = "Tłumik środkowy (Resonator)";
-    fullExhaustG.add(resMesh);
+      // Katalizator (Catalytic Converter)
+      const catZ = flexEnd.z - 0.18;
+      const catMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.055, 0.055, 0.22, 20), this.matCatalyst
+      );
+      catMesh.rotation.x = Math.PI / 2;
+      catMesh.position.set(posX, -0.06, catZ);
+      catMesh.scale.set(1.3, 1, 0.8);
+      catMesh.userData.name = `${namePrefix} Katalizator spalin`;
+      fullExhaustG.add(catMesh);
 
-    // 4. Tłumik końcowy (Rear Muffler)
-    const rearMufflerZ = -2.85;
-    const rearMuffler = new THREE.Mesh(
-      new THREE.BoxGeometry(0.30, 0.16, 0.42), this.matMuffler
-    );
-    rearMuffler.position.set(exhaustX + 0.02, -0.02, rearMufflerZ);
-    rearMuffler.userData.name = "Tłumik końcowy (Rear Silencer)";
-    fullExhaustG.add(rearMuffler);
+      // Rura łącząca Flex Pipe z Katalizatorem
+      const p1Curve = new THREE.LineCurve3(flexEnd, new THREE.Vector3(posX, -0.06, catZ + 0.11));
+      const p1Mesh = new THREE.Mesh(new THREE.TubeGeometry(p1Curve, 4, 0.020, 8, false), this.matExhaustPipe);
+      p1Mesh.userData.name = `${namePrefix} Rura przed katalizatorem`;
+      fullExhaustG.add(p1Mesh);
 
-    // 5. Chromowana końcówka wydechu (Chrome Tailpipe Tip)
-    const tipZ = -3.35;
-    const tailpipeMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032, 0.032, 0.25, 24), this.matChrome
-    );
-    tailpipeMesh.rotation.x = Math.PI / 2;
-    tailpipeMesh.position.set(exhaustX + 0.02, -0.04, tipZ);
-    tailpipeMesh.userData.name = "Końcówka wydechu (Tailpipe)";
-    fullExhaustG.add(tailpipeMesh);
+      // Tłumik środkowy (Resonator)
+      const resZ = Math.min(catZ - 0.45, -1.45);
+      const resMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.065, 0.065, 0.35, 20), this.matMuffler
+      );
+      resMesh.rotation.x = Math.PI / 2;
+      resMesh.position.set(posX, -0.05, resZ);
+      resMesh.userData.name = `${namePrefix} Tłumik środkowy (Resonator)`;
+      fullExhaustG.add(resMesh);
 
-    // Ciągła linia rur wydechowych (Exhaust Piping Curve)
-    const pipePoints = [
-      flexEnd,
-      new THREE.Vector3(exhaustX, -0.10, catZ + 0.11),
-      new THREE.Vector3(exhaustX, -0.10, catZ - 0.11),
-      new THREE.Vector3(exhaustX, -0.08, resZ + 0.175),
-      new THREE.Vector3(exhaustX, -0.08, resZ - 0.175),
-      // Rura omijająca tylny dyferencjał / półoś (Axle Under-Pipe)
-      new THREE.Vector3(exhaustX, -0.08, -1.95),
-      new THREE.Vector3(exhaustX + 0.04, -0.14, -2.20),
-      new THREE.Vector3(exhaustX + 0.04, -0.08, -2.45),
-      new THREE.Vector3(exhaustX + 0.02, -0.04, rearMufflerZ + 0.21),
-      new THREE.Vector3(exhaustX + 0.02, -0.04, rearMufflerZ - 0.21),
-      new THREE.Vector3(exhaustX + 0.02, -0.04, tipZ)
-    ];
-    const fullExhaustCurve = new THREE.CatmullRomCurve3(pipePoints, false, 'catmullrom', 0.15);
-    const fullExhaustPipeMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(fullExhaustCurve, 64, 0.020, 10, false), this.matExhaustPipe
-    );
-    fullExhaustPipeMesh.userData.name = "Rura układu wydechowego";
-    fullExhaustG.add(fullExhaustPipeMesh);
+      // Rura łącząca Katalizator z Tłumikiem środkowym
+      const p2Curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(posX, -0.06, catZ - 0.11),
+        new THREE.Vector3(posX, -0.05, resZ + 0.175)
+      ]);
+      const p2Mesh = new THREE.Mesh(new THREE.TubeGeometry(p2Curve, 8, 0.020, 8, false), this.matExhaustPipe);
+      p2Mesh.userData.name = `${namePrefix} Rura środkowa wydechu`;
+      fullExhaustG.add(p2Mesh);
 
-    // Dynamiczna linia przepływu w głównym wydechu (Main Exhaust Streamline)
-    const mainExhaustLineGeo = new THREE.BufferGeometry().setFromPoints(fullExhaustCurve.getPoints(60));
-    const mainExhaustLine = new THREE.Line(mainExhaustLineGeo, this.matStreamlineMainExhaust);
-    fullExhaustG.add(mainExhaustLine);
-    this.exhaustMainStreamlines.push({ lineMesh: mainExhaustLine, curve: fullExhaustCurve });
+      // Tłumik końcowy (Rear Muffler)
+      const rearMufflerZ = -2.85;
+      const rearMuffler = new THREE.Mesh(
+        new THREE.BoxGeometry(0.30, 0.16, 0.42), this.matMuffler
+      );
+      rearMuffler.position.set(posX + tractSign * 0.02, -0.02, rearMufflerZ);
+      rearMuffler.userData.name = `${namePrefix} Tłumik końcowy (Rear Silencer)`;
+      fullExhaustG.add(rearMuffler);
+
+      // Rura podwozia: Tłumik środkowy -> Obejście mostu/półosi -> Tłumik końcowy
+      // Prowadzenie pod mostem (Y = -0.12 w rejonie Z = -2.20, podczas gdy półoś jest w Y = 0.20)
+      const p3Curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(posX, -0.05, resZ - 0.175),
+        new THREE.Vector3(posX, -0.09, -1.90),
+        new THREE.Vector3(posX + tractSign * 0.04, -0.12, -2.20),
+        new THREE.Vector3(posX + tractSign * 0.04, -0.07, -2.50),
+        new THREE.Vector3(posX + tractSign * 0.02, -0.02, rearMufflerZ + 0.21)
+      ], false, 'catmullrom', 0.2);
+      const p3Mesh = new THREE.Mesh(new THREE.TubeGeometry(p3Curve, 20, 0.020, 8, false), this.matExhaustPipe);
+      p3Mesh.userData.name = `${namePrefix} Rura podwoziowa nad osią`;
+      fullExhaustG.add(p3Mesh);
+
+      // Chromowana końcówka wydechu (Chrome Tailpipe Tip)
+      const tipZ = -3.35;
+      const tailpipeMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.032, 0.032, 0.25, 24), this.matChrome
+      );
+      tailpipeMesh.rotation.x = Math.PI / 2;
+      tailpipeMesh.position.set(posX + tractSign * 0.02, -0.04, tipZ);
+      tailpipeMesh.userData.name = `${namePrefix} Końcówka wydechu (Tailpipe)`;
+      fullExhaustG.add(tailpipeMesh);
+
+      // Rura łącząca Tłumik końcowy z Końcówką
+      const p4Curve = new THREE.LineCurve3(
+        new THREE.Vector3(posX + tractSign * 0.02, -0.02, rearMufflerZ - 0.21),
+        new THREE.Vector3(posX + tractSign * 0.02, -0.04, tipZ + 0.12)
+      );
+      const p4Mesh = new THREE.Mesh(new THREE.TubeGeometry(p4Curve, 4, 0.020, 8, false), this.matExhaustPipe);
+      p4Mesh.userData.name = `${namePrefix} Rura końcówki wydechu`;
+      fullExhaustG.add(p4Mesh);
+
+      // Dynamiczna linia przepływu spalin (Glowing Streamline)
+      const fullExhaustCurve = new THREE.CatmullRomCurve3([
+        flexStart,
+        flexEnd,
+        new THREE.Vector3(posX, -0.06, catZ),
+        new THREE.Vector3(posX, -0.05, resZ),
+        new THREE.Vector3(posX + tractSign * 0.04, -0.12, -2.20),
+        new THREE.Vector3(posX + tractSign * 0.02, -0.02, rearMufflerZ),
+        new THREE.Vector3(posX + tractSign * 0.02, -0.04, tipZ)
+      ], false, 'catmullrom', 0.2);
+
+      const mainExhaustLineGeo = new THREE.BufferGeometry().setFromPoints(fullExhaustCurve.getPoints(60));
+      const mainExhaustLine = new THREE.Line(mainExhaustLineGeo, this.matStreamlineMainExhaust);
+      fullExhaustG.add(mainExhaustLine);
+      this.exhaustMainStreamlines.push({ lineMesh: mainExhaustLine, curve: fullExhaustCurve });
+    };
+
+    // Zbuduj prawy trakt wydechowy (zawsze)
+    buildExhaustTract(1, isDual ? "Prawy" : "");
+
+    // Zbuduj lewy trakt wydechowy (jeśli dual exhaust)
+    if (isDual) {
+      buildExhaustTract(-1, "Lewy");
+    }
 
     engineGroup.add(fullExhaustG);
 
@@ -1845,14 +2287,14 @@ export class Scene3D {
     // Górny wąż (Gorący płyn: z głowicy/termostatu do górnego zbiornika chłodnicy)
     const thermostatPos = new THREE.Vector3(
       this.cylinderPositions[0].inPort.x * 0.4,
-      Math.max(0.45, this.cylinderPositions[0].inPort.y * 0.9),
-      maxZ + 0.05
+      Math.max(0.55, this.cylinderPositions[0].inPort.y + 0.06),
+      maxZ + 0.10
     );
     const radTopInletPos = new THREE.Vector3(0.15, radY + coreH / 2 + 0.018, radZ - 0.03);
 
     const hoseUpperCurve = new THREE.CatmullRomCurve3([
       thermostatPos,
-      new THREE.Vector3((thermostatPos.x + 0.15) / 2 + 0.04, thermostatPos.y + 0.06, (maxZ + radZ) / 2),
+      new THREE.Vector3((thermostatPos.x + 0.15) / 2 + 0.04, thermostatPos.y + 0.08, (maxZ + radZ) / 2),
       radTopInletPos
     ]);
     const hoseUpperMesh = new THREE.Mesh(
@@ -2133,6 +2575,18 @@ export class Scene3D {
     const mesh = new THREE.Mesh(geo, this.matGold);
     mesh.userData.name = "Sprężyna zaworowa";
     return mesh;
+  }
+
+  createRockerArm() {
+    const ra = new THREE.Group();
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.016), this.matGold);
+    arm.userData.name = "Dźwigienka zaworowa (Rocker Arm)";
+    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.024, 16), this.matSteel);
+    pivot.rotation.x = Math.PI / 2;
+    pivot.userData.name = "Oś dźwigienki zaworowej";
+    ra.add(arm, pivot);
+    ra.userData.name = "Dźwigienka zaworowa kompletna";
+    return ra;
   }
 
   createCamLobe() {
@@ -2522,45 +2976,38 @@ export class Scene3D {
     const counterSpeed = -inputSpeed * inputRatio;
     if (this.gbCounterGroup) this.gbCounterGroup.rotation.z = counterSpeed;
     
-    // Wybór biegów i ich ratios (Astra H 1.8 140KM F17 gearbox)
-    const gearConfigs = {
-      '1': { idx: 0, ratio: 0.04 / 0.10, realRatio: 3.727, sync: this.gbSync12, syncZ: 0.205 },
-      '2': { idx: 1, ratio: 0.06 / 0.08, realRatio: 2.136, sync: this.gbSync12, syncZ: 0.135 },
-      '3': { idx: 2, ratio: 0.08 / 0.06, realRatio: 1.414, sync: this.gbSync34, syncZ: 0.035 },
-      '4': { idx: -1, ratio: 1.0, realRatio: 1.121, sync: this.gbSync34, syncZ: 0.105 }, // Bezpośrednie (Direct drive visually)
-      '5': { idx: 3, ratio: 0.10 / 0.04, realRatio: 0.892, sync: null, syncZ: 0 },
-      'R': { idx: 4, ratio: - (0.04 / 0.10), realRatio: -3.308, sync: null, syncZ: 0 },
-      'N': { idx: -1, ratio: 0, realRatio: 0, sync: null, syncZ: 0 }
-    };
-
+    // ═══ SKRZYNIA BIEGÓW I NAPĘD (DYNAMIC RATIOS & TELEMETRIA) ═══
     const currentG = this.config.currentGear || '1';
-    const gConf = gearConfigs[currentG];
+    const realRatio = this.getCurrentGearRatio();
 
     let outputSpeed = 0;
     let overallGearRatio = 0;
-    if (currentG === '4') {
-      outputSpeed = inputSpeed; // Direct drive visually
-      overallGearRatio = 1.0 / gConf.realRatio;
-    } else if (currentG === 'N') {
+
+    if (currentG === 'N' || realRatio === 0) {
       outputSpeed = 0;
       overallGearRatio = 0;
     } else {
-      outputSpeed = -counterSpeed * gConf.ratio;
-      overallGearRatio = 1.0 / gConf.realRatio;
+      overallGearRatio = 1.0 / Math.abs(realRatio);
+      outputSpeed = (realRatio < 0) ? (-inputSpeed / Math.abs(realRatio)) : (inputSpeed / realRatio);
     }
 
-    // Obliczanie prędkości kół (km/h) na podstawie RPM silnika
-    const wheelSpeedEl = document.getElementById('dev_wheel_speed');
-    if (wheelSpeedEl) {
-      if (this.config.clutchEngaged && overallGearRatio !== 0) {
-        // wheelRPM = engineRPM * overallGearRatio / finalDrive
-        const wheelRPM = this.config.rpm * overallGearRatio / this.config.finalDrive;
-        // Założony obwód koła ~1.98m
-        const kmh = (wheelRPM * 1.98 * 60) / 1000;
-        wheelSpeedEl.innerText = Math.abs(Math.round(kmh)) + ' km/h';
-      } else {
-        wheelSpeedEl.innerText = '0 km/h';
-      }
+    // Obliczanie prędkości kół (km/h), obrotów koła (RPM) i redukcji na podstawie RPM silnika
+    const wheelSpeedEl = this.cachedDom.wheelSpeed;
+    const wheelRpmEl = this.cachedDom.wheelRpm;
+    const totalRedEl = this.cachedDom.totalRed;
+
+    if (this.config.clutchEngaged && overallGearRatio !== 0 && currentG !== 'N') {
+      const totalRatio = Math.abs(realRatio) * this.config.finalDrive;
+      const wheelRPM = this.config.rpm / totalRatio;
+      // Założony obwód koła ~1.98m (koło 205/55 R16)
+      const kmh = (wheelRPM * 1.98 * 60) / 1000;
+      if (wheelSpeedEl) wheelSpeedEl.innerText = Math.abs(Math.round(kmh)) + ' km/h' + (realRatio < 0 ? ' (R)' : '');
+      if (wheelRpmEl) wheelRpmEl.innerText = Math.abs(Math.round(wheelRPM)) + ' RPM';
+      if (totalRedEl) totalRedEl.innerText = totalRatio.toFixed(2) + ':1';
+    } else {
+      if (wheelSpeedEl) wheelSpeedEl.innerText = '0 km/h (Luz / Sprzęgło)';
+      if (wheelRpmEl) wheelRpmEl.innerText = '0 RPM';
+      if (totalRedEl) totalRedEl.innerText = '-';
     }
 
     if (this.gbOutputGroup) this.gbOutputGroup.rotation.z = outputSpeed;
@@ -2576,10 +3023,12 @@ export class Scene3D {
     
     // Ruch synchronizatorów
     if (this.gbSync12) {
-      this.gbSync12.position.z = THREE.MathUtils.lerp(this.gbSync12.position.z, (currentG==='1'||currentG==='2') ? gConf.syncZ : 0.17, 0.1);
+      const targetSync12Z = (currentG === '1') ? 0.20 : (currentG === '2') ? 0.14 : 0.17;
+      this.gbSync12.position.z = THREE.MathUtils.lerp(this.gbSync12.position.z, targetSync12Z, 0.1);
     }
     if (this.gbSync34) {
-      this.gbSync34.position.z = THREE.MathUtils.lerp(this.gbSync34.position.z, (currentG==='3'||currentG==='4') ? gConf.syncZ : 0.07, 0.1);
+      const targetSync34Z = (currentG === '3') ? 0.04 : (currentG === '4') ? 0.00 : (currentG === '5') ? -0.06 : 0.07;
+      this.gbSync34.position.z = THREE.MathUtils.lerp(this.gbSync34.position.z, targetSync34Z, 0.1);
     }
     
     if (this.propShaftMesh) this.propShaftMesh.rotation.z = outputSpeed;
@@ -2605,18 +3054,23 @@ export class Scene3D {
     const headBase = 0.82 + explodeDist * 1.5;
     const isOHV = this.config.valvetrain === "OHV" || this.config.valvetrain === "valve_ohv";
     const trueCamY = isOHV ? (0.28 + explodeDist * 0.5) : (1.020 + explodeDist * 1.5);
+    const boreMm = this.config.boreMm || 84.0;
+    const boreScale = boreMm / 84.0;
+    const camOffsetX = (this.config.valves === 4 ? 0.048 : 0.038) * boreScale;
 
     if (this.banksData) {
       this.banksData.forEach(bank => {
         if (isOHV) {
-            const globalCamX = (this.config.layout === 'Inline') ? 0.14 : 0;
-            const globalCamY = (this.config.layout === 'Inline') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
+            const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.14 * boreScale : 0;
+            const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
             const localX = globalCamX * Math.cos(bank.bankAngle) + globalCamY * Math.sin(bank.bankAngle);
             const localY = -globalCamX * Math.sin(bank.bankAngle) + globalCamY * Math.cos(bank.bankAngle);
-            bank.camBaseEx.position.set(localX, localY, 0);
+            if (bank.camBaseEx) bank.camBaseEx.position.set(localX, localY, 0);
         } else {
-            bank.camBaseIn.position.set(-0.045, trueCamY, 0);
-            bank.camBaseEx.position.set(0.045, trueCamY, 0);
+            const inSign = bank.inSign !== undefined ? bank.inSign : -1;
+            const exSign = bank.exSign !== undefined ? bank.exSign : 1;
+            if (bank.camBaseIn) bank.camBaseIn.position.set(inSign * camOffsetX, trueCamY, 0);
+            if (bank.camBaseEx) bank.camBaseEx.position.set(exSign * camOffsetX, trueCamY, 0);
         }
       });
     }
@@ -2636,7 +3090,7 @@ export class Scene3D {
     
     this.movingCylinders.forEach(part => {
       part.sleeve.position.set(0, sleeveCenter + explodeDist, 0);
-      part.head.position.set(0, headBase + 0.08, 0);
+      part.head.position.set(part.head.position.x, headBase + 0.08, 0);
       part.sparkPlug.position.set(0, 0.82 + explodeDist, 0);
       part.fireMesh.position.set(0, 0.76 + explodeDist, 0);
 
@@ -2675,7 +3129,8 @@ export class Scene3D {
       momentY += fX * armZ;
 
       const strokeAngle = (this.crankAngle + part.phaseOffset) % (Math.PI * 4);
-      if (strokeAngle >= Math.PI * 2 && strokeAngle < Math.PI * 2.35) {        const prog = (strokeAngle - Math.PI * 2) / 0.35;
+      if (strokeAngle >= Math.PI * 2 && strokeAngle < Math.PI * 2.35) {
+        const prog = (strokeAngle - Math.PI * 2) / 0.35;
         part.fireMat.opacity = 0.95 * (1.0 - prog);
         part.fireMesh.scale.setScalar(0.8 + prog * 0.5);
       } else {
@@ -2715,7 +3170,6 @@ export class Scene3D {
 
     // ═══ ANIMACJA LINII PRZEPŁYWU GAZÓW (STREAMLINES) ═══
     if (this.flowStreamlines) {
-      const flowSpeed = (this.config.rpm / 60) * 0.05; // prędkość przepływu zależna od RPM
       const animTime = time * 0.003 * (this.isPlaying ? (this.speedMult * 2.5) : 0);
 
       this.flowStreamlines.forEach(item => {
@@ -2727,17 +3181,20 @@ export class Scene3D {
             const intensity = Math.sin(strokeAngle);
             item.streams.forEach((st, sIdx) => {
               st.lineMat.opacity = intensity * 0.95;
-              // Animuj przesunięcie punktów wzdłuż krzywej
               const posAttr = st.lineMesh.geometry.attributes.position;
               const ptsCount = posAttr.count;
-              for (let p = 0; p < ptsCount; p++) {
-                const uOrig = p / (ptsCount - 1);
-                // Przesunięcie u w czasie w kierunku cylindra (0 → 1)
-                const uAnim = (uOrig + animTime * 1.5 + (sIdx * 0.15)) % 1.0;
-                const pt = st.curve.getPointAt(uAnim);
-                posAttr.setXYZ(p, pt.x, pt.y, pt.z);
+              const samples = st.sampledCurvePoints;
+              const maxSampleIdx = st.numCurveSamples;
+              if (samples && maxSampleIdx) {
+                for (let p = 0; p < ptsCount; p++) {
+                  const uOrig = p / (ptsCount - 1);
+                  const uAnim = (uOrig + animTime * 1.5 + (sIdx * 0.15)) % 1.0;
+                  const sampleIdx = Math.min(maxSampleIdx, Math.floor(uAnim * maxSampleIdx));
+                  const pt = samples[sampleIdx];
+                  if (pt) posAttr.setXYZ(p, pt.x, pt.y, pt.z);
+                }
+                posAttr.needsUpdate = true;
               }
-              posAttr.needsUpdate = true;
             });
           } else {
             item.streams.forEach(st => { st.lineMat.opacity = 0; });
@@ -2756,7 +3213,6 @@ export class Scene3D {
 
     // ═══ ANIMACJA GŁÓWNEJ RURY WYDECHOWEJ (Pulsowanie do tyłu auta) ═══
     if (this.matStreamlineMainExhaust) {
-      // Wylicz średnią aktywność wydechu wszystkich cylindrów
       let totalExhaustFlow = 0;
       this.movingCylinders.forEach(c => {
         const sa = (this.crankAngle + c.phaseOffset) % (Math.PI * 4);
@@ -2773,7 +3229,7 @@ export class Scene3D {
       this.wpPulley.rotation.y = this.crankAngle * (0.085 / 0.045);
     }
 
-    if (this.vibCtx) {
+    if (this.vibCtx && this.vibCanvas && this.vibCanvas.offsetParent !== null) {
       const ctx = this.vibCtx;
       const w = this.vibCanvas.width;
       const h = this.vibCanvas.height;
@@ -2805,7 +3261,7 @@ export class Scene3D {
       this.forceTrail.push({x: px, y: py});
       this.momentTrail.push({x: mx, y: my});
       
-      // Keep only last 360 points (approx 2 rotations)
+      // Keep only last 200 points
       if (this.forceTrail.length > 200) this.forceTrail.shift();
       if (this.momentTrail.length > 200) this.momentTrail.shift();
       
@@ -2883,45 +3339,38 @@ export class Scene3D {
       
       if (v.isOHV) {
           const rBase = 0.025;
-          
-          // Recompute localY based on explodeDist
-          const globalCamX = (this.config.layout === 'Inline') ? 0.14 : 0;
-          const globalCamY = (this.config.layout === 'Inline') ? (0.28 + explodeDist * 0.5) : (0.18 + explodeDist * 0.5);
-          
-          // Actually, we stored the initial bank angle when we could just use it if we had it, but v doesn't have bankAngle.
-          // Wait, v.prY was calculated once, but now with explodeDist changing dynamically, we need it dynamically!
-          // We can use the current camGroup position which is already correctly updated by the banksData loop!
-          const prBottomYLocal = v.camGroup.parent.position.y + r;
-          const prBottomXLocal = v.camGroup.parent.position.x;
-          
-          const prTopYLocal = valveY + 0.08; 
-          const prLen = prTopYLocal - prBottomYLocal - 0.02; // dynamic length
-          
-          v.pushrod.scale.y = prLen;
-          v.pushrod.position.set(prBottomXLocal, prBottomYLocal + prLen / 2, v.prZ);
-          
-          if (v.rocker) {
-              const vTopX = v.offsetX;
-              const vTopY = valveY + 0.06;
-              const prTopX = prBottomXLocal;
-              const prTopY = prBottomYLocal + prLen;
-              
-              const midX = (vTopX + prTopX) / 2;
-              const midY = (vTopY + prTopY) / 2;
-              const midZ = (v.offsetZ + v.prZ) / 2;
-              
-              v.rocker.position.set(midX, midY, midZ);
-              
-              const dx = vTopX - prTopX;
-              const dy = vTopY - prTopY;
-              const dz = v.offsetZ - v.prZ;
-              const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-              
-              v.rocker.children[0].scale.x = dist / 0.12; 
-              
-              v.rocker.rotation.order = 'ZYX';
-              v.rocker.rotation.z = Math.atan2(dy, dx);
-              v.rocker.rotation.y = Math.atan2(-dz, Math.sqrt(dx*dx + dy*dy));
+          if (v.camGroup && v.camGroup.parent && v.pushrod) {
+            const prBottomYLocal = v.camGroup.parent.position.y + r;
+            const prBottomXLocal = v.camGroup.parent.position.x;
+            const prTopYLocal = valveY + 0.08; 
+            const prLen = Math.max(0.05, prTopYLocal - prBottomYLocal - 0.02);
+            
+            v.pushrod.scale.y = prLen;
+            v.pushrod.position.set(prBottomXLocal, prBottomYLocal + prLen / 2, v.prZ);
+            
+            if (v.rocker && v.rocker.children && v.rocker.children.length > 0) {
+                const vTopX = v.offsetX;
+                const vTopY = valveY + 0.06;
+                const prTopX = prBottomXLocal;
+                const prTopY = prBottomYLocal + prLen;
+                
+                const midX = (vTopX + prTopX) / 2;
+                const midY = (vTopY + prTopY) / 2;
+                const midZ = (v.offsetZ + v.prZ) / 2;
+                
+                v.rocker.position.set(midX, midY, midZ);
+                
+                const dx = vTopX - prTopX;
+                const dy = vTopY - prTopY;
+                const dz = v.offsetZ - v.prZ;
+                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                
+                v.rocker.children[0].scale.x = dist / 0.12; 
+                
+                v.rocker.rotation.order = 'ZYX';
+                v.rocker.rotation.z = Math.atan2(dy, dx);
+                v.rocker.rotation.y = Math.atan2(-dz, Math.sqrt(dx*dx + dy*dy));
+            }
           }
       }
     });
@@ -2969,6 +3418,135 @@ export class Scene3D {
       }
       return { id: p.id, phase, phaseClass, desc };
     });
+  }
+
+  getPartsCatalog() {
+    if (!this.carGroup) return { totalCount: 0, uniqueCount: 0, categories: [] };
+    
+    // Lista zdefiniowanych kategorii mechanicznych
+    const categoryDefs = [
+      {
+        id: "crank",
+        name: "Układ Korbowo-Tłokowy",
+        icon: "🗜️",
+        match: (n) => n.includes("korbowód") || n.includes("korbowod") || n.includes("trzon") || n.includes("stopa") || n.includes("główka") || n.includes("panewka") || n.includes("tulejka") || n.includes("półka") || n.includes("środnik") || n.includes("śruba korbowodowa") || n.includes("pokrywa stopy") || n.includes("tłok") || n.includes("tlok") || n.includes("pierścień") || n.includes("pierscien") || n.includes("sworzeń") || n.includes("sworzen") || n.includes("seger") || n.includes("wał korbowy") || n.includes("wal korbowy") || n.includes("czop") || n.includes("wykorbienie") || n.includes("przeciwwaga") || n.includes("przeciwciężar") || n.includes("snout") || n.includes("koło zębate wału") || n.includes("koło pasowe wału") || n.includes("kołnierz koła zamachowego")
+      },
+      {
+        id: "valvetrain",
+        name: "Głowica i Układ Rozrządu",
+        icon: "⚙️",
+        match: (n) => n.includes("wałek rozrządu") || n.includes("walek rozrzadu") || n.includes("krzywka") || n.includes("koło wałka") || n.includes("pasek rozrządu") || n.includes("pasek rozrzadu") || n.includes("napinacz") || n.includes("zawór") || n.includes("zawor") || n.includes("grzybek") || n.includes("trzonek") || n.includes("sprężyna") || n.includes("talerzyk") || n.includes("szklanka") || n.includes("popychacz") || n.includes("dźwigienka") || n.includes("laska") || n.includes("świeca") || n.includes("swieca") || n.includes("izolator")
+      },
+      {
+        id: "intake",
+        name: "Układ Dolotowy i Wtrysk",
+        icon: "🌪️",
+        match: (n) => n.includes("plenum") || n.includes("przepustnica") || n.includes("klapa") || n.includes("oś klapy") || n.includes("kolektor dolotowy") || n.includes("runner") || n.includes("filtr") || n.includes("wtryskiwacz") || n.includes("listwa wtryskowa") || n.includes("strumień wtrysku")
+      },
+      {
+        id: "exhaust",
+        name: "Układ Wydechowy",
+        icon: "🔥",
+        match: (n) => n.includes("kolektor wydechowy") || n.includes("kolektor zbiorczy") || n.includes("y-pipe") || n.includes("flex pipe") || n.includes("złącze elastyczne") || n.includes("katalizator") || n.includes("tłumik") || n.includes("tlumik") || n.includes("końcówka wydechu") || n.includes("rura układu wydechowego")
+      },
+      {
+        id: "cooling_aux",
+        name: "Chłodzenie i Osprzęt Paskowy",
+        icon: "❄️",
+        match: (n) => n.includes("chłodnic") || n.includes("wąż chłodnicy") || n.includes("wentylator") || n.includes("termostat") || n.includes("pompa wody") || n.includes("alternator") || n.includes("pasek klinowy") || n.includes("koło pasowe") || n.includes("rolka")
+      },
+      {
+        id: "drivetrain",
+        name: "Układ Przeniesienia Napędu",
+        icon: "🏎️",
+        match: (n) => n.includes("sprzęgło") || n.includes("sprzeglo") || n.includes("tarcza") || n.includes("docisk") || n.includes("koło zamachowe") || n.includes("skrzynia") || n.includes("wałek wejściowy") || n.includes("wałek wyjściowy") || n.includes("koło biegu") || n.includes("zębatka bieg") || n.includes("synchronizator") || n.includes("przesuwka") || n.includes("wał napędowy") || n.includes("prop shaft") || n.includes("dyferencjał") || n.includes("dyferencjal") || n.includes("satelit") || n.includes("krzyżak") || n.includes("krzyzak") || n.includes("kosz") || n.includes("koło talerzowe") || n.includes("wałek atakujący") || n.includes("koło koronowe") || n.includes("półoś") || n.includes("polos") || n.includes("lsd") || n.includes("blokada")
+      },
+      {
+        id: "chassis",
+        name: "Podwozie, Zawieszenie i Koła",
+        icon: "🛞",
+        match: (n) => n.includes("koło") || n.includes("felga") || n.includes("opona") || n.includes("tarcza hamulcowa") || n.includes("zacisk") || n.includes("wahacz") || n.includes("amortyzator") || n.includes("zwrotnica") || n.includes("łącznik") || n.includes("stabilizator") || n.includes("rama") || n.includes("belka")
+      }
+    ];
+
+    const partCounts = {};
+    let totalMeshCount = 0;
+
+    this.carGroup.traverse((child) => {
+      if (child.isMesh && child.visible && child.userData && child.userData.name) {
+        const name = child.userData.name;
+        if (
+          name.includes("(Zarys)") ||
+          name.includes("Zarysy") ||
+          name.includes("Datum") ||
+          name.includes("Punkt środka") ||
+          name.includes("Centrum") ||
+          name.includes("Centroid") ||
+          name.includes("Oś Cyl") ||
+          name.includes("Gazy ssące") ||
+          name.includes("Spaliny") ||
+          name.includes("Strumień") ||
+          name.includes("Płomień") ||
+          name.includes("Iskra") ||
+          child.userData.isDatumLabel
+        ) {
+          return;
+        }
+
+        totalMeshCount++;
+        partCounts[name] = (partCounts[name] || 0) + 1;
+      }
+    });
+
+    // Grupowanie części do kategorii
+    const categorized = categoryDefs.map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      icon: cat.icon,
+      items: [],
+      count: 0
+    }));
+
+    const otherCategory = {
+      id: "other",
+      name: "Pozostałe Elementy",
+      icon: "📦",
+      items: [],
+      count: 0
+    };
+
+    Object.entries(partCounts).forEach(([name, count]) => {
+      const lower = name.toLowerCase();
+      let matched = false;
+      for (const cat of categorized) {
+        const def = categoryDefs.find(d => d.id === cat.id);
+        if (def && def.match(lower)) {
+          cat.items.push({ name, count });
+          cat.count += count;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        otherCategory.items.push({ name, count });
+        otherCategory.count += count;
+      }
+    });
+
+    // Sortuj części alfabetycznie w każdej kategorii
+    categorized.forEach(cat => {
+      cat.items.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+    });
+    otherCategory.items.sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+
+    const finalCategories = categorized.filter(c => c.count > 0);
+    if (otherCategory.count > 0) finalCategories.push(otherCategory);
+
+    return {
+      totalCount: totalMeshCount,
+      uniqueCount: Object.keys(partCounts).length,
+      categories: finalCategories
+    };
   }
 
   checkOverlap() {
@@ -3144,82 +3722,96 @@ export class Scene3D {
       const nA = a.name.toLowerCase();
       const nB = b.name.toLowerCase();
 
-      if (nA === nB) return true;
+      // 1. Te same części
+      if (nA === nB && a.cylId === b.cylId) return true;
 
-      // Części tego samego zespołu cylindra (tłok, pierścienie, sworzeń, zawory, świeca w jednym cylindrze)
+      // 2. Części tego samego zespołu cylindra (tłok, pierścienie, sworzeń, zawory, świeca w jednym cylindrze)
       if (a.cylId !== null && b.cylId !== null && a.cylId === b.cylId) return true;
 
-      // Korbowód (trzon, stopa, główka, śruby, panewki, tulejki, półki, środnik)
-      const isRodA = nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("główka") || nA.includes("panewka") || nA.includes("tulejka") || nA.includes("półka") || nA.includes("środnik") || nA.includes("śruba") || nA.includes("pokrywa stopy");
-      const isRodB = nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("główka") || nB.includes("panewka") || nB.includes("tulejka") || nB.includes("półka") || nB.includes("środnik") || nB.includes("śruba") || nB.includes("pokrywa stopy");
-      if (isRodA && isRodB) return true;
+      // 2b. SPRAWDZENIE MIĘDZYCYLINDROWE:
+      // Tłoki, korbowody, sworznie, pierścienie i tuleje różnych cylindrów (a.cylId !== b.cylId)
+      // NIGDY nie są ignorowane - ich kolizja w 3D to błąd konstrukcyjny!
+      const isCylPartA = nA.includes("tłok") || nA.includes("tlok") || nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("tuleja");
+      const isCylPartB = nB.includes("tłok") || nB.includes("tlok") || nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("tuleja");
+      if (a.cylId !== null && b.cylId !== null && a.cylId !== b.cylId && isCylPartA && isCylPartB) {
+        return false;
+      }
 
-      // Korbowód + tłok / sworzeń / pierścienie
-      const isPistonA = nA.includes("tłok") || nA.includes("tlok") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("seger");
-      const isPistonB = nB.includes("tłok") || nB.includes("tlok") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("seger");
-      if ((isRodA && isPistonB) || (isPistonA && isRodB)) return true;
-
-      // Korbowód + wał korbowy / czopy / przeciwciężary
+      // 3. Układ korbowo-tłokowy (korbowód na czopie wału, przeciwwagi, koło pasowe, kołnierz koła zamachowego)
       const isCrankA = nA.includes("wał korbowy") || nA.includes("wal korbowy") || nA.includes("czop") || nA.includes("wykorbienie") || nA.includes("przeciwwaga") || nA.includes("przeciwciężar") || nA.includes("ramię") || nA.includes("snout") || nA.includes("koło zębate wału") || nA.includes("koło pasowe wału") || nA.includes("koło zamachowe") || nA.includes("kołnierz");
       const isCrankB = nB.includes("wał korbowy") || nB.includes("wal korbowy") || nB.includes("czop") || nB.includes("wykorbienie") || nB.includes("przeciwwaga") || nB.includes("przeciwciężar") || nB.includes("ramię") || nB.includes("snout") || nB.includes("koło zębate wału") || nB.includes("koło pasowe wału") || nB.includes("koło zamachowe") || nB.includes("kołnierz");
-      if ((isRodA && isCrankB) || (isCrankA && isRodB)) return true;
+      
+      const isRodPistonA = nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("główka") || nA.includes("panewka") || nA.includes("tulejka") || nA.includes("półka") || nA.includes("środnik") || nA.includes("śruba") || nA.includes("pokrywa stopy") || nA.includes("tłok") || nA.includes("tlok") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien");
+      const isRodPistonB = nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("główka") || nB.includes("panewka") || nB.includes("tulejka") || nB.includes("półka") || nB.includes("środnik") || nB.includes("śruba") || nB.includes("pokrywa stopy") || nB.includes("tłok") || nB.includes("tlok") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien");
+
       if (isCrankA && isCrankB) return true;
+      if ((isCrankA && isRodPistonB) || (isCrankB && isRodPistonA)) return true;
 
-      // Wał / koło zamachowe + sprzęgło
-      const isClutchA = nA.includes("sprzęgło") || nA.includes("sprzeglo") || nA.includes("tarcza") || nA.includes("docisk") || nA.includes("koło zamachowe");
-      const isClutchB = nB.includes("sprzęgło") || nB.includes("sprzeglo") || nB.includes("tarcza") || nB.includes("docisk") || nB.includes("koło zamachowe");
-      if (isClutchA && isClutchB) return true;
-      if ((isCrankA && isClutchB) || (isClutchA && isCrankB)) return true;
+      // 4. Rozrząd i napęd rozrządu (wałki, koła wałków, pasek rozrządu, napinacz, koło zębate wału, snout, zawory, popychacze, dźwigienki, sprężyny)
+      const isTimingA = nA.includes("wałek rozrządu") || nA.includes("walek rozrzadu") || nA.includes("krzywka") || nA.includes("koło wałka") || nA.includes("pasek rozrządu") || nA.includes("pasek rozrzadu") || nA.includes("napinacz rozrządu") || nA.includes("koło zębate wału") || nA.includes("zawór") || nA.includes("zawor") || nA.includes("grzybek") || nA.includes("sprężyna") || nA.includes("szklanka") || nA.includes("popychacz") || nA.includes("dźwigienka") || nA.includes("laska") || nA.includes("snout");
+      const isTimingB = nB.includes("wałek rozrządu") || nB.includes("walek rozrzadu") || nB.includes("krzywka") || nB.includes("koło wałka") || nB.includes("pasek rozrządu") || nB.includes("pasek rozrzadu") || nB.includes("napinacz rozrządu") || nB.includes("koło zębate wału") || nB.includes("zawór") || nB.includes("zawor") || nB.includes("grzybek") || nB.includes("sprężyna") || nB.includes("szklanka") || nB.includes("popychacz") || nB.includes("dźwigienka") || nB.includes("laska") || nB.includes("snout");
+      if (isTimingA && isTimingB) return true;
+      if ((isTimingA && (isCrankA || isRodPistonB)) || (isTimingB && (isCrankB || isRodPistonA))) return true;
 
-      // Rozrząd: wałki rozrządu, koła zębate, krzywki, szklanki popychaczy, dźwigienki, zawory, sprężyny
-      const isValveA = nA.includes("zawór") || nA.includes("zawor") || nA.includes("grzybek") || nA.includes("sprężyna") || nA.includes("szklanka") || nA.includes("popychacz") || nA.includes("dźwigienka") || nA.includes("laska");
-      const isValveB = nB.includes("zawór") || nB.includes("zawor") || nB.includes("grzybek") || nB.includes("sprężyna") || nB.includes("szklanka") || nB.includes("popychacz") || nB.includes("dźwigienka") || nB.includes("laska");
-      const isCamA = nA.includes("wałek rozrządu") || nA.includes("walek rozrzadu") || nA.includes("krzywka") || nA.includes("koło wałka");
-      const isCamB = nB.includes("wałek rozrządu") || nB.includes("walek rozrzadu") || nB.includes("krzywka") || nB.includes("koło wałka");
-      if (isCamA && isCamB) return true;
-      if ((isCamA && isValveB) || (isValveA && isCamB)) return true;
-      if (isValveA && isValveB) return true;
+      // 5. Układ wydechowy (kolektory, rury wydechowe, downpipe, x-pipe, y-pipe, flex pipe, złącze elastyczne, katalizator, tłumik, końcówka)
+      const isExhaustA = nA.includes("wydech") || nA.includes("kolektor wydechowy") || nA.includes("kolektor zbiorczy") || nA.includes("y-pipe") || nA.includes("x-pipe") || nA.includes("downpipe") || nA.includes("flex pipe") || nA.includes("złącze elastyczne") || nA.includes("katalizator") || nA.includes("tłumik") || nA.includes("tlumik") || nA.includes("końcówka") || nA.includes("koncowka") || nA.includes("rura");
+      const isExhaustB = nB.includes("wydech") || nB.includes("kolektor wydechowy") || nB.includes("kolektor zbiorczy") || nB.includes("y-pipe") || nB.includes("x-pipe") || nB.includes("downpipe") || nB.includes("flex pipe") || nB.includes("złącze elastyczne") || nB.includes("katalizator") || nB.includes("tłumik") || nB.includes("tlumik") || nB.includes("końcówka") || nB.includes("koncowka") || nB.includes("rura");
+      if (isExhaustA && isExhaustB) return true;
+      if ((isExhaustA && (isCrankA || isRodPistonB || isTimingB)) || (isExhaustB && (isCrankB || isRodPistonA || isTimingA))) return true;
 
-      // Paski i koła pasowe / napinacze / alternator / pompa wody
-      const isBeltAuxA = nA.includes("pasek") || nA.includes("koło pasowe") || nA.includes("napinacz") || nA.includes("rolka") || nA.includes("alternator") || nA.includes("pompa");
-      const isBeltAuxB = nB.includes("pasek") || nB.includes("koło pasowe") || nB.includes("napinacz") || nB.includes("rolka") || nB.includes("alternator") || nB.includes("pompa");
-      if (isBeltAuxA && isBeltAuxB) return true;
-
-      // Dolot: plenum, przepustnica, klapa motylkowa, oś klapy, runner, filtr, wtryskiwacz, listwa wtryskowa
+      // 6. Układ dolotowy (plenum, przepustnica, runner, wtryskiwacz, listwa, filtr)
       const isIntakeA = nA.includes("plenum") || nA.includes("przepustnica") || nA.includes("klapa") || nA.includes("oś klapy") || nA.includes("kolektor dolotowy") || nA.includes("runner") || nA.includes("filtr") || nA.includes("wtryskiwacz") || nA.includes("listwa wtryskowa");
       const isIntakeB = nB.includes("plenum") || nB.includes("przepustnica") || nB.includes("klapa") || nB.includes("oś klapy") || nB.includes("kolektor dolotowy") || nB.includes("runner") || nB.includes("filtr") || nB.includes("wtryskiwacz") || nB.includes("listwa wtryskowa");
       if (isIntakeA && isIntakeB) return true;
+      if ((isIntakeA && (isCrankA || isTimingB || isExhaustB)) || (isIntakeB && (isCrankB || isTimingA || isExhaustA))) return true;
 
-      // Wydech: rury wydechowe, kolektory, rura Y-pipe, złącze elastyczne, katalizator, tłumik, końcówka wydechu
-      const isExhaustA = nA.includes("kolektor wydechowy") || nA.includes("kolektor zbiorczy") || nA.includes("y-pipe") || nA.includes("flex pipe") || nA.includes("złącze elastyczne") || nA.includes("katalizator") || nA.includes("tłumik") || nA.includes("tlumik") || nA.includes("końcówka wydechu") || nA.includes("rura układu wydechowego");
-      const isExhaustB = nB.includes("kolektor wydechowy") || nB.includes("kolektor zbiorczy") || nB.includes("y-pipe") || nB.includes("flex pipe") || nB.includes("złącze elastyczne") || nB.includes("katalizator") || nB.includes("tłumik") || nB.includes("tlumik") || nB.includes("końcówka wydechu") || nB.includes("rura układu wydechowego");
-      if (isExhaustA && isExhaustB) return true;
+      // 7. Sprzęgło i koło zamachowe
+      const isClutchA = nA.includes("sprzęgło") || nA.includes("sprzeglo") || nA.includes("tarcza") || nA.includes("docisk") || nA.includes("koło zamachowe");
+      const isClutchB = nB.includes("sprzęgło") || nB.includes("sprzeglo") || nB.includes("tarcza") || nB.includes("docisk") || nB.includes("koło zamachowe");
+      if (isClutchA && isClutchB) return true;
+      if ((isClutchA && (isCrankA || isExhaustB)) || (isClutchB && (isCrankB || isExhaustA))) return true;
 
-      // Skrzynia biegów i napęd (wał wejściowy, wyjściowy, koła zębate, przesuwki, synchronizatory, wał napędowy)
+      // 8. Układ chłodzenia (chłodnica, lamele, zbiornik, węże, termostat)
+      const isCoolingA = nA.includes("chłodnic") || nA.includes("wąż chłodnicy") || nA.includes("wentylator") || nA.includes("termostat") || nA.includes("pompa wody");
+      const isCoolingB = nB.includes("chłodnic") || nB.includes("wąż chłodnicy") || nB.includes("wentylator") || nB.includes("termostat") || nB.includes("pompa wody");
+      if (isCoolingA && isCoolingB) return true;
+      if ((isCoolingA && (isTimingB || isCrankA)) || (isCoolingB && (isTimingA || isCrankB))) return true;
+
+      // 9. Osprzęt paskowy (pasek klinowy, alternator, pompa wody, koła pasowe, napinacze)
+      const isBeltAuxA = nA.includes("pasek") || nA.includes("koło pasowe") || nA.includes("napinacz") || nA.includes("rolka") || nA.includes("alternator") || nA.includes("pompa");
+      const isBeltAuxB = nB.includes("pasek") || nB.includes("koło pasowe") || nB.includes("napinacz") || nB.includes("rolka") || nB.includes("alternator") || nB.includes("pompa");
+      if (isBeltAuxA && isBeltAuxB) return true;
+      if ((isBeltAuxA && isCrankA) || (isBeltAuxB && isCrankB)) return true;
+      if ((isBeltAuxA && isCoolingB) || (isBeltAuxB && isCoolingA)) return true;
+
+      // 10. Skrzynia biegów i napęd (wał wejściowy, wyjściowy, koła zębate, przesuwki, synchronizatory, wał napędowy)
       const isGearboxA = nA.includes("skrzynia") || nA.includes("wałek wejściowy") || nA.includes("wałek wyjściowy") || nA.includes("koło biegu") || nA.includes("zębatka bieg") || nA.includes("synchronizator") || nA.includes("przesuwka") || nA.includes("wał napędowy") || nA.includes("prop shaft");
       const isGearboxB = nB.includes("skrzynia") || nB.includes("wałek wejściowy") || nB.includes("wałek wyjściowy") || nB.includes("koło biegu") || nB.includes("zębatka bieg") || nB.includes("synchronizator") || nB.includes("przesuwka") || nB.includes("wał napędowy") || nB.includes("prop shaft");
       if (isGearboxA && isGearboxB) return true;
+      if ((isClutchA && isGearboxB) || (isClutchB && isGearboxA)) return true;
 
-      // Mechanizm różnicowy (dyferencjał, kosz, koło talerzowe, wałek atakujący, satelity, koła koronowe, półosie)
+      // 11. Mechanizm różnicowy (dyferencjał, kosz, koło talerzowe, wałek atakujący, satelity, koła koronowe, półosie)
       const isDiffA = nA.includes("dyferencjał") || nA.includes("dyferencjal") || nA.includes("satelit") || nA.includes("krzyżak") || nA.includes("krzyzak") || nA.includes("kosz") || nA.includes("koło talerzowe") || nA.includes("kolo talerzowe") || nA.includes("wałek atakujący") || nA.includes("walek atakujacy") || nA.includes("koło koronowe") || nA.includes("kolo koronowe") || nA.includes("półoś") || nA.includes("polos") || nA.includes("lsd") || nA.includes("blokada");
       const isDiffB = nB.includes("dyferencjał") || nB.includes("dyferencjal") || nB.includes("satelit") || nB.includes("krzyżak") || nB.includes("krzyzak") || nB.includes("kosz") || nB.includes("koło talerzowe") || nB.includes("kolo talerzowe") || nB.includes("wałek atakujący") || nB.includes("walek atakujacy") || nB.includes("koło koronowe") || nB.includes("kolo koronowe") || nB.includes("półoś") || nB.includes("polos") || nB.includes("lsd") || nB.includes("blokada");
       if (isDiffA && isDiffB) return true;
-      if ((isDiffA && isGearboxB) || (isGearboxA && isDiffB)) return true; // połączenie wał napędowy -> wałek atakujący
+      if ((isDiffA && isGearboxB) || (isGearboxA && isDiffB)) return true;
 
-      // Układ chłodzenia (rdzeń chłodnicy, lamele, zbiornik, węże)
-      if (nA.includes("chłodnic") && nB.includes("chłodnic")) return true;
+      // 12. Układ wydechowy prowadzony pod podwoziem wzdłuż napędu
+      if ((isExhaustA && (isDiffB || isGearboxB || isClutchB)) || (isExhaustB && (isDiffA || isGearboxA || isClutchA))) return true;
 
-      // Koła, felgi, opony i hamulce (tarcza hamulcowa, zacisk, felga, opona)
+      // 13. Koła, felgi, opony i hamulce
       const isWheelA = nA.includes("koło") || nA.includes("felga") || nA.includes("opona") || nA.includes("tarcza hamulcowa") || nA.includes("zacisk");
       const isWheelB = nB.includes("koło") || nB.includes("felga") || nB.includes("opona") || nB.includes("tarcza hamulcowa") || nB.includes("zacisk");
       if (isWheelA && isWheelB) return true;
+      if ((isWheelA && isDiffB) || (isWheelB && isDiffA)) return true;
 
-      // Zawieszenie (wahacze, amortyzatory, sprężyny, zwrotnice, łączniki)
+      // 14. Zawieszenie
       const isSuspA = nA.includes("wahacz") || nA.includes("amortyzator") || nA.includes("sprężyna") || nA.includes("zwrotnica") || nA.includes("łącznik") || nA.includes("stabilizator");
       const isSuspB = nB.includes("wahacz") || nB.includes("amortyzator") || nB.includes("sprężyna") || nB.includes("zwrotnica") || nB.includes("łącznik") || nB.includes("stabilizator");
       if (isSuspA && isSuspB) return true;
+      if ((isSuspA && (isWheelB || isDiffB)) || (isSuspB && (isWheelA || isDiffA))) return true;
 
-      // Rama i belki nośne
+      // 15. Rama i belki nośne
       if ((nA.includes("rama") || nA.includes("belka")) && (nB.includes("rama") || nB.includes("belka"))) return true;
 
       return false;

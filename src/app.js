@@ -28,6 +28,16 @@ class App {
     this.scene3d = new Scene3D(container, (stats) => this.onFrameStats(stats));
     this.scene3d.setConfig(this.config, this.activeCategory);
 
+    this.cachedUi = {
+      fpsBadge: document.getElementById("fps-val"),
+      scrubVal: document.getElementById("crank-val"),
+      scrubSlider: document.getElementById("crank-scrub"),
+      cylContainer: document.getElementById("cylinders-telemetry"),
+      liveDesc: document.getElementById("live-stroke-desc")
+    };
+    this.lastCylindersHtml = "";
+    this.lastPrimaryDesc = "";
+
     this.setupUI();
     this.renderCategoryNav();
     this.renderPartsSelector();
@@ -35,36 +45,42 @@ class App {
   }
 
   onFrameStats(stats) {
-    const fpsBadge = document.getElementById("fps-val");
+    const fpsBadge = this.cachedUi.fpsBadge;
     if (fpsBadge) {
       fpsBadge.textContent = `${stats.fps} FPS (${stats.frameTime}ms)`;
       fpsBadge.style.color = stats.fps >= 50 ? "#10b981" : stats.fps >= 30 ? "#f59e0b" : "#ef4444";
     }
 
-    const scrubVal = document.getElementById("crank-val");
+    const scrubVal = this.cachedUi.scrubVal;
     if (scrubVal && this.scene3d.isPlaying) {
       scrubVal.textContent = `${stats.crankAngleDeg}°`;
-      const scrubSlider = document.getElementById("crank-scrub");
+      const scrubSlider = this.cachedUi.scrubSlider;
       if (scrubSlider && !this.isUserDraggingScrub) {
         scrubSlider.value = stats.crankAngleDeg;
       }
     }
 
-    // Pasek stanu 4-suwu na żywo z opisem dla każdego cylindra
-    const cylContainer = document.getElementById("cylinders-telemetry");
+    // Pasek stanu 4-suwu na żywo z opisem dla każdego cylindra (aktualizuj tylko przy zmianie fazy)
+    const cylContainer = this.cachedUi.cylContainer;
     if (cylContainer && stats.cylinders && stats.cylinders.length > 0) {
-      cylContainer.innerHTML = stats.cylinders.map(c => `
+      const newHtml = stats.cylinders.map(c => `
         <div class="cyl-card ${c.phaseClass}">
           <div class="cyl-num">CYL #${c.id}</div>
           <div class="cyl-phase">${c.phase}</div>
         </div>
       `).join("");
 
+      if (newHtml !== this.lastCylindersHtml) {
+        cylContainer.innerHTML = newHtml;
+        this.lastCylindersHtml = newHtml;
+      }
+
       // Aktywny opis pierwszego cylindra
       const primaryCyl = stats.cylinders[0];
-      const liveDesc = document.getElementById("live-stroke-desc");
-      if (liveDesc && primaryCyl) {
+      const liveDesc = this.cachedUi.liveDesc;
+      if (liveDesc && primaryCyl && primaryCyl.desc !== this.lastPrimaryDesc) {
         liveDesc.innerHTML = `<strong>Cylinder #1:</strong> ${primaryCyl.desc}`;
+        this.lastPrimaryDesc = primaryCyl.desc;
       }
     }
   }
@@ -169,7 +185,7 @@ class App {
     const updateDevSummary = () => {
       if (devSummaryText && this.scene3d && this.scene3d.config) {
         const c = this.scene3d.config;
-        const angle = (c.layout === 'V' || c.layout === 'VR') ? ` ${c.vAngle}°` : '';
+        const angle = (c.layout === 'V' || c.layout === 'VR' || c.layout === 'W') ? ` ${c.vAngle}°` : '';
         devSummaryText.textContent = `${c.layout}${angle} (${c.cylinders}-cyl, ${c.valves}V, ${c.valvetrain || 'OHC'})`;
       }
     };
@@ -181,6 +197,7 @@ class App {
       devBtn?.classList.toggle("active", isOpen);
       if (isOpen) {
         updateDevSummary();
+        renderPartsCatalog();
         // Zamknij prawy panel wiedzy, jeśli był otwarty
         if (infoDrawer?.classList.contains("open")) {
           infoDrawer.classList.remove("open");
@@ -230,7 +247,7 @@ class App {
           }
           if (resultsDiv) {
             resultsDiv.innerHTML = `
-<div style="margin-bottom: 4px; font-size: 11px; color: #38bdf8;">
+<div style="margin-bottom: 4px; font-size: 11px; color: #f59e0b;">
   📍 Kąt wału: <b>${crankAngleDeg}°</b> (0-720°)
 </div>
 <div style="margin-bottom: 8px; color: #f87171; font-weight: bold;">⚠️ Wykryto ${collisions.length} kolizji (przebadano ${totalChecked} modułów):</div>
@@ -257,7 +274,7 @@ ${rawList.join('\n')}
           }
           if (resultsDiv) {
             resultsDiv.innerHTML = `
-<div style="margin-bottom: 4px; font-size: 11px; color: #38bdf8;">
+<div style="margin-bottom: 4px; font-size: 11px; color: #f59e0b;">
   📍 Kąt wału: <b>${crankAngleDeg}°</b> (0-720°)
 </div>
 <div style="color: #34d399; font-weight: bold;">✓ Brak kolizji między modułami!</div>
@@ -321,6 +338,95 @@ Status: BRAK KOLIZJI (Układ w 100% poprawny geometrycznie)
           copyOverlapBtn.disabled = true;
         }
         lastCollisionReportText = "";
+      });
+    }
+
+    // ═══ SPIS CZĘŚCI (KATALOG PODZESPOŁÓW WG KATEGORII) ═══
+    const catalogListEl = document.getElementById("dev-parts-catalog-list");
+    const totalPartsCountEl = document.getElementById("dev-parts-total-count");
+    const partsSearchInput = document.getElementById("dev-parts-search");
+    const copyPartsBtn = document.getElementById("dev-copy-parts");
+
+    let lastPartsText = "";
+
+    const renderPartsCatalog = (filterText = "") => {
+      if (!catalogListEl || !this.scene3d || !this.scene3d.getPartsCatalog) return;
+      const catalog = this.scene3d.getPartsCatalog();
+      if (totalPartsCountEl) {
+        totalPartsCountEl.textContent = `${catalog.totalCount} szt. (${catalog.uniqueCount} typów)`;
+      }
+
+      const q = (filterText || "").toLowerCase().trim();
+      let html = "";
+      let copyText = `=== KATALOG CZĘŚCI SILNIKA I PODWOZIA ===\nŁącznie: ${catalog.totalCount} elementów (${catalog.uniqueCount} unikalnych typów)\n\n`;
+
+      catalog.categories.forEach(cat => {
+        const filteredItems = q ? cat.items.filter(it => it.name.toLowerCase().includes(q)) : cat.items;
+        if (filteredItems.length === 0) return;
+
+        const catCount = filteredItems.reduce((sum, it) => sum + it.count, 0);
+        copyText += `[${cat.icon} ${cat.name}] (${catCount} szt.):\n`;
+        filteredItems.forEach(it => {
+          copyText += `  • ${it.count}× ${it.name}\n`;
+        });
+        copyText += "\n";
+
+        html += `
+          <div class="dev-cat-card">
+            <div class="dev-cat-header">
+              <span>${cat.icon} ${cat.name}</span>
+              <span class="dev-part-count">${catCount} szt.</span>
+            </div>
+            <div class="dev-cat-items">
+              ${filteredItems.map(it => `
+                <div class="dev-part-row">
+                  <span>${it.name}</span>
+                  <span class="dev-part-count">${it.count}×</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      if (!html) {
+        html = `<div style="color: var(--text-muted); font-size: 11px; text-align: center; padding: 12px;">Brak części pasujących do filtra "${filterText}"</div>`;
+      }
+
+      catalogListEl.innerHTML = html;
+      lastPartsText = copyText;
+    };
+
+    if (partsSearchInput) {
+      partsSearchInput.addEventListener("input", (e) => {
+        renderPartsCatalog(e.target.value);
+      });
+    }
+
+    if (copyPartsBtn) {
+      copyPartsBtn.addEventListener("click", async () => {
+        if (!lastPartsText) return;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(lastPartsText);
+          } else {
+            const ta = document.createElement("textarea");
+            ta.value = lastPartsText;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+          }
+          const originalHTML = copyPartsBtn.innerHTML;
+          copyPartsBtn.classList.add("copied");
+          copyPartsBtn.innerHTML = "<span>✓ Skopiowano!</span>";
+          setTimeout(() => {
+            copyPartsBtn.classList.remove("copied");
+            copyPartsBtn.innerHTML = originalHTML;
+          }, 2000);
+        } catch (err) {
+          console.error("Błąd kopiowania spisu części:", err);
+        }
       });
     }
 
