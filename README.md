@@ -2,6 +2,7 @@
 Wepsite that visualise and educate how cars are built 
 
 Assumptions 
+- Mobile devices version
 - Procedular objects
 - Light and modern website as possible
 - When done make it a real website
