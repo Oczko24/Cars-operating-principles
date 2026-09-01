@@ -31,12 +31,12 @@
     <div class="panel-section">
       <h3 class="section-title">Architektura Silnika</h3>
       <label class="control-label">Układ cylindrów:</label>
-      <select id="dev_layout" class="styled-select">
-        <option value="Inline">Rzędowy (L)</option>
-        <option value="V">Widlasty (V)</option>
-        <option value="VR">Wąskokątny (VR)</option>
-        <option value="Boxer">Przeciwsobny (Boxer)</option>
-      </select>
+      <div class="focus-group" id="dev_layout" style="margin-bottom: 10px; flex-wrap: wrap; border-radius: 8px;">
+        <button class="config-btn active" data-val="Inline">Rzędowy</button>
+        <button class="config-btn" data-val="V">Widlasty</button>
+        <button class="config-btn" data-val="VR">VR</button>
+        <button class="config-btn" data-val="Boxer">Boxer</button>
+      </div>
       
       <label class="control-label">Cylindry: <b id="dev_cyl_val" class="highlight-val">4</b></label>
       <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
@@ -47,19 +47,25 @@
       </div>
 
       <label class="control-label">Cykl pracy:</label>
-      <select id="dev_stroke" class="styled-select">
-        <option value="4" selected>4-suw (Otto)</option>
-        <option value="2">2-suw</option>
-      </select>
+      <div class="focus-group" id="dev_stroke" style="margin-bottom: 10px;">
+        <button class="config-btn active" data-val="4">4-suw (Otto)</button>
+        <button class="config-btn" data-val="2">2-suw</button>
+      </div>
       
       <label class="control-label">RPM: <b id="dev_rpm_val" class="highlight-val">1000</b></label>
       <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000">
 
       <label class="control-label">Zawory / cyl:</label>
-      <select id="dev_valves" class="styled-select">
-        <option value="2">2 (1 ss, 1 wy)</option>
-        <option value="4" selected>4 (2 ss, 2 wy)</option>
-      </select>
+      <div class="focus-group" id="dev_valves" style="margin-bottom: 10px;">
+        <button class="config-btn" data-val="2">2 zawory</button>
+        <button class="config-btn active" data-val="4">4 zawory</button>
+      </div>
+
+      <label class="control-label">Typ Rozrządu:</label>
+      <div class="focus-group" id="dev_valvetrain" style="margin-bottom: 10px;">
+        <button class="config-btn active" data-val="OHC">OHC</button>
+        <button class="config-btn" data-val="OHV">OHV</button>
+      </div>
     </div>
 
     <!-- UKŁAD NAPĘDOWY -->
@@ -73,30 +79,30 @@
 
       <label class="control-label">Bieg (Skrzynia manualna):</label>
       <div class="focus-group" id="dev_gearbox" style="margin-bottom: 10px;">
-        <button class="focus-btn" data-gear="R">R</button>
-        <button class="focus-btn" data-gear="N">N</button>
-        <button class="focus-btn active" data-gear="1">1</button>
-        <button class="focus-btn" data-gear="2">2</button>
-        <button class="focus-btn" data-gear="3">3</button>
-        <button class="focus-btn" data-gear="4">4</button>
-        <button class="focus-btn" data-gear="5">5</button>
+        <button class="config-btn" data-gear="R">R</button>
+        <button class="config-btn" data-gear="N">N</button>
+        <button class="config-btn active" data-gear="1">1</button>
+        <button class="config-btn" data-gear="2">2</button>
+        <button class="config-btn" data-gear="3">3</button>
+        <button class="config-btn" data-gear="4">4</button>
+        <button class="config-btn" data-gear="5">5</button>
       </div>
       
       <label class="control-label">Mnożnik (Przełożenie główne): <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
       <input type="range" id="dev_final_drive" class="styled-slider" min="1.0" max="6.0" step="0.01" value="3.94">
 
       <label class="control-label">Sprzęgło (Typ):</label>
-      <select id="dev_clutch" class="styled-select">
-        <option value="single">Jednotarczowe suche</option>
-        <option value="dual">Dwusprzęgłowe (DCT)</option>
-      </select>
+      <div class="focus-group" id="dev_clutch" style="margin-bottom: 10px;">
+        <button class="config-btn active" data-val="single">Jednotarczowe</button>
+        <button class="config-btn" data-val="dual">DCT (Dwusprzęgłowe)</button>
+      </div>
 
       <label class="control-label">Dyferencjał (Tył):</label>
-      <select id="dev_diff" class="styled-select">
-        <option value="open" selected>Otwarty (Open)</option>
-        <option value="lsd_mech">Szpera (1.5 Way LSD)</option>
-        <option value="locker">Blokada 100% (Off-road)</option>
-      </select>
+      <div class="focus-group" id="dev_diff" style="margin-bottom: 10px;">
+        <button class="config-btn active" data-val="open">Otwarty</button>
+        <button class="config-btn" data-val="lsd_mech">Szpera (LSD)</button>
+        <button class="config-btn" data-val="locker">Blokada 100%</button>
+      </div>
       
       <div style="margin-top: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;">
         <span class="control-label" style="margin-bottom: 0;">Prędkość kół: <b id="dev_wheel_speed" style="color: #4ade80; font-size: 1.2em;">0 km/h</b></span>
@@ -107,6 +113,24 @@
     <div class="panel-section">
       <h3 class="section-title">Fizyka & Wyważenie</h3>
       <canvas id="dev_vibration_canvas" width="180" height="180" class="physics-canvas"></canvas>
+    </div>
+
+    <!-- WIDOCZNOŚĆ ELEMENTÓW -->
+    <div class="panel-section">
+      <h3 class="section-title">Opcje Widoku</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
+          <input type="checkbox" id="toggle_wireframes" checked style="accent-color: var(--text-accent);">
+          <span>Zarys (Cylindry / Głowice)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
+          <input type="checkbox" id="toggle_hover" checked style="accent-color: var(--text-accent);">
+          <span>Podświetlanie obiektów (Hover)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
+          <input type="checkbox" id="toggle_datum" style="accent-color: var(--text-accent);">
+        </label>
+      </div>
     </div>
 
     <!-- KAMERA I WIDOK -->
@@ -185,6 +209,57 @@
       <div class="drawer-block"><span class="drawer-tag">💡 DLACZEGO TO TAK DZIAŁA?</span><p id="drawer-why"></p></div>
       <div class="drawer-block highlight-block"><span class="drawer-tag">📜 GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
       <div class="drawer-block"><span class="drawer-tag">🚗 PRZYKŁADY AUT</span><p id="drawer-examples"></p></div>
+    </div>
+  </aside>
+
+  <!-- DEV / DEBUG DRAWER & TOGGLE -->
+  <button id="dev-mode-btn" class="dev-mode-toggle" title="Włącz / Wyłącz Tryb Deweloperski">
+    🛠 Dev Mode
+  </button>
+
+  <aside id="dev-drawer" class="dev-drawer">
+    <div class="drawer-header">
+      <h3 style="color: #38bdf8; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <span>🛠 Tryb Deweloperski</span>
+      </h3>
+      <button id="dev-close-btn" class="drawer-close" title="Zamknij panel (Esc)">✕</button>
+    </div>
+    
+    <div class="drawer-content" style="flex: 1; display: flex; flex-direction: column;">
+      <div id="dev-config-summary" class="dev-meta-pill">
+        <span style="color: var(--text-muted);">Układ: <strong id="dev-summary-text" style="color: #fff;">Inline-4</strong></span>
+        <span id="dev-status-badge" class="dev-badge info">Gotowy</span>
+      </div>
+
+      <div class="dev-btn-group">
+        <button id="dev-check-overlap" class="dev-btn-primary">
+          <span>🔍 Sprawdź Overlaping</span>
+        </button>
+        <button id="dev-copy-overlap" class="dev-btn-secondary" disabled title="Skopiuj raport kolizji do schowka">
+          <span>📋 Kopiuj</span>
+        </button>
+        <button id="dev-clear-overlap" class="dev-btn-icon" title="Wyczyść wyniki">
+          <span>🗑</span>
+        </button>
+      </div>
+
+      <div id="dev-overlap-results" class="dev-results-box" style="margin-bottom: 14px;">
+Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i overlapingu modułów.
+      </div>
+
+      <!-- OPCJE DEWELOPERSKIE SCENY I SYSTEMU -->
+      <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 12px; margin-top: auto;">
+        <div style="font-size: 11px; color: var(--text-accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: bold;">
+          ⚙️ Widok & Narzędzia
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; color: #cbd5e1; cursor: pointer; font-size: 12px; margin-bottom: 10px;">
+          <input type="checkbox" id="dev-toggle-datum" style="accent-color: var(--text-accent);">
+          <span>Pokaż centrum silnika (Wektory / Datum)</span>
+        </label>
+        <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 10px; font-weight: bold; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" title="Przeładuj całą stronę i zresetuj stan">
+          <span>🔄 Przeładuj stronę (Reload)</span>
+        </button>
+      </div>
     </div>
   </aside>
 

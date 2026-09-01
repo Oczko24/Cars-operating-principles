@@ -153,6 +153,184 @@ class App {
     infoClose?.addEventListener("click", () => {
       infoDrawer.classList.remove("open");
     });
+    // 8. Dev Drawer (Tryb Deweloperski)
+    const devBtn = document.getElementById("dev-mode-btn");
+    const devDrawer = document.getElementById("dev-drawer");
+    const devClose = document.getElementById("dev-close-btn");
+    const checkOverlapBtn = document.getElementById("dev-check-overlap");
+    const copyOverlapBtn = document.getElementById("dev-copy-overlap");
+    const clearOverlapBtn = document.getElementById("dev-clear-overlap");
+    const devSummaryText = document.getElementById("dev-summary-text");
+    const devStatusBadge = document.getElementById("dev-status-badge");
+    const resultsDiv = document.getElementById("dev-overlap-results");
+
+    let lastCollisionReportText = "";
+
+    const updateDevSummary = () => {
+      if (devSummaryText && this.scene3d && this.scene3d.config) {
+        const c = this.scene3d.config;
+        const angle = (c.layout === 'V' || c.layout === 'VR') ? ` ${c.vAngle}°` : '';
+        devSummaryText.textContent = `${c.layout}${angle} (${c.cylinders}-cyl, ${c.valves}V, ${c.valvetrain || 'OHC'})`;
+      }
+    };
+
+    const toggleDevDrawer = (forceState) => {
+      if (!devDrawer) return;
+      const isOpen = forceState !== undefined ? forceState : !devDrawer.classList.contains("open");
+      devDrawer.classList.toggle("open", isOpen);
+      devBtn?.classList.toggle("active", isOpen);
+      if (isOpen) {
+        updateDevSummary();
+        // Zamknij prawy panel wiedzy, jeśli był otwarty
+        if (infoDrawer?.classList.contains("open")) {
+          infoDrawer.classList.remove("open");
+        }
+      }
+    };
+
+    if (devBtn) {
+      devBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleDevDrawer();
+      });
+    }
+
+    if (devClose) {
+      devClose.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleDevDrawer(false);
+      });
+    }
+
+    // Zamknięcie paneli klawiszem Escape
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        toggleDevDrawer(false);
+        infoDrawer?.classList.remove("open");
+      }
+    });
+
+    // Uruchomienie analizy kolizji i overlapingu
+    if (checkOverlapBtn) {
+      checkOverlapBtn.addEventListener("click", () => {
+        updateDevSummary();
+        const res = this.scene3d.checkOverlap();
+        const collisions = Array.isArray(res) ? res : (res.collisions || []);
+        const totalChecked = res.totalChecked || 0;
+        const cfg = this.scene3d.config;
+        const crankAngleDeg = (res.crankAngleDeg !== undefined) ? res.crankAngleDeg : Math.round(((this.scene3d.crankAngle * 180 / Math.PI) % 720 + 720) % 720);
+
+        const timestamp = new Date().toLocaleTimeString('pl-PL');
+        const configStr = `${cfg.layout} ${cfg.cylinders}-cyl | ${cfg.valves}V | ${cfg.valvetrain || 'OHC'} | Kąt V: ${cfg.vAngle || 0}°`;
+
+        if (collisions.length > 0) {
+          if (devStatusBadge) {
+            devStatusBadge.className = "dev-badge warn";
+            devStatusBadge.textContent = `${collisions.length} kolizji`;
+          }
+          if (resultsDiv) {
+            resultsDiv.innerHTML = `
+<div style="margin-bottom: 4px; font-size: 11px; color: #38bdf8;">
+  📍 Kąt wału: <b>${crankAngleDeg}°</b> (0-720°)
+</div>
+<div style="margin-bottom: 8px; color: #f87171; font-weight: bold;">⚠️ Wykryto ${collisions.length} kolizji (przebadano ${totalChecked} modułów):</div>
+${collisions.join('<br>')}
+<div style="margin-top: 10px; color: #94a3b8; font-size: 11px;">Sprawdź geometrię, pozycję osprzętu i odstępy montażowe elementów.</div>`;
+          }
+
+          const rawList = Array.isArray(res.rawList) ? res.rawList : collisions.map(c => c.replace(/<[^>]*>/g, ''));
+          lastCollisionReportText = `=== RAPORT OVERLAPINGU MODUŁÓW (DEV MODE) ===
+Data: ${new Date().toLocaleString('pl-PL')}
+Konfiguracja: ${configStr}
+Kąt wału korbowego: ${crankAngleDeg}° (0-720°)
+Zbadano obiektów: ${totalChecked}
+Status: Wykryto ${collisions.length} kolizji
+
+Wykryte kolizje:
+${rawList.join('\n')}
+`;
+          if (copyOverlapBtn) copyOverlapBtn.disabled = false;
+        } else {
+          if (devStatusBadge) {
+            devStatusBadge.className = "dev-badge ok";
+            devStatusBadge.textContent = "0 kolizji (OK)";
+          }
+          if (resultsDiv) {
+            resultsDiv.innerHTML = `
+<div style="margin-bottom: 4px; font-size: 11px; color: #38bdf8;">
+  📍 Kąt wału: <b>${crankAngleDeg}°</b> (0-720°)
+</div>
+<div style="color: #34d399; font-weight: bold;">✓ Brak kolizji między modułami!</div>
+<div style="margin-top: 6px; color: #94a3b8; font-size: 11px;">
+  Przeanalizowano <b>${totalChecked}</b> modułów silnika i podwozia pod kątem OBB (Oriented Bounding Box).
+  Wszystkie elementy zachowują odpowiednie luzy montażowe.
+</div>`;
+          }
+
+          lastCollisionReportText = `=== RAPORT OVERLAPINGU MODUŁÓW (DEV MODE) ===
+Data: ${new Date().toLocaleString('pl-PL')}
+Konfiguracja: ${configStr}
+Kąt wału korbowego: ${crankAngleDeg}° (0-720°)
+Zbadano obiektów: ${totalChecked}
+Status: BRAK KOLIZJI (Układ w 100% poprawny geometrycznie)
+`;
+          if (copyOverlapBtn) copyOverlapBtn.disabled = false;
+        }
+      });
+    }
+
+    // Kopiowanie raportu do schowka
+    if (copyOverlapBtn) {
+      copyOverlapBtn.addEventListener("click", async () => {
+        if (!lastCollisionReportText) return;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(lastCollisionReportText);
+          } else {
+            const ta = document.createElement("textarea");
+            ta.value = lastCollisionReportText;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+          }
+          const originalHTML = copyOverlapBtn.innerHTML;
+          copyOverlapBtn.classList.add("copied");
+          copyOverlapBtn.innerHTML = "<span>✓ Skopiowano!</span>";
+          setTimeout(() => {
+            copyOverlapBtn.classList.remove("copied");
+            copyOverlapBtn.innerHTML = originalHTML;
+          }, 2200);
+        } catch (err) {
+          console.error("Błąd kopiowania do schowka:", err);
+        }
+      });
+    }
+
+    // Czyszczenie wyników
+    if (clearOverlapBtn) {
+      clearOverlapBtn.addEventListener("click", () => {
+        if (resultsDiv) {
+          resultsDiv.innerHTML = "Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i overlapingu modułów.";
+        }
+        if (devStatusBadge) {
+          devStatusBadge.className = "dev-badge info";
+          devStatusBadge.textContent = "Gotowy";
+        }
+        if (copyOverlapBtn) {
+          copyOverlapBtn.disabled = true;
+        }
+        lastCollisionReportText = "";
+      });
+    }
+
+    // Przeładowanie strony (Reload)
+    const reloadPageBtn = document.getElementById("dev-reload-page");
+    if (reloadPageBtn) {
+      reloadPageBtn.addEventListener("click", () => {
+        window.location.reload();
+      });
+    }
   }
 
   renderCategoryNav() {
