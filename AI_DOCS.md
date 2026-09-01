@@ -2,23 +2,34 @@
 
 This document is strictly for AI agents maintaining the project.
 
+Najwazniejsze: tymczasowe pliki zapisuj w folderze temp
 ## Project Philosophy
 
 100% REALISM AND MODULARITY. Every mechanical element (crank angle, firing phase, cam lobes movement, valve spring compression) MUST be based on pure math and procedural geometry. No hardcoded global coordinates. No random visual hacks or intersecting textures. 
 
 ## 1. Geometric Datum Architecture (NEW)
 
-The entire engine is built procedurally based on a calculated mathematical datum. 
+The entire engine and chassis are built procedurally based on mathematical datums to ensure 100% physically accurate interactions, with a unified coordinate system where `Y = 0` is the ground level.
+
+### Vehicle-level Geometry (`src/scene/VehicleConfig.js`)
+All vehicle dimensions are strictly centralized in `VehicleConfig.js` to ensure the chassis, engine, and drivetrain align perfectly without hardcoded magic numbers:
+- `tireRadius`: Determines ground clearance and wheel size.
+- `wheelCenterY`: The Y-axis elevation for wheels, axles, and diffs.
+- `groundClearance`: The exact lowest point for chassis frame rails and sills.
+- `trackWidthHalf`: Defines the width of the chassis and axle lengths.
+- `wheelbaseFrontZ / wheelbaseRearZ`: Defines axle placement.
+
+### Engine-level Geometry
 - **Bore Column Centerline**: Each cylinder has a mathematically perfect axis `u = (-sin(bank), cos(bank), 0)`.
 - **Bore Midpoint (`M_i`)**: The exact center of the stroke `M_i = A_0 + sleeveCenter * u`.
-- **Engine Centroid (`C_engine`)**: The global engine geometric center, calculated as the average of all `M_i`.
-- **`computeEngineDatum()`**: This method computes the arrays of vectors and centroids. All sub-assemblies (crankcase, pistons, valvetrain, intake, exhaust) must position themselves strictly relative to this computed datum.
+- **Engine Centroid (`C_engine`)**: The global engine geometric center.
+- **`computeEngineDatum()`**: Computes these vectors. All sub-assemblies position themselves strictly relative to this datum.
 
 ## 2. Dynamic Placement & Assembly
 
-- **`engineMountGroup`**: A parent container that handles the engine's vehicle-space coordinates:
-  - Placement: `front`, `mid`, `rear` (controls position).
-  - Orientation: `longitudinal`, `transverse` (controls Y-axis rotation).
+- **`engineMountGroup`**: A parent container that handles the engine's vehicle-space coordinates, pulling its Y-height dynamically from `VehicleDimensions.engineMountY`:
+  - Placement: `front`, `mid`, `rear` (controls Z-axis position).
+  - Orientation: `longitudinal`, `transverse` (controls Y-axis rotation). The gearbox dynamically scales in length (Z-axis) to fit transverse engine bays.
   - Tilt: Slant angle $0-90^\circ$ (controls Z-axis rotation).
 - **`engineGroup`**: The child container where all parts are built procedurally.
 - **Drivetrain**: The prop shaft is dynamically generated (using `lookAt` and `distanceTo`) to bridge the gap between the movable `engineMountGroup` (Gearbox Output) and the fixed `diffGroup` (Pinion Input).

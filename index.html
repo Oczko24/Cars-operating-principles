@@ -1,6 +1,79 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
+<script>
+function createErrorOverlay(title, details) {
+    var div = document.createElement('div');
+    div.style.position = 'fixed';
+    div.style.top = '20px';
+    div.style.right = '20px';
+    div.style.zIndex = '999999';
+    div.style.background = 'rgba(220, 38, 38, 0.95)';
+    div.style.color = '#fff';
+    div.style.padding = '15px 20px';
+    div.style.borderRadius = '8px';
+    div.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+    div.style.fontFamily = 'monospace';
+    div.style.width = '450px';
+    div.style.pointerEvents = 'auto'; // ensure interactions are captured
+    
+    var header = document.createElement('h3');
+    header.style.margin = '0 0 10px 0';
+    header.style.fontSize = '16px';
+    header.innerText = title;
+    
+    var copyBtn = document.createElement('button');
+    copyBtn.innerText = 'Kopiuj błąd';
+    copyBtn.style.marginRight = '10px';
+    copyBtn.style.padding = '4px 8px';
+    copyBtn.style.cursor = 'pointer';
+    copyBtn.style.color = 'black';
+    copyBtn.onclick = function() {
+        navigator.clipboard.writeText(details);
+        copyBtn.innerText = 'Skopiowano!';
+        setTimeout(() => copyBtn.innerText = 'Kopiuj błąd', 2000);
+    };
+
+    var closeBtn = document.createElement('button');
+    closeBtn.innerText = 'Zamknij';
+    closeBtn.style.padding = '4px 8px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.color = 'black';
+    closeBtn.onclick = function() { div.remove(); };
+    
+    var controls = document.createElement('div');
+    controls.style.marginBottom = '10px';
+    controls.appendChild(copyBtn);
+    controls.appendChild(closeBtn);
+    
+    var textarea = document.createElement('textarea');
+    textarea.value = details;
+    textarea.style.width = '100%';
+    textarea.style.height = '150px';
+    textarea.style.background = 'rgba(0,0,0,0.5)';
+    textarea.style.color = 'white';
+    textarea.style.border = '1px solid #ff8888';
+    textarea.style.padding = '10px';
+    textarea.style.boxSizing = 'border-box';
+    textarea.style.fontFamily = 'monospace';
+    textarea.readOnly = true;
+    
+    div.appendChild(header);
+    div.appendChild(controls);
+    div.appendChild(textarea);
+    document.body.appendChild(div);
+}
+
+window.addEventListener('error', function(e) {
+    createErrorOverlay('Błąd aplikacji (JavaScript)', e.message + '\n' + e.filename + ':' + e.lineno + '\n\nStack:\n' + (e.error ? e.error.stack : ''));
+});
+window.addEventListener('unhandledrejection', function(e) {
+    createErrorOverlay('Błąd asynchroniczny (Promise)', e.reason ? e.reason.stack || e.reason : 'Nieznany błąd');
+});
+</script>
+
+
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cars: Operating Principles | Edukacyjny Silnik & Samochód 3D</title>
@@ -17,92 +90,106 @@
 <body>
   <div id="canvas-container"></div>
 
-  <!-- LEWY PANEL BAZOWY (Zintegrowane Menu) -->
+  <!-- LEWY PANEL GŁÓWNY (Apple Pro Minimal Sidebar) -->
   <aside class="sidebar-left">
     <div class="sidebar-header">
       <div class="brand-pill">
         <span class="brand-dot"></span>
         <span class="brand-title">CARS 3D</span>
+        <span class="brand-subtitle">PRO STUDIO</span>
       </div>
       <div class="fps-badge" id="fps-val" title="Wydajność renderowania">60 FPS</div>
     </div>
 
     <!-- 1. ARCHITEKTURA SILNIKA -->
-    <div class="panel-section collapsible collapsed">
+    <div class="panel-section collapsible collapsed" id="section_engine">
       <div class="section-header">
-        <h3 class="section-title">Architektura Silnika</h3>
-        <span class="collapse-icon">▼</span>
+        <div class="section-header-left">
+          <h3 class="section-title" data-i18n="ui.engineArch">Architektura Silnika</h3>
+        </div>
+        <span class="section-status-pill" id="status_engine">R4 • 2.0L</span>
+        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body">
-        <label class="control-label">Układ cylindrów:</label>
-        <div class="focus-group" id="dev_layout" style="margin-bottom: 10px; flex-wrap: wrap; border-radius: 8px;">
-          <button class="config-btn active" data-val="Inline" title="Rzędowy (Inline) - najpopularniejszy układ. Używany praktycznie wszędzie, od małych aut miejskich po limuzyny.">Rzędowy</button>
-          <button class="config-btn" data-val="V" title="Widlasty (V) - krótszy blok. Popularny w autach sportowych, luksusowych i amerykańskich (V6, V8).">Widlasty</button>
-          <button class="config-btn" data-val="VR" title="VR - bardzo wąskie V (ok. 15°). Używany m.in. przez grupę VW (np. Golf VR6), łączy zalety R i V. Jedna głowica.">VR</button>
-          <button class="config-btn" data-val="W" title="W (np. W8, W12, W16) - silnik zbudowany z połączonych bloków VR. Spotykany np. w Passat W8, Bugatti Veyron.">W</button>
-          <button class="config-btn" data-val="Boxer" title="Boxer (Przeciwsobny) - cylindry leżą płasko. Nisko środek ciężkości. Typowy dla Porsche (np. 911, Boxster) i Subaru.">Boxer</button>
-        </div>
-        
-        <label class="control-label">Cylindry: <b id="dev_cyl_val" class="highlight-val">4</b></label>
-        <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
-
-        <label class="control-label">Średnica tłoka (Bore): <b id="dev_bore_val" class="highlight-val">84.0 mm</b></label>
-        <input type="range" id="dev_bore" class="styled-slider" min="50" max="120" step="0.5" value="84">
-
-        <label class="control-label">Skok tłoka (Stroke): <b id="dev_stroke_len_val" class="highlight-val">90.0 mm</b></label>
-        <input type="range" id="dev_stroke_len" class="styled-slider" min="50" max="140" step="0.5" value="90">
-
-        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-hud); border-radius: 6px; padding: 6px 10px; margin: 6px 0 10px 0; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Pojemność silnika:</span>
-          <b id="dev_disp_val" style="font-family: var(--font-mono); color: var(--text-accent); font-size: 12px;">1995 cm³ (2.0L)</b>
-        </div>
-        
-        <div id="dev_angle_container" style="display: none;">
-          <label class="control-label">Kąt rozwarcia: <b id="dev_angle_val" class="highlight-val">60</b>°</label>
-          <input type="range" id="dev_angle" class="styled-slider" min="15" max="180" step="5" value="60">
-        </div>
-
-        <!-- WYBÓR WAŁU DLA V8 (Crossplane vs Flat-plane) -->
-        <div id="dev_v8_crank_container" style="display: none; margin-bottom: 10px;">
-          <label class="control-label">Geometria wału V8:</label>
-          <div class="focus-group" id="dev_v8_crank" style="margin-bottom: 6px; border-radius: 8px;">
-            <button class="config-btn active" data-val="crossplane">Crossplane (90°)</button>
-            <button class="config-btn" data-val="flatplane">Flat-plane (180°)</button>
+      <div class="section-body-wrapper">
+        <div class="section-body">
+          <label class="control-label" data-i18n="ui.cylinderLayout">Układ cylindrów:</label>
+          <div class="focus-group" id="dev_layout" style="flex-wrap: wrap;">
+            <button class="config-btn active" data-val="Inline" title="Rzędowy (Inline) - najpopularniejszy układ.">Rzędowy</button>
+            <button class="config-btn" data-val="V" title="Widlasty (V) - zwarty blok, dwa rzędy cylindrów.">Widlasty</button>
+            <button class="config-btn" data-val="VR" title="VR - wąski kąt rozwarcia (ok. 15°), wspólna głowica.">VR</button>
+            <button class="config-btn" data-val="W" title="W - połączenie dwóch bloków VR (np. W12, W16).">W</button>
+            <button class="config-btn" data-val="Boxer" title="Boxer (Przeciwsobny) - cylindry leżące płasko (180°).">Boxer</button>
           </div>
-          <div id="v8_crank_note" class="crank-edu-note">
-            🇺🇸 <b>Crossplane (90°):</b> Klasyczny bulgot V8, eliminacja drgań I/II rzędu dzięki przeciwciężarom.
+          
+          <label class="control-label"><span data-i18n="ui.cylinderCount">Liczba cylindrów:</span> <b id="dev_cyl_val" class="highlight-val">4</b></label>
+          <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
+
+          <label class="control-label">Średnica tłoka (Bore): <b id="dev_bore_val" class="highlight-val">84.0 mm</b></label>
+          <input type="range" id="dev_bore" class="styled-slider" min="50" max="120" step="0.5" value="84">
+
+          <label class="control-label">Skok tłoka (Stroke): <b id="dev_stroke_len_val" class="highlight-val">90.0 mm</b></label>
+          <input type="range" id="dev_stroke_len" class="styled-slider" min="50" max="140" step="0.5" value="90">
+
+          <div class="spec-summary-card">
+            <span class="spec-summary-title">Pojemność skokowa</span>
+            <b id="dev_disp_val" class="spec-summary-val">1995 cm³ (2.0L)</b>
           </div>
-        </div>
+          
+          <div id="dev_angle_container" style="display: none;">
+            <label class="control-label">Kąt rozwarcia (V-Angle): <b id="dev_angle_val" class="highlight-val">60</b>°</label>
+            <input type="range" id="dev_angle" class="styled-slider" min="15" max="180" step="5" value="60">
+          </div>
 
-        <label class="control-label">Cykl pracy:</label>
-        <div class="focus-group" id="dev_stroke" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="4">4-suw (Otto)</button>
-          <button class="config-btn" data-val="2">2-suw</button>
-        </div>
+          <!-- WYBÓR WAŁU DLA V8 (Crossplane vs Flat-plane) -->
+          <div id="dev_v8_crank_container" style="display: none; margin-bottom: 8px;">
+            <label class="control-label">Geometria wału V8:</label>
+            <div class="focus-group" id="dev_v8_crank">
+              <button class="config-btn active" data-val="crossplane">Crossplane (90°)</button>
+              <button class="config-btn" data-val="flatplane">Flat-plane (180°)</button>
+            </div>
+            <div id="v8_crank_note" class="crank-edu-note">
+              <b>Crossplane (90°):</b> Klasyczny bulgot V8, przeciwciężary niwelują siły bezwładności I i II rzędu.
+            </div>
+          </div>
 
-        <label class="control-label">Zawory / cyl:</label>
-        <div class="focus-group" id="dev_valves" style="margin-bottom: 10px;">
-          <button class="config-btn" data-val="2">2 zawory</button>
-          <button class="config-btn active" data-val="4">4 zawory</button>
-        </div>
+          <label class="control-label">Cykl pracy:</label>
+          <div class="focus-group" id="dev_stroke">
+            <button class="config-btn active" data-val="4">4-suw (Otto)</button>
+            <button class="config-btn" data-val="2">2-suw</button>
+          </div>
 
-        <label class="control-label">Typ Rozrządu:</label>
-        <div class="focus-group" id="dev_valvetrain" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="OHC">OHC</button>
-          <button class="config-btn" data-val="OHV">OHV</button>
-        </div>
-        
-        <label class="control-label">Położenie silnika:</label>
-        <div class="focus-group" id="dev_placement" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="front">Z przodu</button>
-          <button class="config-btn" data-val="mid">Centralnie</button>
-          <button class="config-btn" data-val="rear">Z tyłu</button>
-        </div>
+          <label class="control-label">Zawory na cylinder:</label>
+          <div class="focus-group" id="dev_valves">
+            <button class="config-btn" data-val="2">2 zawory</button>
+            <button class="config-btn active" data-val="4">4 zawory</button>
+          </div>
 
-        <label class="control-label">Orientacja (Montaż):</label>
-        <div class="focus-group" id="dev_orientation" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="longitudinal">Wzdłużny (Long)</button>
-          <button class="config-btn" data-val="transverse">Poprzeczny (Trans)</button>
+          <label class="control-label">Układ rozrządu:</label>
+          <div class="focus-group" id="dev_valvetrain">
+            <button class="config-btn active" data-val="OHC">OHC (Wałek w głowicy)</button>
+            <button class="config-btn" data-val="OHV">OHV (Popychacze)</button>
+          </div>
+          
+          <label class="control-label">Położenie silnika w podwoziu:</label>
+          <div class="focus-group" id="dev_placement">
+            <button class="config-btn active" data-val="front">Z przodu</button>
+            <button class="config-btn" data-val="mid">Centralnie</button>
+            <button class="config-btn" data-val="rear">Z tyłu</button>
+          </div>
+
+          <label class="control-label">Orientacja montażu:</label>
+          <div class="focus-group" id="dev_orientation">
+            <button class="config-btn active" data-val="longitudinal">Wzdłużny</button>
+            <button class="config-btn" data-val="transverse">Poprzeczny</button>
+          </div>
+
+          <label class="control-label" data-i18n="ui.drivetrainLayout">Rodzaj napędu:</label>
+          <div class="focus-group" id="dev_drivetrain_layout">
+            <button class="config-btn active" data-val="RWD">RWD</button>
+            <button class="config-btn" data-val="FWD">FWD</button>
+            <button class="config-btn" data-val="AWD">AWD</button>
+            <button class="config-btn" data-val="4x4">4x4</button>
+          </div>
         </div>
       </div>
     </div>
@@ -110,226 +197,251 @@
     <!-- 2. WAŁ KORBOWY & ZAPŁON -->
     <div class="panel-section collapsible collapsed" id="crank_tuning_section">
       <div class="section-header">
-        <h3 class="section-title">Wał Korbowy & Faza Zapłonu</h3>
-        <span class="collapse-icon">▼</span>
+        <div class="section-header-left">
+          <h3 class="section-title" data-i18n="ui.crankAndIgnition">Wał Korbowy & Zapłon</h3>
+        </div>
+        <span class="section-status-pill" id="status_crank">180° Flat-plane</span>
+        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body">
-        <label class="control-label">Tryb konfiguracji wału:</label>
-        <div class="focus-group" id="dev_crank_mode" style="margin-bottom: 10px; border-radius: 8px;">
-          <button class="config-btn active" data-val="preset">📐 Wzorce Inżynieryjne</button>
-          <button class="config-btn" data-val="custom">🛠 Własny (Tuning 360°)</button>
-        </div>
+      <div class="section-body-wrapper">
+        <div class="section-body">
+          <label class="control-label">Tryb konfiguracji wału:</label>
+          <div class="focus-group" id="dev_crank_mode">
+            <button class="config-btn active" data-val="preset">Wzorce Inżynieryjne</button>
+            <button class="config-btn" data-val="custom">Tuning 360°</button>
+          </div>
 
-        <!-- KARTA WZORCA INŻYNIERYJNEGO -->
-        <div id="crank_preset_card" class="crank-preset-card">
-          <div class="crank-preset-header">
-            <span class="crank-preset-title" id="crank_preset_name">R4 Flat-Plane 180°</span>
-            <span class="crank-badge" id="crank_preset_badge">Preset Inżynieryjny</span>
+          <!-- KARTA WZORCA INŻYNIERYJNEGO -->
+          <div id="crank_preset_card" class="crank-preset-card">
+            <div class="crank-preset-header">
+              <span class="crank-preset-title" id="crank_preset_name">R4 Flat-Plane 180°</span>
+              <span class="crank-badge engineered" id="crank_preset_badge">Preset Inżynieryjny</span>
+            </div>
+            <p class="crank-preset-desc" id="crank_preset_desc">Kolejność zapłonu 1-3-4-2. Powszechny standard.</p>
+            <div class="crank-preset-tech" id="crank_preset_tech">Interwał zapłonów: 180°</div>
           </div>
-          <p class="crank-preset-desc" id="crank_preset_desc">Kolejność zapłonu 1-3-4-2. Powszechny standard.</p>
-          <div class="crank-preset-tech" id="crank_preset_tech">Interwał zapłonów: 180°</div>
-        </div>
 
-        <!-- INTERAKTYWNA TARCZA BIEGUNOWA (RADIAL UI) W TRYBIE WŁASNYM -->
-        <div id="radial_tuning_container" style="display: none; margin-top: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span class="control-label" style="margin-bottom: 0;">Tarcza 360° (Przeciągnij czopy):</span>
-            <button id="btn_reset_crank" class="dev-btn-small" title="Przywróć domyślne kąty wzorca">↺ Reset</button>
-          </div>
-          <div class="radial-canvas-wrap">
-            <canvas id="radial_crank_canvas" width="220" height="220" class="radial-canvas"></canvas>
-          </div>
-          <div class="radial-helper-bar">
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer;">
-              <input type="checkbox" id="radial_snap_15" style="accent-color: var(--text-accent);">
-              <span>Przyciągaj co 15° (Snap)</span>
-            </label>
+          <!-- INTERAKTYWNA TARCZA BIEGUNOWA W TRYBIE WŁASNYM -->
+          <div id="radial_tuning_container" style="display: none; margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span class="control-label" style="margin-top: 0; margin-bottom: 0;">Tarcza wykorbień (Przeciągnij czopy):</span>
+              <button id="btn_reset_crank" class="dev-btn-small" title="Przywróć domyślne kąty wzorca">Reset</button>
+            </div>
+            <div class="radial-canvas-wrap">
+              <canvas id="radial_crank_canvas" width="200" height="200" class="radial-canvas"></canvas>
+            </div>
+            <div class="radial-helper-bar">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
+                <input type="checkbox" id="radial_snap_15">
+                <span>Przyciągaj co 15° (Snap)</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 3. UKŁAD NAPĘDOWY & PRZEŁOŻENIA -->
-    <div class="panel-section collapsible collapsed">
+    <div class="panel-section collapsible collapsed" id="section_drivetrain">
       <div class="section-header">
-        <h3 class="section-title">Układ Napędowy & Skrzynia</h3>
-        <span class="collapse-icon">▼</span>
+        <div class="section-header-left">
+          <h3 class="section-title" data-i18n="ui.drivetrainAndGearbox">Układ Napędowy & Skrzynia</h3>
+        </div>
+        <span class="section-status-pill" id="status_drivetrain">5b • 1000 RPM</span>
+        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body">
-        <!-- RPM SILNIKA (przeniesione tutaj z uwagi na wyliczanie prędkości) -->
-        <label class="control-label">Obroty silnika: <b id="dev_rpm_val" class="highlight-val">1000</b> RPM</label>
-        <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000" style="margin-bottom: 12px;">
+      <div class="section-body-wrapper">
+        <div class="section-body">
+          <label class="control-label">Obroty silnika: <b id="dev_rpm_val" class="highlight-val">1000</b> RPM</label>
+          <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000">
 
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-          <label class="control-label" style="margin-bottom: 0;">Sprzęgło załączone:</label>
-          <input type="checkbox" id="dev_clutch_engaged" checked>
-        </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px 0;">
+            <label class="control-label" style="margin: 0;">Sprzęgło załączone:</label>
+            <input type="checkbox" id="dev_clutch_engaged" checked>
+          </div>
 
-        <label class="control-label">Skrzynia Biegów (Preset):</label>
-        <div class="focus-group" id="dev_gearbox_preset" style="margin-bottom: 8px; flex-wrap: wrap; border-radius: 8px;">
-          <button class="config-btn active" data-val="opel_f17">Saab 9-3 (5b)</button>
-          <button class="config-btn" data-val="bmw_zf_gs6">BMW ZF (6b)</button>
-          <button class="config-btn" data-val="tremec_t56">Tremec T56 (6b)</button>
-          <button class="config-btn" data-val="rally_dogbox">Rajdowa (6b)</button>
-          <button class="config-btn" data-val="custom">🛠 Własna</button>
-        </div>
-        <div id="dev_gearbox_desc" class="crank-edu-note" style="margin-bottom: 10px;">
-          Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie.
-        </div>
+          <label class="control-label">Skrzynia Biegów (Preset):</label>
+          <div class="focus-group" id="dev_gearbox_preset" style="flex-wrap: wrap;">
+            <button class="config-btn active" data-val="opel_f17">Saab 9-3 (5b)</button>
+            <button class="config-btn" data-val="bmw_zf_gs6">BMW ZF (6b)</button>
+            <button class="config-btn" data-val="tremec_t56">Tremec T56 (6b)</button>
+            <button class="config-btn" data-val="rally_dogbox">Rajdowa (6b)</button>
+            <button class="config-btn" data-val="custom">Własna</button>
+          </div>
+          <div id="dev_gearbox_desc" class="crank-edu-note" style="margin-bottom: 8px;">
+            Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie.
+          </div>
 
-        <!-- BIEG (Włączone przełożenie) -->
-        <label class="control-label">Aktualny Bieg:</label>
-        <div class="focus-group" id="dev_gearbox" style="margin-bottom: 10px; flex-wrap: wrap;">
-          <button class="config-btn" data-gear="R">R</button>
-          <button class="config-btn" data-gear="N">N</button>
-          <button class="config-btn active" data-gear="1">1</button>
-          <button class="config-btn" data-gear="2">2</button>
-          <button class="config-btn" data-gear="3">3</button>
-          <button class="config-btn" data-gear="4">4</button>
-          <button class="config-btn" data-gear="5">5</button>
-          <button class="config-btn" data-gear="6" id="btn_gear_6" style="display: none;">6</button>
-        </div>
+          <!-- BIEG (Włączone przełożenie) -->
+          <label class="control-label">Aktualny Bieg:</label>
+          <div class="focus-group" id="dev_gearbox" style="flex-wrap: wrap;">
+            <button class="config-btn" data-gear="R">R</button>
+            <button class="config-btn" data-gear="N">N</button>
+            <button class="config-btn active" data-gear="1">1</button>
+            <button class="config-btn" data-gear="2">2</button>
+            <button class="config-btn" data-gear="3">3</button>
+            <button class="config-btn" data-gear="4">4</button>
+            <button class="config-btn" data-gear="5">5</button>
+            <button class="config-btn" data-gear="6" id="btn_gear_6" style="display: none;">6</button>
+          </div>
 
-        <!-- WŁASNE PRZEŁOŻENIA (Custom Gearbox Editor) -->
-        <div id="custom_gearbox_container" style="display: none;">
-          <label class="control-label" style="color: var(--text-accent);">Edycja Przełożeń Biegów:</label>
-          <div class="gearbox-custom-grid">
-            <div class="gear-ratio-item">
-              <label>1. Bieg: <b id="val_g1">3.73</b></label>
-              <input type="range" id="slider_g1" class="styled-slider" min="1.5" max="5.0" step="0.01" value="3.73">
-            </div>
-            <div class="gear-ratio-item">
-              <label>2. Bieg: <b id="val_g2">2.14</b></label>
-              <input type="range" id="slider_g2" class="styled-slider" min="1.0" max="3.5" step="0.01" value="2.14">
-            </div>
-            <div class="gear-ratio-item">
-              <label>3. Bieg: <b id="val_g3">1.41</b></label>
-              <input type="range" id="slider_g3" class="styled-slider" min="0.8" max="2.5" step="0.01" value="1.41">
-            </div>
-            <div class="gear-ratio-item">
-              <label>4. Bieg: <b id="val_g4">1.12</b></label>
-              <input type="range" id="slider_g4" class="styled-slider" min="0.6" max="1.8" step="0.01" value="1.12">
-            </div>
-            <div class="gear-ratio-item">
-              <label>5. Bieg: <b id="val_g5">0.89</b></label>
-              <input type="range" id="slider_g5" class="styled-slider" min="0.5" max="1.4" step="0.01" value="0.89">
-            </div>
-            <div class="gear-ratio-item">
-              <label>6. Bieg: <b id="val_g6">0.75</b></label>
-              <input type="range" id="slider_g6" class="styled-slider" min="0.4" max="1.2" step="0.01" value="0.75">
-            </div>
-            <div class="gear-ratio-item" style="grid-column: span 2;">
-              <label>Wsteczny (R): <b id="val_gr">-3.31</b></label>
-              <input type="range" id="slider_gr" class="styled-slider" min="1.5" max="4.5" step="0.01" value="3.31">
+          <!-- WŁASNE PRZEŁOŻENIA (Custom Gearbox Editor) -->
+          <div id="custom_gearbox_container" style="display: none;">
+            <label class="control-label" style="color: var(--text-primary); font-weight: 600;">Edycja Przełożeń Biegów:</label>
+            <div class="gearbox-custom-grid">
+              <div class="gear-ratio-item">
+                <label>1. Bieg: <b id="val_g1">3.73</b></label>
+                <input type="range" id="slider_g1" class="styled-slider" min="1.5" max="5.0" step="0.01" value="3.73">
+              </div>
+              <div class="gear-ratio-item">
+                <label>2. Bieg: <b id="val_g2">2.14</b></label>
+                <input type="range" id="slider_g2" class="styled-slider" min="1.0" max="3.5" step="0.01" value="2.14">
+              </div>
+              <div class="gear-ratio-item">
+                <label>3. Bieg: <b id="val_g3">1.41</b></label>
+                <input type="range" id="slider_g3" class="styled-slider" min="0.8" max="2.5" step="0.01" value="1.41">
+              </div>
+              <div class="gear-ratio-item">
+                <label>4. Bieg: <b id="val_g4">1.12</b></label>
+                <input type="range" id="slider_g4" class="styled-slider" min="0.6" max="1.8" step="0.01" value="1.12">
+              </div>
+              <div class="gear-ratio-item">
+                <label>5. Bieg: <b id="val_g5">0.89</b></label>
+                <input type="range" id="slider_g5" class="styled-slider" min="0.5" max="1.4" step="0.01" value="0.89">
+              </div>
+              <div class="gear-ratio-item">
+                <label>6. Bieg: <b id="val_g6">0.75</b></label>
+                <input type="range" id="slider_g6" class="styled-slider" min="0.4" max="1.2" step="0.01" value="0.75">
+              </div>
+              <div class="gear-ratio-item" style="grid-column: span 2;">
+                <label>Wsteczny (R): <b id="val_gr">-3.31</b></label>
+                <input type="range" id="slider_gr" class="styled-slider" min="1.5" max="4.5" step="0.01" value="3.31">
+              </div>
             </div>
           </div>
-        </div>
-        
-        <label class="control-label">Przełożenie główne (Dyferencjał): <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
-        <input type="range" id="dev_final_drive" class="styled-slider" min="1.0" max="6.0" step="0.01" value="3.94">
+          
+          <label class="control-label">Przełożenie główne (Dyferencjał): <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
+          <input type="range" id="dev_final_drive" class="styled-slider" min="1.0" max="6.0" step="0.01" value="3.94">
 
-        <label class="control-label">Sprzęgło (Typ):</label>
-        <div class="focus-group" id="dev_clutch" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="single">Jednotarczowe</button>
-          <button class="config-btn" data-val="dual">DCT (Dwusprzęgłowe)</button>
-        </div>
-
-        <label class="control-label">Układ Wydechowy:</label>
-        <div class="focus-group" id="dev_exhaust_pipes" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="single">Pojedynczy wydech (1 rura)</button>
-          <button class="config-btn" data-val="dual">Podwójny wydech (2 rury)</button>
-        </div>
-
-        <label class="control-label">Mechanizm Różnicowy (Tył):</label>
-        <div class="focus-group" id="dev_diff" style="margin-bottom: 10px;">
-          <button class="config-btn active" data-val="open">Otwarty</button>
-          <button class="config-btn" data-val="lsd_mech">Szpera (LSD)</button>
-          <button class="config-btn" data-val="locker">Blokada 100%</button>
-        </div>
-        
-        <!-- TELEMETRIA PRĘDKOŚCI -->
-        <div class="gear-telemetry-grid">
-          <div>
-            <span class="control-label" style="margin-bottom: 0; font-size: 10px;">Prędkość kół:</span>
-            <div id="dev_wheel_speed" class="gear-tele-val" style="font-size: 1.2em;">0 km/h</div>
+          <label class="control-label">Typ Sprzęgła:</label>
+          <div class="focus-group" id="dev_clutch">
+            <button class="config-btn active" data-val="single">Jednotarczowe</button>
+            <button class="config-btn" data-val="dual">DCT (Dwusprzęgłowe)</button>
           </div>
-          <div>
-            <span class="control-label" style="margin-bottom: 0; font-size: 10px;">Obroty koła:</span>
-            <div id="dev_wheel_rpm" class="gear-tele-val">0 RPM</div>
+
+          <label class="control-label">Układ Wydechowy:</label>
+          <div class="focus-group" id="dev_exhaust_pipes">
+            <button class="config-btn active" data-val="single">Pojedynczy (1 rura)</button>
+            <button class="config-btn" data-val="dual">Podwójny (2 rury)</button>
           </div>
-          <div style="grid-column: span 2; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 4px; display: flex; justify-content: space-between;">
-            <span style="font-size: 10px; color: var(--text-muted);">Całkowita redukcja biegu:</span>
-            <b id="dev_total_reduction" style="font-family: var(--font-mono); font-size: 11px; color: #38bdf8;">14.68:1</b>
+
+          <label class="control-label">Mechanizm Różnicowy (Tył):</label>
+          <div class="focus-group" id="dev_diff">
+            <button class="config-btn active" data-val="open">Otwarty</button>
+            <button class="config-btn" data-val="lsd_mech">Szpera (LSD)</button>
+            <button class="config-btn" data-val="locker">Blokada 100%</button>
+          </div>
+          
+          <!-- TELEMETRIA PRĘDKOŚCI -->
+          <div class="gear-telemetry-grid">
+            <div>
+              <span class="control-label" style="margin: 0; font-size: 10px;">Prędkość kół:</span>
+              <div id="dev_wheel_speed" class="gear-tele-val">0 km/h</div>
+            </div>
+            <div>
+              <span class="control-label" style="margin: 0; font-size: 10px;">Obroty koła:</span>
+              <div id="dev_wheel_rpm" class="gear-tele-val">0 RPM</div>
+            </div>
+            <div style="grid-column: span 2; border-top: 1px solid var(--border-subtle); padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 10.5px; color: var(--text-secondary);">Całkowita redukcja:</span>
+              <b id="dev_total_reduction" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-primary);">14.68:1</b>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 4. FIZYKA & WIBRACJE -->
-    <div class="panel-section collapsible collapsed">
+    <div class="panel-section collapsible collapsed" id="section_physics">
       <div class="section-header">
-        <h3 class="section-title">Fizyka & Wyważenie</h3>
-        <span class="collapse-icon">▼</span>
+        <div class="section-header-left">
+          <h3 class="section-title" data-i18n="ui.physicsAndBalance">Fizyka & Wyważenie</h3>
+        </div>
+        <span class="section-status-pill" id="status_physics">Balans OK</span>
+        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body">
-        <canvas id="dev_vibration_canvas" width="180" height="180" class="physics-canvas"></canvas>
-        <div id="crank_diagnostics_box" class="crank-diag-box perfect">
-          <div class="diag-header">
-            <span id="diag_status_icon">🌟</span>
-            <strong id="diag_title">Perfekcyjny Balans</strong>
+      <div class="section-body-wrapper">
+        <div class="section-body">
+          <canvas id="dev_vibration_canvas" width="180" height="180" class="physics-canvas"></canvas>
+          <div id="crank_diagnostics_box" class="crank-diag-box perfect">
+            <div class="diag-header">
+              <span id="diag_status_icon">✓</span>
+              <strong id="diag_title">Perfekcyjny Balans</strong>
+            </div>
+            <p id="diag_message" class="diag-text">Siły I i II rzędu oraz momenty znoszą się do zera.</p>
+            <div id="diag_rec" class="diag-rec">Złoty standard kultury pracy silnika spalinowego.</div>
           </div>
-          <p id="diag_message" class="diag-text">Siły I i II rzędu oraz momenty znoszą się do zera.</p>
-          <div id="diag_rec" class="diag-rec">Złoty standard kultury pracy silnika spalinowego.</div>
         </div>
       </div>
     </div>
 
-    <!-- 5. WIDOCZNOŚĆ & KAMERA -->
-    <div class="panel-section collapsible collapsed">
+    <!-- 5. WIDOK & KAMERA -->
+    <div class="panel-section collapsible collapsed" id="section_view">
       <div class="section-header">
-        <h3 class="section-title">Opcje Widoku & Analiza</h3>
-        <span class="collapse-icon">▼</span>
+        <div class="section-header-left">
+          <h3 class="section-title" data-i18n="ui.viewAndCamera">Widok & Kamera</h3>
+        </div>
+        <span class="section-status-pill" id="status_view">Studio</span>
+        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body">
-        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-          <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
-            <input type="checkbox" id="toggle_wireframes" checked style="accent-color: var(--text-accent);">
-            <span>Zarys (Cylindry / Głowice)</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
-            <input type="checkbox" id="toggle_hover" checked style="accent-color: var(--text-accent);">
-            <span>Podświetlanie obiektów (Hover)</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: pointer; font-size: 0.9em;">
-            <input type="checkbox" id="toggle_datum" style="accent-color: var(--text-accent);">
-            <span>Pokaż Datum silnika</span>
-          </label>
-        </div>
+      <div class="section-body-wrapper">
+        <div class="section-body">
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+            <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
+              <span>Zarys (Cylindry / Głowice)</span>
+              <input type="checkbox" id="toggle_wireframes" checked>
+            </label>
+            <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
+              <span>Podświetlanie obiektów (Hover)</span>
+              <input type="checkbox" id="toggle_hover" checked>
+            </label>
+            <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
+              <span>Pokaż Datum silnika (Centrum)</span>
+              <input type="checkbox" id="toggle_datum">
+            </label>
+            <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
+              <span>Podwozie, koła i zawieszenie</span>
+              <input type="checkbox" id="toggle_chassis">
+            </label>
+          </div>
 
-        <label class="control-label">Skupienie kamery:</label>
-        <div class="focus-group">
-          <button class="focus-btn active" data-focus="engine">Silnik</button>
-          <button class="focus-btn" data-focus="drivetrain">Napęd</button>
-          <button class="focus-btn" data-focus="car">Auto</button>
-        </div>
-        <div class="hud-group" style="margin-top:10px;">
-          <button id="cutaway-btn" class="hud-btn active">🔍 Przekrój bloku</button>
-        </div>
-        <div class="hud-group slider-group" style="margin-top:10px;">
-          <span class="hud-label">EKSPLOZJA:</span>
+          <label class="control-label">Skupienie kamery:</label>
+          <div class="focus-group">
+            <button class="focus-btn active" data-focus="engine">Silnik</button>
+            <button class="focus-btn" data-focus="drivetrain">Napęd</button>
+            <button class="focus-btn" data-focus="car">Auto</button>
+          </div>
+
+          <div style="margin-top: 8px;">
+            <button id="cutaway-btn" class="hud-btn active" style="width: 100%; justify-content: center;">
+              Przekrój bloku silnika
+            </button>
+          </div>
+
+          <label class="control-label" style="margin-top: 10px;">Eksplozja podzespołów:</label>
           <input type="range" id="explode-slider" class="styled-slider" min="0" max="1" value="0" step="0.01">
         </div>
       </div>
     </div>
     
-    <!-- CZĘŚCI I MODUŁY -->
+    <!-- CZĘŚCI I MODUŁY (Dla kompatybilności) -->
     <div class="panel-section" style="display:none;">
       <nav class="category-pills" id="category-nav"></nav>
       <div class="parts-chips-container" id="parts-selector"></div>
     </div>
   </aside>
 
-  <!-- DOLNY PANEL TELEMETRII (4-Suw) -->
+  <!-- DOLNY PANEL TELEMETRII (Apple Pro Dock) -->
   <footer class="bottom-hud">
     <div class="live-stroke-banner" id="live-stroke-desc">Kamera aktywna</div>
     <div class="cylinders-telemetry-bar" id="cylinders-telemetry"></div>
@@ -352,7 +464,7 @@
       </div>
 
       <button id="info-toggle-btn" class="hud-btn" style="margin-left:auto;">
-        📖 Baza Wiedzy
+        Baza Wiedzy
       </button>
     </div>
     
@@ -365,11 +477,11 @@
     </div>
   </footer>
 
-  <!-- PRAWY PANEL WIEDZY (Drawer) -->
+  <!-- PRAWY PANEL WIEDZY (Info Drawer) -->
   <aside id="info-drawer" class="info-drawer">
     <div class="drawer-header">
       <h3 id="drawer-title">Komponent</h3>
-      <button id="info-close-btn" class="drawer-close">✕</button>
+      <button id="info-close-btn" class="drawer-close" title="Zamknij">✕</button>
     </div>
     <div class="drawer-telemetry">
       <div class="mini-spec"><span class="spec-label">Moc:</span> <strong id="drawer-hp">0 KM</strong></div>
@@ -377,41 +489,41 @@
       <div class="mini-spec"><span class="spec-label">Masa:</span> <strong id="drawer-weight">0 kg</strong></div>
     </div>
     <div class="drawer-content">
-      <div class="drawer-block"><span class="drawer-tag">⚙️ ZASADA DZIAŁANIA</span><p id="drawer-principle"></p></div>
-      <div class="drawer-block"><span class="drawer-tag">💡 DLACZEGO TO TAK DZIAŁA?</span><p id="drawer-why"></p></div>
-      <div class="drawer-block highlight-block"><span class="drawer-tag">📜 GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
-      <div class="drawer-block"><span class="drawer-tag">🚗 PRZYKŁADY AUT</span><p id="drawer-examples"></p></div>
+      <div class="drawer-block"><span class="drawer-tag">ZASADA DZIAŁANIA</span><p id="drawer-principle"></p></div>
+      <div class="drawer-block"><span class="drawer-tag">CEL KONSTRUKCYJNY</span><p id="drawer-why"></p></div>
+      <div class="drawer-block highlight-block"><span class="drawer-tag">GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
+      <div class="drawer-block"><span class="drawer-tag">PRZYKŁADY ZASTOSOWAŃ</span><p id="drawer-examples"></p></div>
     </div>
   </aside>
 
   <!-- DEV / DEBUG DRAWER & TOGGLE -->
-  <button id="dev-mode-btn" class="dev-mode-toggle" title="Włącz / Wyłącz Tryb Deweloperski">
-    🛠 Dev Mode
+  <button id="dev-mode-btn" class="dev-mode-toggle" title="Włącz / Wyłącz Inspektor">
+    Inspector Pro
   </button>
 
   <aside id="dev-drawer" class="dev-drawer">
     <div class="drawer-header">
-      <h3 style="color: var(--text-accent); margin: 0; display: flex; align-items: center; gap: 8px;">
-        <span>🛠 Tryb Deweloperski</span>
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem; font-weight: 700;">
+        Inspector Pro
       </h3>
       <button id="dev-close-btn" class="drawer-close" title="Zamknij panel (Esc)">✕</button>
     </div>
     
     <div class="drawer-content" style="flex: 1; display: flex; flex-direction: column;">
       <div id="dev-config-summary" class="dev-meta-pill">
-        <span style="color: var(--text-muted);">Układ: <strong id="dev-summary-text" style="color: #fff;">Inline-4</strong></span>
+        <span style="color: var(--text-secondary);">Układ: <strong id="dev-summary-text" style="color: #fff;">Inline-4</strong></span>
         <span id="dev-status-badge" class="dev-badge info">Gotowy</span>
       </div>
 
       <div class="dev-btn-group">
         <button id="dev-check-overlap" class="dev-btn-primary">
-          <span>🔍 Sprawdź Overlaping</span>
+          <span>Sprawdź Kolizje OBB</span>
         </button>
         <button id="dev-copy-overlap" class="dev-btn-secondary" disabled title="Skopiuj raport kolizji do schowka">
-          <span>📋 Kopiuj</span>
+          <span>Kopiuj</span>
         </button>
         <button id="dev-clear-overlap" class="dev-btn-icon" title="Wyczyść wyniki">
-          <span>🗑</span>
+          <span>✕</span>
         </button>
       </div>
 
@@ -422,16 +534,16 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
       <!-- SPIS CZĘŚCI I PODZESPOŁÓW WG KATEGORII -->
       <div class="dev-catalog-section" style="margin-bottom: 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <div style="font-size: 11px; color: var(--text-accent); text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
-            <span>📦 Spis Części (<span id="dev-parts-total-count" style="color: #fff;">0 szt.</span>)</span>
+          <div style="font-size: 11px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+            Spis Części (<span id="dev-parts-total-count" style="color: var(--accent-blue);">0 szt.</span>)
           </div>
           <button id="dev-copy-parts" class="dev-btn-small" title="Skopiuj spis wszystkich części do schowka">
-            <span>📋 Kopiuj spis</span>
+            Kopiuj spis
           </button>
         </div>
 
         <div style="margin-bottom: 8px;">
-          <input type="text" id="dev-parts-search" placeholder="Filtruj część (np. tłok, wał, zawór)..." style="width: 100%; padding: 6px 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; font-size: 11px; font-family: monospace;">
+          <input type="text" id="dev-parts-search" placeholder="Filtruj część (np. tłok, wał, zawór)..." style="width: 100%;">
         </div>
 
         <div id="dev-parts-catalog-list" class="dev-catalog-box">
@@ -440,16 +552,16 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
       </div>
 
       <!-- OPCJE DEWELOPERSKIE SCENY I SYSTEMU -->
-      <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 12px; margin-top: auto;">
-        <div style="font-size: 11px; color: var(--text-accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: bold;">
-          ⚙️ Widok & Narzędzia
+      <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-top: auto;">
+        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">
+          Narzędzia Widoku
         </div>
-        <label style="display: flex; align-items: center; gap: 8px; color: #cbd5e1; cursor: pointer; font-size: 12px; margin-bottom: 10px;">
-          <input type="checkbox" id="dev-toggle-datum" style="accent-color: var(--text-accent);">
+        <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); cursor: pointer; font-size: 12px; margin-bottom: 10px;">
           <span>Pokaż centrum silnika (Wektory / Datum)</span>
+          <input type="checkbox" id="dev-toggle-datum">
         </label>
-        <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 10px; font-weight: bold; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);" title="Przeładuj całą stronę i zresetuj stan">
-          <span>🔄 Przeładuj stronę (Reload)</span>
+        <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 8px; font-weight: 600;" title="Przeładuj całą stronę i zresetuj stan">
+          Przeładuj aplikację
         </button>
       </div>
     </div>

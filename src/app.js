@@ -8,7 +8,7 @@ import { Scene3D } from "./scene3d.js";
 
 class App {
   constructor() {
-    this.lang = "pl";
+    this.lang = window.localStorage.getItem("lang") || "pl";
     this.t = i18n[this.lang];
     
     this.config = {
@@ -39,6 +39,7 @@ class App {
     this.lastPrimaryDesc = "";
 
     this.setupUI();
+    this.translateUI();
     this.renderCategoryNav();
     this.renderPartsSelector();
     this.updateInfoDrawer();
@@ -47,8 +48,8 @@ class App {
   onFrameStats(stats) {
     const fpsBadge = this.cachedUi.fpsBadge;
     if (fpsBadge) {
-      fpsBadge.textContent = `${stats.fps} FPS (${stats.frameTime}ms)`;
-      fpsBadge.style.color = stats.fps >= 50 ? "#10b981" : stats.fps >= 30 ? "#f59e0b" : "#ef4444";
+      fpsBadge.textContent = `${stats.fps} FPS`;
+      fpsBadge.style.color = stats.fps >= 50 ? "#30d158" : stats.fps >= 30 ? "#ff9f0a" : "#ff453a";
     }
 
     const scrubVal = this.cachedUi.scrubVal;
@@ -83,6 +84,19 @@ class App {
         this.lastPrimaryDesc = primaryCyl.desc;
       }
     }
+  }
+
+  
+  translateUI() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const keys = key.split('.');
+      let val = this.t;
+      for (const k of keys) {
+        if (val) val = val[k];
+      }
+      if (val) el.textContent = val;
+    });
   }
 
   setupUI() {
@@ -238,7 +252,7 @@ class App {
         const crankAngleDeg = (res.crankAngleDeg !== undefined) ? res.crankAngleDeg : Math.round(((this.scene3d.crankAngle * 180 / Math.PI) % 720 + 720) % 720);
 
         const timestamp = new Date().toLocaleTimeString('pl-PL');
-        const configStr = `${cfg.layout} ${cfg.cylinders}-cyl | ${cfg.valves}V | ${cfg.valvetrain || 'OHC'} | Kąt V: ${cfg.vAngle || 0}°`;
+        const configStr = `${cfg.layout} ${cfg.cylinders}-cyl | ${cfg.valves}V | ${cfg.valvetrain || 'OHC'} | Kąt V: ${cfg.vAngle || 0}°\nSpecyfikacja: Napęd: ${cfg.drivetrainLayout || 'RWD'} | Wydech: ${cfg.exhaustPipes === 'dual' ? '2 rury' : '1 rura'} | Położenie: ${cfg.placement || 'front'} ${cfg.orientation || 'longitudinal'}`;
 
         if (collisions.length > 0) {
           if (devStatusBadge) {
