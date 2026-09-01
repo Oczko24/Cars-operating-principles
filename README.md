@@ -1,16 +1,17 @@
-# Cars-operating-principles
-Wepsite that visualise and educate how cars are built 
+# Cars Operating Principles
 
-Assumptions 
-- Mobile devices version
-- Procedular objects
-- Light and modern website as possible
-- When done make it a real website
-- Open source and non-profit
-- thorough explanation of most issues related to car construction
-- Highly customizable model, possibility of experimenting with different configurations 
-- if it will not be that hard to implement then I will add approx how much power it will produce, in witch consitions it will drive best and so on
-- providing examples of car models in which something occurs, along with the years in which it was mainly used (maybe even a timeline)
+3D Educational Engine & Car Simulator.
 
-It has to educate and make easier to understand how cars works. Engine, pistons, clutch, suspension, exhaust etc. 
-Including history and reasons why something works that and not different way. 
+## Features
+- Realistic 3D engine physics and mechanics
+- Procedural generation of Inline, Boxer, V, and VR engines
+- Complete drivetrain (clutch, gearbox, differential)
+- Interactive 4-stroke cycle learning
+
+## How to run
+Use any local HTTP server (e.g., Python or Live Server).
+
+```bash
+python3 -m http.server 8000
+```
+Then open `http://localhost:8000` in your browser.

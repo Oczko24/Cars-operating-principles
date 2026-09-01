@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cars: Operating Principles | Edukacyjny Silnik & Samochód 3D</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./src/vendor/three.module.js",
+      "three/addons/": "./src/vendor/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- LEWY PANEL BAZOWY (Zintegrowane Menu) -->
+  <aside class="sidebar-left">
+    <div class="sidebar-header">
+      <div class="brand-pill">
+        <span class="brand-dot"></span>
+        <span class="brand-title">CARS 3D</span>
+      </div>
+      <div class="fps-badge" id="fps-val" title="Wydajność renderowania">60 FPS</div>
+    </div>
+
+    <!-- KONFIGURACJA SILNIKA (przeniesiona z scene3d.js) -->
+    <div class="panel-section">
+      <h3 class="section-title">Architektura Silnika</h3>
+      <label class="control-label">Układ cylindrów:</label>
+      <select id="dev_layout" class="styled-select">
+        <option value="Inline">Rzędowy (L)</option>
+        <option value="V">Widlasty (V)</option>
+        <option value="VR">Wąskokątny (VR)</option>
+        <option value="Boxer">Przeciwsobny (Boxer)</option>
+      </select>
+      
+      <label class="control-label">Cylindry: <b id="dev_cyl_val" class="highlight-val">4</b></label>
+      <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
+      
+      <div id="dev_angle_container">
+        <label class="control-label">Kąt rozwarcia: <b id="dev_angle_val" class="highlight-val">60</b>°</label>
+        <input type="range" id="dev_angle" class="styled-slider" min="15" max="180" step="5" value="60">
+      </div>
+
+      <label class="control-label">Cykl pracy:</label>
+      <select id="dev_stroke" class="styled-select">
+        <option value="4" selected>4-suw (Otto)</option>
+        <option value="2">2-suw</option>
+      </select>
+      
+      <label class="control-label">RPM: <b id="dev_rpm_val" class="highlight-val">1000</b></label>
+      <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000">
+
+      <label class="control-label">Zawory / cyl:</label>
+      <select id="dev_valves" class="styled-select">
+        <option value="2">2 (1 ss, 1 wy)</option>
+        <option value="4" selected>4 (2 ss, 2 wy)</option>
+      </select>
+    </div>
+
+    <!-- UKŁAD NAPĘDOWY -->
+    <div class="panel-section">
+      <h3 class="section-title">Układ Napędowy</h3>
+      
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <label class="control-label" style="margin-bottom: 0;">Sprzęgło załączone:</label>
+        <input type="checkbox" id="dev_clutch_engaged" checked>
+      </div>
+
+      <label class="control-label">Bieg (Skrzynia manualna):</label>
+      <div class="focus-group" id="dev_gearbox" style="margin-bottom: 10px;">
+        <button class="focus-btn" data-gear="R">R</button>
+        <button class="focus-btn" data-gear="N">N</button>
+        <button class="focus-btn active" data-gear="1">1</button>
+        <button class="focus-btn" data-gear="2">2</button>
+        <button class="focus-btn" data-gear="3">3</button>
+        <button class="focus-btn" data-gear="4">4</button>
+        <button class="focus-btn" data-gear="5">5</button>
+      </div>
+      
+      <label class="control-label">Mnożnik (Przełożenie główne): <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
+      <input type="range" id="dev_final_drive" class="styled-slider" min="1.0" max="6.0" step="0.01" value="3.94">
+
+      <label class="control-label">Sprzęgło (Typ):</label>
+      <select id="dev_clutch" class="styled-select">
+        <option value="single">Jednotarczowe suche</option>
+        <option value="dual">Dwusprzęgłowe (DCT)</option>
+      </select>
+
+      <label class="control-label">Dyferencjał (Tył):</label>
+      <select id="dev_diff" class="styled-select">
+        <option value="open" selected>Otwarty (Open)</option>
+        <option value="lsd_mech">Szpera (1.5 Way LSD)</option>
+        <option value="locker">Blokada 100% (Off-road)</option>
+      </select>
+      
+      <div style="margin-top: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px;">
+        <span class="control-label" style="margin-bottom: 0;">Prędkość kół: <b id="dev_wheel_speed" style="color: #4ade80; font-size: 1.2em;">0 km/h</b></span>
+      </div>
+    </div>
+
+    <!-- FIZYKA & WIBRACJE -->
+    <div class="panel-section">
+      <h3 class="section-title">Fizyka & Wyważenie</h3>
+      <canvas id="dev_vibration_canvas" width="180" height="180" class="physics-canvas"></canvas>
+    </div>
+
+    <!-- KAMERA I WIDOK -->
+    <div class="panel-section">
+      <h3 class="section-title">Analiza & Kamera</h3>
+      <div class="focus-group">
+        <button class="focus-btn active" data-focus="engine">Silnik</button>
+        <button class="focus-btn" data-focus="drivetrain">Napęd</button>
+        <button class="focus-btn" data-focus="car">Auto</button>
+      </div>
+      <div class="hud-group" style="margin-top:10px;">
+        <button id="cutaway-btn" class="hud-btn active">🔍 Przekrój bloku</button>
+      </div>
+      <div class="hud-group slider-group" style="margin-top:10px;">
+        <span class="hud-label">EKSPLOZJA:</span>
+        <input type="range" id="explode-slider" class="styled-slider" min="0" max="1" value="0" step="0.01">
+      </div>
+    </div>
+    
+    <!-- CZĘŚCI I MODUŁY -->
+    <div class="panel-section" style="display:none;">
+      <nav class="category-pills" id="category-nav"></nav>
+      <div class="parts-chips-container" id="parts-selector"></div>
+    </div>
+  </aside>
+
+  <!-- DOLNY PANEL TELEMETRII (4-Suw) -->
+  <footer class="bottom-hud">
+    <div class="live-stroke-banner" id="live-stroke-desc">Kamera aktywna</div>
+    <div class="cylinders-telemetry-bar" id="cylinders-telemetry"></div>
+    
+    <div class="controls-toolbar">
+      <div class="hud-group">
+        <span class="hud-label">CZAS:</span>
+        <div class="btn-group">
+          <button class="speed-btn" data-speed="0">⏸</button>
+          <button class="speed-btn" data-speed="0.2">0.2x</button>
+          <button class="speed-btn active" data-speed="0.35">0.35x</button>
+          <button class="speed-btn" data-speed="1.0">1.0x</button>
+        </div>
+      </div>
+      
+      <div class="hud-group slider-group">
+        <span class="hud-label">KĄT WAŁU:</span>
+        <input type="range" id="crank-scrub" class="styled-slider" min="0" max="720" value="0" step="1">
+        <span class="hud-val" id="crank-val">0°</span>
+      </div>
+
+      <button id="info-toggle-btn" class="hud-btn" style="margin-left:auto;">
+        📖 Baza Wiedzy
+      </button>
+    </div>
+    
+    <!-- Ukryte elementy dla kompatybilności app.js -->
+    <div style="display:none">
+        <button class="stroke-step-btn" data-stroke="1"></button>
+        <button class="stroke-step-btn" data-stroke="2"></button>
+        <button class="stroke-step-btn" data-stroke="3"></button>
+        <button class="stroke-step-btn" data-stroke="4"></button>
+    </div>
+  </footer>
+
+  <!-- PRAWY PANEL WIEDZY (Drawer) -->
+  <aside id="info-drawer" class="info-drawer">
+    <div class="drawer-header">
+      <h3 id="drawer-title">Komponent</h3>
+      <button id="info-close-btn" class="drawer-close">✕</button>
+    </div>
+    <div class="drawer-telemetry">
+      <div class="mini-spec"><span class="spec-label">Moc:</span> <strong id="drawer-hp">0 KM</strong></div>
+      <div class="mini-spec"><span class="spec-label">Moment:</span> <strong id="drawer-torque">0 Nm</strong></div>
+      <div class="mini-spec"><span class="spec-label">Masa:</span> <strong id="drawer-weight">0 kg</strong></div>
+    </div>
+    <div class="drawer-content">
+      <div class="drawer-block"><span class="drawer-tag">⚙️ ZASADA DZIAŁANIA</span><p id="drawer-principle"></p></div>
+      <div class="drawer-block"><span class="drawer-tag">💡 DLACZEGO TO TAK DZIAŁA?</span><p id="drawer-why"></p></div>
+      <div class="drawer-block highlight-block"><span class="drawer-tag">📜 GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
+      <div class="drawer-block"><span class="drawer-tag">🚗 PRZYKŁADY AUT</span><p id="drawer-examples"></p></div>
+    </div>
+  </aside>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
