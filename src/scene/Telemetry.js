@@ -1,7 +1,11 @@
 import * as THREE from 'three';
-
+import { i18n } from '../i18n.js';
 
 export function getCylindersState() {
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+    const strokes = t.strokes;
+
     return this.movingCylinders.map(p => {
       let phase = "";
       let phaseClass = "";
@@ -10,31 +14,31 @@ export function getCylindersState() {
       if (this.config.stroke === 2) {
         const strokeAngle = (this.crankAngle + p.phaseOffset) % (Math.PI * 2);
         if (strokeAngle < Math.PI) {
-          phase = "PRACA / WYDECH";
+          phase = strokes.s2.power.phase;
           phaseClass = "stroke-power";
-          desc = "Rozprężanie i jednoczesne płukanie cylindra";
+          desc = strokes.s2.power.desc;
         } else {
-          phase = "SPRĘŻANIE / SSANIE";
+          phase = strokes.s2.compression.phase;
           phaseClass = "stroke-compression";
-          desc = "Sprężanie w cylindrze i ssanie do karteru";
+          desc = strokes.s2.compression.desc;
         }
       } else {
         const strokeAngle = (this.crankAngle + p.phaseOffset) % (Math.PI * 4);
-        phase = "1. SSANIE";
+        phase = strokes.s4.intake.phase;
         phaseClass = "stroke-intake";
-        desc = "Zawór ssący otwarty, zasysanie powietrza";
+        desc = strokes.s4.intake.desc;
         if (strokeAngle >= Math.PI && strokeAngle < Math.PI * 2) {
-          phase = "2. SPRĘŻANIE";
+          phase = strokes.s4.compression.phase;
           phaseClass = "stroke-compression";
-          desc = "Tłok idzie w górę, ściskanie mieszanki";
+          desc = strokes.s4.compression.desc;
         } else if (strokeAngle >= Math.PI * 2 && strokeAngle < Math.PI * 3) {
-          phase = "3. PRACA";
+          phase = strokes.s4.power.phase;
           phaseClass = "stroke-power";
-          desc = "Iskra świecy, zapłon gazów, pchanie tłoka w dół";
+          desc = strokes.s4.power.desc;
         } else if (strokeAngle >= Math.PI * 3) {
-          phase = "4. WYDECH";
+          phase = strokes.s4.exhaust.phase;
           phaseClass = "stroke-exhaust";
-          desc = "Zawór wydechowy otwarty, wyrzut spalin";
+          desc = strokes.s4.exhaust.desc;
         }
       }
       return { id: p.id, phase, phaseClass, desc };

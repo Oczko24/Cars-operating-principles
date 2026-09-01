@@ -18,6 +18,7 @@ import {
   analyzeEngineBalance,
   RadialCrankUI
 } from './crankshaft_solver.js';
+import { i18n } from './i18n.js';
 
 export const GEARBOX_PRESETS = {
   opel_f17: {
@@ -84,6 +85,7 @@ export class Scene3D {
     this.isCutaway = true;
     this.radialUI = null;
     this.currentBalanceReport = null;
+    this.lang = "pl";
     this.config = {
       layout: "Inline",
       stroke: 4,
@@ -824,6 +826,20 @@ export class Scene3D {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this.animate);
+  }
+
+  setLanguage(lang) {
+    this.lang = lang;
+    this.updateCrankshaftUI();
+    const devGearboxDesc = document.getElementById('dev_gearbox_desc');
+    if (devGearboxDesc && this.config.gearboxPreset) {
+      const gDict = (i18n[this.lang] && i18n[this.lang].gearboxPresets) ? i18n[this.lang].gearboxPresets : null;
+      if (this.config.gearboxPreset === 'custom') {
+        devGearboxDesc.innerHTML = (i18n[this.lang] && i18n[this.lang].ui) ? i18n[this.lang].ui.customGearboxDesc : i18n.pl.ui.customGearboxDesc;
+      } else if (gDict && gDict[this.config.gearboxPreset]) {
+        devGearboxDesc.innerText = gDict[this.config.gearboxPreset].desc;
+      }
+    }
   }
 
 }

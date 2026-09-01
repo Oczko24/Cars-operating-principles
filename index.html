@@ -98,7 +98,14 @@ window.addEventListener('unhandledrejection', function(e) {
         <span class="brand-title">CARS 3D</span>
         <span class="brand-subtitle">PRO STUDIO</span>
       </div>
-      <div class="fps-badge" id="fps-val" title="Wydajność renderowania">60 FPS</div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button id="lang-toggle-btn" class="lang-pill" data-i18n-title="ui.langSwitchTitle" title="Zmień język (Polski / English)">
+          <span class="lang-opt" data-lang="pl">PL</span>
+          <span class="lang-divider">/</span>
+          <span class="lang-opt" data-lang="en">EN</span>
+        </button>
+        <div class="fps-badge" id="fps-val" data-i18n-title="ui.fpsBadgeTitle" title="Wydajność renderowania">60 FPS</div>
+      </div>
     </div>
 
     <!-- 1. ARCHITEKTURA SILNIKA -->
@@ -114,73 +121,73 @@ window.addEventListener('unhandledrejection', function(e) {
         <div class="section-body">
           <label class="control-label" data-i18n="ui.cylinderLayout">Układ cylindrów:</label>
           <div class="focus-group" id="dev_layout" style="flex-wrap: wrap;">
-            <button class="config-btn active" data-val="Inline" title="Rzędowy (Inline) - najpopularniejszy układ.">Rzędowy</button>
-            <button class="config-btn" data-val="V" title="Widlasty (V) - zwarty blok, dwa rzędy cylindrów.">Widlasty</button>
-            <button class="config-btn" data-val="VR" title="VR - wąski kąt rozwarcia (ok. 15°), wspólna głowica.">VR</button>
-            <button class="config-btn" data-val="W" title="W - połączenie dwóch bloków VR (np. W12, W16).">W</button>
-            <button class="config-btn" data-val="Boxer" title="Boxer (Przeciwsobny) - cylindry leżące płasko (180°).">Boxer</button>
+            <button class="config-btn active" data-val="Inline" data-i18n="ui.layoutInline" data-i18n-title="ui.layoutInlineTitle" title="Rzędowy (Inline) - najpopularniejszy układ.">Rzędowy</button>
+            <button class="config-btn" data-val="V" data-i18n="ui.layoutV" data-i18n-title="ui.layoutVTitle" title="Widlasty (V) - zwarty blok, dwa rzędy cylindrów.">Widlasty</button>
+            <button class="config-btn" data-val="VR" data-i18n="ui.layoutVR" data-i18n-title="ui.layoutVRTitle" title="VR - wąski kąt rozwarcia (ok. 15°), wspólna głowica.">VR</button>
+            <button class="config-btn" data-val="W" data-i18n="ui.layoutW" data-i18n-title="ui.layoutWTitle" title="W - połączenie dwóch bloków VR (np. W12, W16).">W</button>
+            <button class="config-btn" data-val="Boxer" data-i18n="ui.layoutBoxer" data-i18n-title="ui.layoutBoxerTitle" title="Boxer (Przeciwsobny) - cylindry leżące płasko (180°).">Boxer</button>
           </div>
           
           <label class="control-label"><span data-i18n="ui.cylinderCount">Liczba cylindrów:</span> <b id="dev_cyl_val" class="highlight-val">4</b></label>
           <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
 
-          <label class="control-label">Średnica tłoka (Bore): <b id="dev_bore_val" class="highlight-val">84.0 mm</b></label>
+          <label class="control-label"><span data-i18n="ui.bore">Średnica tłoka (Bore):</span> <b id="dev_bore_val" class="highlight-val">84.0 mm</b></label>
           <input type="range" id="dev_bore" class="styled-slider" min="50" max="120" step="0.5" value="84">
 
-          <label class="control-label">Skok tłoka (Stroke): <b id="dev_stroke_len_val" class="highlight-val">90.0 mm</b></label>
+          <label class="control-label"><span data-i18n="ui.stroke">Skok tłoka (Stroke):</span> <b id="dev_stroke_len_val" class="highlight-val">90.0 mm</b></label>
           <input type="range" id="dev_stroke_len" class="styled-slider" min="50" max="140" step="0.5" value="90">
 
           <div class="spec-summary-card">
-            <span class="spec-summary-title">Pojemność skokowa</span>
+            <span class="spec-summary-title" data-i18n="ui.displacement">Pojemność skokowa</span>
             <b id="dev_disp_val" class="spec-summary-val">1995 cm³ (2.0L)</b>
           </div>
           
           <div id="dev_angle_container" style="display: none;">
-            <label class="control-label">Kąt rozwarcia (V-Angle): <b id="dev_angle_val" class="highlight-val">60</b>°</label>
+            <label class="control-label"><span data-i18n="ui.vAngle">Kąt rozwarcia (V-Angle):</span> <b id="dev_angle_val" class="highlight-val">60</b>°</label>
             <input type="range" id="dev_angle" class="styled-slider" min="15" max="180" step="5" value="60">
           </div>
 
           <!-- WYBÓR WAŁU DLA V8 (Crossplane vs Flat-plane) -->
           <div id="dev_v8_crank_container" style="display: none; margin-bottom: 8px;">
-            <label class="control-label">Geometria wału V8:</label>
+            <label class="control-label" data-i18n="ui.v8Crank">Geometria wału V8:</label>
             <div class="focus-group" id="dev_v8_crank">
-              <button class="config-btn active" data-val="crossplane">Crossplane (90°)</button>
-              <button class="config-btn" data-val="flatplane">Flat-plane (180°)</button>
+              <button class="config-btn active" data-val="crossplane" data-i18n="ui.v8CrossplaneBtn">Crossplane (90°)</button>
+              <button class="config-btn" data-val="flatplane" data-i18n="ui.v8FlatplaneBtn">Flat-plane (180°)</button>
             </div>
             <div id="v8_crank_note" class="crank-edu-note">
               <b>Crossplane (90°):</b> Klasyczny bulgot V8, przeciwciężary niwelują siły bezwładności I i II rzędu.
             </div>
           </div>
 
-          <label class="control-label">Cykl pracy:</label>
+          <label class="control-label" data-i18n="ui.cycle">Cykl pracy:</label>
           <div class="focus-group" id="dev_stroke">
-            <button class="config-btn active" data-val="4">4-suw (Otto)</button>
-            <button class="config-btn" data-val="2">2-suw</button>
+            <button class="config-btn active" data-val="4" data-i18n="ui.cycle4Btn">4-suw (Otto)</button>
+            <button class="config-btn" data-val="2" data-i18n="ui.cycle2Btn">2-suw</button>
           </div>
 
-          <label class="control-label">Zawory na cylinder:</label>
+          <label class="control-label" data-i18n="ui.valvesPerCyl">Zawory na cylinder:</label>
           <div class="focus-group" id="dev_valves">
-            <button class="config-btn" data-val="2">2 zawory</button>
-            <button class="config-btn active" data-val="4">4 zawory</button>
+            <button class="config-btn" data-val="2" data-i18n="ui.valves2Btn">2 zawory</button>
+            <button class="config-btn active" data-val="4" data-i18n="ui.valves4Btn">4 zawory</button>
           </div>
 
-          <label class="control-label">Układ rozrządu:</label>
+          <label class="control-label" data-i18n="ui.valvetrain">Układ rozrządu:</label>
           <div class="focus-group" id="dev_valvetrain">
-            <button class="config-btn active" data-val="OHC">OHC (Wałek w głowicy)</button>
-            <button class="config-btn" data-val="OHV">OHV (Popychacze)</button>
+            <button class="config-btn active" data-val="OHC" data-i18n="ui.valvetrainOHCBtn">OHC (Wałek w głowicy)</button>
+            <button class="config-btn" data-val="OHV" data-i18n="ui.valvetrainOHVBtn">OHV (Popychacze)</button>
           </div>
           
-          <label class="control-label">Położenie silnika w podwoziu:</label>
+          <label class="control-label" data-i18n="ui.enginePlacement">Położenie silnika w podwoziu:</label>
           <div class="focus-group" id="dev_placement">
-            <button class="config-btn active" data-val="front">Z przodu</button>
-            <button class="config-btn" data-val="mid">Centralnie</button>
-            <button class="config-btn" data-val="rear">Z tyłu</button>
+            <button class="config-btn active" data-val="front" data-i18n="ui.placementFrontBtn">Z przodu</button>
+            <button class="config-btn" data-val="mid" data-i18n="ui.placementMidBtn">Centralnie</button>
+            <button class="config-btn" data-val="rear" data-i18n="ui.placementRearBtn">Z tyłu</button>
           </div>
 
-          <label class="control-label">Orientacja montażu:</label>
+          <label class="control-label" data-i18n="ui.orientation">Orientacja montażu:</label>
           <div class="focus-group" id="dev_orientation">
-            <button class="config-btn active" data-val="longitudinal">Wzdłużny</button>
-            <button class="config-btn" data-val="transverse">Poprzeczny</button>
+            <button class="config-btn active" data-val="longitudinal" data-i18n="ui.orientationLongBtn">Wzdłużny</button>
+            <button class="config-btn" data-val="transverse" data-i18n="ui.orientationTransBtn">Poprzeczny</button>
           </div>
 
           <label class="control-label" data-i18n="ui.drivetrainLayout">Rodzaj napędu:</label>
@@ -205,17 +212,17 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
       <div class="section-body-wrapper">
         <div class="section-body">
-          <label class="control-label">Tryb konfiguracji wału:</label>
+          <label class="control-label" data-i18n="ui.crankConfigMode">Tryb konfiguracji wału:</label>
           <div class="focus-group" id="dev_crank_mode">
-            <button class="config-btn active" data-val="preset">Wzorce Inżynieryjne</button>
-            <button class="config-btn" data-val="custom">Tuning 360°</button>
+            <button class="config-btn active" data-val="preset" data-i18n="ui.presetModeBtn">Wzorce Inżynieryjne</button>
+            <button class="config-btn" data-val="custom" data-i18n="ui.customModeBtn">Tuning 360°</button>
           </div>
 
           <!-- KARTA WZORCA INŻYNIERYJNEGO -->
           <div id="crank_preset_card" class="crank-preset-card">
             <div class="crank-preset-header">
               <span class="crank-preset-title" id="crank_preset_name">R4 Flat-Plane 180°</span>
-              <span class="crank-badge engineered" id="crank_preset_badge">Preset Inżynieryjny</span>
+              <span class="crank-badge engineered" id="crank_preset_badge" data-i18n="ui.crankEngineeredBadge">Preset Inżynieryjny</span>
             </div>
             <p class="crank-preset-desc" id="crank_preset_desc">Kolejność zapłonu 1-3-4-2. Powszechny standard.</p>
             <div class="crank-preset-tech" id="crank_preset_tech">Interwał zapłonów: 180°</div>
@@ -224,8 +231,8 @@ window.addEventListener('unhandledrejection', function(e) {
           <!-- INTERAKTYWNA TARCZA BIEGUNOWA W TRYBIE WŁASNYM -->
           <div id="radial_tuning_container" style="display: none; margin-top: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span class="control-label" style="margin-top: 0; margin-bottom: 0;">Tarcza wykorbień (Przeciągnij czopy):</span>
-              <button id="btn_reset_crank" class="dev-btn-small" title="Przywróć domyślne kąty wzorca">Reset</button>
+              <span class="control-label" style="margin-top: 0; margin-bottom: 0;" data-i18n="ui.radialTuningLabel">Tarcza wykorbień (Przeciągnij czopy):</span>
+              <button id="btn_reset_crank" class="dev-btn-small" data-i18n="ui.resetCrankBtn" data-i18n-title="ui.resetCrankTitle" title="Przywróć domyślne kąty wzorca">Reset</button>
             </div>
             <div class="radial-canvas-wrap">
               <canvas id="radial_crank_canvas" width="200" height="200" class="radial-canvas"></canvas>
@@ -233,7 +240,7 @@ window.addEventListener('unhandledrejection', function(e) {
             <div class="radial-helper-bar">
               <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
                 <input type="checkbox" id="radial_snap_15">
-                <span>Przyciągaj co 15° (Snap)</span>
+                <span data-i18n="ui.snap15Label">Przyciągaj co 15° (Snap)</span>
               </label>
             </div>
           </div>
@@ -252,28 +259,28 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
       <div class="section-body-wrapper">
         <div class="section-body">
-          <label class="control-label">Obroty silnika: <b id="dev_rpm_val" class="highlight-val">1000</b> RPM</label>
+          <label class="control-label"><span data-i18n="ui.engineRpm">Obroty silnika:</span> <b id="dev_rpm_val" class="highlight-val">1000</b> RPM</label>
           <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000">
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px 0;">
-            <label class="control-label" style="margin: 0;">Sprzęgło załączone:</label>
+            <label class="control-label" style="margin: 0;" data-i18n="ui.clutchEngaged">Sprzęgło załączone:</label>
             <input type="checkbox" id="dev_clutch_engaged" checked>
           </div>
 
-          <label class="control-label">Skrzynia Biegów (Preset):</label>
+          <label class="control-label" data-i18n="ui.gearboxPreset">Skrzynia Biegów (Preset):</label>
           <div class="focus-group" id="dev_gearbox_preset" style="flex-wrap: wrap;">
             <button class="config-btn active" data-val="opel_f17">Saab 9-3 (5b)</button>
             <button class="config-btn" data-val="bmw_zf_gs6">BMW ZF (6b)</button>
             <button class="config-btn" data-val="tremec_t56">Tremec T56 (6b)</button>
             <button class="config-btn" data-val="rally_dogbox">Rajdowa (6b)</button>
-            <button class="config-btn" data-val="custom">Własna</button>
+            <button class="config-btn" data-val="custom" data-i18n="ui.gearboxCustomBtn">Własna</button>
           </div>
           <div id="dev_gearbox_desc" class="crank-edu-note" style="margin-bottom: 8px;">
             Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie.
           </div>
 
           <!-- BIEG (Włączone przełożenie) -->
-          <label class="control-label">Aktualny Bieg:</label>
+          <label class="control-label" data-i18n="ui.currentGear">Aktualny Bieg:</label>
           <div class="focus-group" id="dev_gearbox" style="flex-wrap: wrap;">
             <button class="config-btn" data-gear="R">R</button>
             <button class="config-btn" data-gear="N">N</button>
@@ -287,73 +294,73 @@ window.addEventListener('unhandledrejection', function(e) {
 
           <!-- WŁASNE PRZEŁOŻENIA (Custom Gearbox Editor) -->
           <div id="custom_gearbox_container" style="display: none;">
-            <label class="control-label" style="color: var(--text-primary); font-weight: 600;">Edycja Przełożeń Biegów:</label>
+            <label class="control-label" style="color: var(--text-primary); font-weight: 600;" data-i18n="ui.customGearboxTitle">Edycja Przełożeń Biegów:</label>
             <div class="gearbox-custom-grid">
               <div class="gear-ratio-item">
-                <label>1. Bieg: <b id="val_g1">3.73</b></label>
+                <label><span data-i18n="ui.gear1Label">1. Bieg:</span> <b id="val_g1">3.73</b></label>
                 <input type="range" id="slider_g1" class="styled-slider" min="1.5" max="5.0" step="0.01" value="3.73">
               </div>
               <div class="gear-ratio-item">
-                <label>2. Bieg: <b id="val_g2">2.14</b></label>
+                <label><span data-i18n="ui.gear2Label">2. Bieg:</span> <b id="val_g2">2.14</b></label>
                 <input type="range" id="slider_g2" class="styled-slider" min="1.0" max="3.5" step="0.01" value="2.14">
               </div>
               <div class="gear-ratio-item">
-                <label>3. Bieg: <b id="val_g3">1.41</b></label>
+                <label><span data-i18n="ui.gear3Label">3. Bieg:</span> <b id="val_g3">1.41</b></label>
                 <input type="range" id="slider_g3" class="styled-slider" min="0.8" max="2.5" step="0.01" value="1.41">
               </div>
               <div class="gear-ratio-item">
-                <label>4. Bieg: <b id="val_g4">1.12</b></label>
+                <label><span data-i18n="ui.gear4Label">4. Bieg:</span> <b id="val_g4">1.12</b></label>
                 <input type="range" id="slider_g4" class="styled-slider" min="0.6" max="1.8" step="0.01" value="1.12">
               </div>
               <div class="gear-ratio-item">
-                <label>5. Bieg: <b id="val_g5">0.89</b></label>
+                <label><span data-i18n="ui.gear5Label">5. Bieg:</span> <b id="val_g5">0.89</b></label>
                 <input type="range" id="slider_g5" class="styled-slider" min="0.5" max="1.4" step="0.01" value="0.89">
               </div>
               <div class="gear-ratio-item">
-                <label>6. Bieg: <b id="val_g6">0.75</b></label>
+                <label><span data-i18n="ui.gear6Label">6. Bieg:</span> <b id="val_g6">0.75</b></label>
                 <input type="range" id="slider_g6" class="styled-slider" min="0.4" max="1.2" step="0.01" value="0.75">
               </div>
               <div class="gear-ratio-item" style="grid-column: span 2;">
-                <label>Wsteczny (R): <b id="val_gr">-3.31</b></label>
+                <label><span data-i18n="ui.gearRLabel">Wsteczny (R):</span> <b id="val_gr">-3.31</b></label>
                 <input type="range" id="slider_gr" class="styled-slider" min="1.5" max="4.5" step="0.01" value="3.31">
               </div>
             </div>
           </div>
           
-          <label class="control-label">Przełożenie główne (Dyferencjał): <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
+          <label class="control-label"><span data-i18n="ui.finalDrive">Przełożenie główne (Dyferencjał):</span> <b id="dev_final_drive_val" class="highlight-val">3.94</b></label>
           <input type="range" id="dev_final_drive" class="styled-slider" min="1.0" max="6.0" step="0.01" value="3.94">
 
-          <label class="control-label">Typ Sprzęgła:</label>
+          <label class="control-label" data-i18n="ui.clutchType">Typ Sprzęgła:</label>
           <div class="focus-group" id="dev_clutch">
-            <button class="config-btn active" data-val="single">Jednotarczowe</button>
-            <button class="config-btn" data-val="dual">DCT (Dwusprzęgłowe)</button>
+            <button class="config-btn active" data-val="single" data-i18n="ui.clutchSingleBtn">Jednotarczowe</button>
+            <button class="config-btn" data-val="dual" data-i18n="ui.clutchDualBtn">DCT (Dwusprzęgłowe)</button>
           </div>
 
-          <label class="control-label">Układ Wydechowy:</label>
+          <label class="control-label" data-i18n="ui.exhaustPipes">Układ Wydechowy:</label>
           <div class="focus-group" id="dev_exhaust_pipes">
-            <button class="config-btn active" data-val="single">Pojedynczy (1 rura)</button>
-            <button class="config-btn" data-val="dual">Podwójny (2 rury)</button>
+            <button class="config-btn active" data-val="single" data-i18n="ui.exhaustSingleBtn">Pojedynczy (1 rura)</button>
+            <button class="config-btn" data-val="dual" data-i18n="ui.exhaustDualBtn">Podwójny (2 rury)</button>
           </div>
 
-          <label class="control-label">Mechanizm Różnicowy (Tył):</label>
+          <label class="control-label" data-i18n="ui.diffType">Mechanizm Różnicowy (Tył):</label>
           <div class="focus-group" id="dev_diff">
-            <button class="config-btn active" data-val="open">Otwarty</button>
-            <button class="config-btn" data-val="lsd_mech">Szpera (LSD)</button>
-            <button class="config-btn" data-val="locker">Blokada 100%</button>
+            <button class="config-btn active" data-val="open" data-i18n="ui.diffOpenBtn">Otwarty</button>
+            <button class="config-btn" data-val="lsd_mech" data-i18n="ui.diffLsdBtn">Szpera (LSD)</button>
+            <button class="config-btn" data-val="locker" data-i18n="ui.diffLockerBtn">Blokada 100%</button>
           </div>
           
           <!-- TELEMETRIA PRĘDKOŚCI -->
           <div class="gear-telemetry-grid">
             <div>
-              <span class="control-label" style="margin: 0; font-size: 10px;">Prędkość kół:</span>
+              <span class="control-label" style="margin: 0; font-size: 10px;" data-i18n="ui.wheelSpeed">Prędkość kół:</span>
               <div id="dev_wheel_speed" class="gear-tele-val">0 km/h</div>
             </div>
             <div>
-              <span class="control-label" style="margin: 0; font-size: 10px;">Obroty koła:</span>
+              <span class="control-label" style="margin: 0; font-size: 10px;" data-i18n="ui.wheelRpm">Obroty koła:</span>
               <div id="dev_wheel_rpm" class="gear-tele-val">0 RPM</div>
             </div>
             <div style="grid-column: span 2; border-top: 1px solid var(--border-subtle); padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 10.5px; color: var(--text-secondary);">Całkowita redukcja:</span>
+              <span style="font-size: 10.5px; color: var(--text-secondary);" data-i18n="ui.totalReduction">Całkowita redukcja:</span>
               <b id="dev_total_reduction" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-primary);">14.68:1</b>
             </div>
           </div>
@@ -398,37 +405,37 @@ window.addEventListener('unhandledrejection', function(e) {
         <div class="section-body">
           <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
             <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
-              <span>Zarys (Cylindry / Głowice)</span>
+              <span data-i18n="ui.toggleWireframes">Zarys (Cylindry / Głowice)</span>
               <input type="checkbox" id="toggle_wireframes" checked>
             </label>
             <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
-              <span>Podświetlanie obiektów (Hover)</span>
+              <span data-i18n="ui.toggleHover">Podświetlanie obiektów (Hover)</span>
               <input type="checkbox" id="toggle_hover" checked>
             </label>
             <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
-              <span>Pokaż Datum silnika (Centrum)</span>
+              <span data-i18n="ui.toggleDatum">Pokaż Datum silnika (Centrum)</span>
               <input type="checkbox" id="toggle_datum">
             </label>
             <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
-              <span>Podwozie, koła i zawieszenie</span>
+              <span data-i18n="ui.toggleChassis">Podwozie, koła i zawieszenie</span>
               <input type="checkbox" id="toggle_chassis">
             </label>
           </div>
 
-          <label class="control-label">Skupienie kamery:</label>
+          <label class="control-label" data-i18n="ui.cameraFocus">Skupienie kamery:</label>
           <div class="focus-group">
-            <button class="focus-btn active" data-focus="engine">Silnik</button>
-            <button class="focus-btn" data-focus="drivetrain">Napęd</button>
-            <button class="focus-btn" data-focus="car">Auto</button>
+            <button class="focus-btn active" data-focus="engine" data-i18n="ui.focusEngineBtn">Silnik</button>
+            <button class="focus-btn" data-focus="drivetrain" data-i18n="ui.focusDrivetrainBtn">Napęd</button>
+            <button class="focus-btn" data-focus="car" data-i18n="ui.focusCarBtn">Auto</button>
           </div>
 
           <div style="margin-top: 8px;">
-            <button id="cutaway-btn" class="hud-btn active" style="width: 100%; justify-content: center;">
+            <button id="cutaway-btn" class="hud-btn active" style="width: 100%; justify-content: center;" data-i18n="ui.cutawayBtn">
               Przekrój bloku silnika
             </button>
           </div>
 
-          <label class="control-label" style="margin-top: 10px;">Eksplozja podzespołów:</label>
+          <label class="control-label" style="margin-top: 10px;" data-i18n="ui.explodeSlider">Eksplozja podzespołów:</label>
           <input type="range" id="explode-slider" class="styled-slider" min="0" max="1" value="0" step="0.01">
         </div>
       </div>
@@ -443,12 +450,12 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <!-- DOLNY PANEL TELEMETRII (Apple Pro Dock) -->
   <footer class="bottom-hud">
-    <div class="live-stroke-banner" id="live-stroke-desc">Kamera aktywna</div>
+    <div class="live-stroke-banner" id="live-stroke-desc" data-i18n="ui.liveCamera">Kamera aktywna</div>
     <div class="cylinders-telemetry-bar" id="cylinders-telemetry"></div>
     
     <div class="controls-toolbar">
       <div class="hud-group">
-        <span class="hud-label">CZAS:</span>
+        <span class="hud-label" data-i18n="ui.timeLabel">CZAS:</span>
         <div class="btn-group">
           <button class="speed-btn" data-speed="0">⏸</button>
           <button class="speed-btn" data-speed="0.2">0.2x</button>
@@ -458,12 +465,12 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
       
       <div class="hud-group slider-group">
-        <span class="hud-label">KĄT WAŁU:</span>
+        <span class="hud-label" data-i18n="ui.crankAngleLabel">KĄT WAŁU:</span>
         <input type="range" id="crank-scrub" class="styled-slider" min="0" max="720" value="0" step="1">
         <span class="hud-val" id="crank-val">0°</span>
       </div>
 
-      <button id="info-toggle-btn" class="hud-btn" style="margin-left:auto;">
+      <button id="info-toggle-btn" class="hud-btn" style="margin-left:auto;" data-i18n="ui.knowledgeBaseBtn">
         Baza Wiedzy
       </button>
     </div>
@@ -480,54 +487,54 @@ window.addEventListener('unhandledrejection', function(e) {
   <!-- PRAWY PANEL WIEDZY (Info Drawer) -->
   <aside id="info-drawer" class="info-drawer">
     <div class="drawer-header">
-      <h3 id="drawer-title">Komponent</h3>
-      <button id="info-close-btn" class="drawer-close" title="Zamknij">✕</button>
+      <h3 id="drawer-title" data-i18n="ui.drawerTitleDefault">Komponent</h3>
+      <button id="info-close-btn" class="drawer-close" data-i18n-title="ui.drawerCloseTitle" title="Zamknij">✕</button>
     </div>
     <div class="drawer-telemetry">
-      <div class="mini-spec"><span class="spec-label">Moc:</span> <strong id="drawer-hp">0 KM</strong></div>
-      <div class="mini-spec"><span class="spec-label">Moment:</span> <strong id="drawer-torque">0 Nm</strong></div>
-      <div class="mini-spec"><span class="spec-label">Masa:</span> <strong id="drawer-weight">0 kg</strong></div>
+      <div class="mini-spec"><span class="spec-label" data-i18n="ui.drawerHp">Moc:</span> <strong id="drawer-hp">0 KM</strong></div>
+      <div class="mini-spec"><span class="spec-label" data-i18n="ui.drawerTorque">Moment:</span> <strong id="drawer-torque">0 Nm</strong></div>
+      <div class="mini-spec"><span class="spec-label" data-i18n="ui.drawerWeight">Masa:</span> <strong id="drawer-weight">0 kg</strong></div>
     </div>
     <div class="drawer-content">
-      <div class="drawer-block"><span class="drawer-tag">ZASADA DZIAŁANIA</span><p id="drawer-principle"></p></div>
-      <div class="drawer-block"><span class="drawer-tag">CEL KONSTRUKCYJNY</span><p id="drawer-why"></p></div>
-      <div class="drawer-block highlight-block"><span class="drawer-tag">GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
-      <div class="drawer-block"><span class="drawer-tag">PRZYKŁADY ZASTOSOWAŃ</span><p id="drawer-examples"></p></div>
+      <div class="drawer-block"><span class="drawer-tag" data-i18n="ui.drawerTagPrinciple">ZASADA DZIAŁANIA</span><p id="drawer-principle"></p></div>
+      <div class="drawer-block"><span class="drawer-tag" data-i18n="ui.drawerTagWhy">CEL KONSTRUKCYJNY</span><p id="drawer-why"></p></div>
+      <div class="drawer-block highlight-block"><span class="drawer-tag" data-i18n="ui.drawerTagHistory">GENEZA & HISTORIA</span><p id="drawer-history"></p></div>
+      <div class="drawer-block"><span class="drawer-tag" data-i18n="ui.drawerTagExamples">PRZYKŁADY ZASTOSOWAŃ</span><p id="drawer-examples"></p></div>
     </div>
   </aside>
 
   <!-- DEV / DEBUG DRAWER & TOGGLE -->
-  <button id="dev-mode-btn" class="dev-mode-toggle" title="Włącz / Wyłącz Inspektor">
+  <button id="dev-mode-btn" class="dev-mode-toggle" data-i18n-title="ui.devModeBtnTitle" title="Włącz / Wyłącz Inspektor">
     Inspector Pro
   </button>
 
   <aside id="dev-drawer" class="dev-drawer">
     <div class="drawer-header">
-      <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem; font-weight: 700;">
+      <h3 style="color: var(--text-primary); margin: 0; font-size: 1.1rem; font-weight: 700;" data-i18n="ui.inspectorPro">
         Inspector Pro
       </h3>
-      <button id="dev-close-btn" class="drawer-close" title="Zamknij panel (Esc)">✕</button>
+      <button id="dev-close-btn" class="drawer-close" data-i18n-title="ui.devCloseTitle" title="Zamknij panel (Esc)">✕</button>
     </div>
     
     <div class="drawer-content" style="flex: 1; display: flex; flex-direction: column;">
       <div id="dev-config-summary" class="dev-meta-pill">
-        <span style="color: var(--text-secondary);">Układ: <strong id="dev-summary-text" style="color: #fff;">Inline-4</strong></span>
-        <span id="dev-status-badge" class="dev-badge info">Gotowy</span>
+        <span style="color: var(--text-secondary);"><span data-i18n="ui.devSummaryLayout">Układ:</span> <strong id="dev-summary-text" style="color: #fff;">Inline-4</strong></span>
+        <span id="dev-status-badge" class="dev-badge info" data-i18n="ui.devStatusReady">Gotowy</span>
       </div>
 
       <div class="dev-btn-group">
         <button id="dev-check-overlap" class="dev-btn-primary">
-          <span>Sprawdź Kolizje OBB</span>
+          <span data-i18n="ui.devCheckCollisionsBtn">Sprawdź Kolizje OBB</span>
         </button>
-        <button id="dev-copy-overlap" class="dev-btn-secondary" disabled title="Skopiuj raport kolizji do schowka">
-          <span>Kopiuj</span>
+        <button id="dev-copy-overlap" class="dev-btn-secondary" disabled data-i18n-title="ui.devCopyReportTitle" title="Skopiuj raport kolizji do schowka">
+          <span data-i18n="ui.devCopyReportBtn">Kopiuj</span>
         </button>
-        <button id="dev-clear-overlap" class="dev-btn-icon" title="Wyczyść wyniki">
+        <button id="dev-clear-overlap" class="dev-btn-icon" data-i18n-title="ui.devClearResultsTitle" title="Wyczyść wyniki">
           <span>✕</span>
         </button>
       </div>
 
-      <div id="dev-overlap-results" class="dev-results-box" style="margin-bottom: 14px;">
+      <div id="dev-overlap-results" class="dev-results-box" style="margin-bottom: 14px;" data-i18n="ui.devOverlapPlaceholder">
 Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i overlapingu modułów.
       </div>
 
@@ -535,15 +542,15 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
       <div class="dev-catalog-section" style="margin-bottom: 14px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
           <div style="font-size: 11px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
-            Spis Części (<span id="dev-parts-total-count" style="color: var(--accent-blue);">0 szt.</span>)
+            <span data-i18n="ui.devPartsCatalog">Spis Części</span> (<span id="dev-parts-total-count" style="color: var(--accent-blue);">0 szt.</span>)
           </div>
-          <button id="dev-copy-parts" class="dev-btn-small" title="Skopiuj spis wszystkich części do schowka">
+          <button id="dev-copy-parts" class="dev-btn-small" data-i18n="ui.devCopyPartsBtn" data-i18n-title="ui.devCopyPartsTitle" title="Skopiuj spis wszystkich części do schowka">
             Kopiuj spis
           </button>
         </div>
 
         <div style="margin-bottom: 8px;">
-          <input type="text" id="dev-parts-search" placeholder="Filtruj część (np. tłok, wał, zawór)..." style="width: 100%;">
+          <input type="text" id="dev-parts-search" data-i18n-placeholder="ui.devPartsSearchPlaceholder" placeholder="Filtruj część (np. tłok, wał, zawór)..." style="width: 100%;">
         </div>
 
         <div id="dev-parts-catalog-list" class="dev-catalog-box">
@@ -553,14 +560,14 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
 
       <!-- OPCJE DEWELOPERSKIE SCENY I SYSTEMU -->
       <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-top: auto;">
-        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;">
+        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600;" data-i18n="ui.devViewTools">
           Narzędzia Widoku
         </div>
         <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); cursor: pointer; font-size: 12px; margin-bottom: 10px;">
-          <span>Pokaż centrum silnika (Wektory / Datum)</span>
+          <span data-i18n="ui.devShowDatum">Pokaż centrum silnika (Wektory / Datum)</span>
           <input type="checkbox" id="dev-toggle-datum">
         </label>
-        <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 8px; font-weight: 600;" title="Przeładuj całą stronę i zresetuj stan">
+        <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 8px; font-weight: 600;" data-i18n="ui.devReloadApp" data-i18n-title="ui.devReloadAppTitle" title="Przeładuj całą stronę i zresetuj stan">
           Przeładuj aplikację
         </button>
       </div>

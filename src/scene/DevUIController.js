@@ -1,14 +1,19 @@
 import * as THREE from 'three';
 import { GEARBOX_PRESETS } from '../scene3d.js';
 import { CRANK_PRESETS, RadialCrankUI } from '../crankshaft_solver.js';
+import { i18n } from '../i18n.js';
 
 export function showGearboxInfo() {
-    const currentG = this.config.currentGear;
-    let title = "Skrzynia Biegów (Manualna)";
-    let principle = "Moc z silnika wchodzi przez wałek sprzęgłowy. Następnie stałe przełożenie (constant mesh) przekazuje napęd na wałek pośredni (countershaft) na dole. Zębatki na wałku głównym kręcą się luźno na łożyskach, dopóki synchronizator nie wepnie jednej z nich na sztywno do wałka głównego.";
-    let why = "Silnik spalinowy generuje moc w wąskim zakresie obrotów. Skrzynia biegów działa jak dźwignia, pozwalając na jazdę powoli z dużą siłą (bieg 1) lub szybko z małą siłą (biegi wyższe).";
-    let history = "Nowoczesne skrzynie z zębami skośnymi i synchronizatorami wyparły skrzynie z zazębieniem kłowym z lat 20. XX wieku.";
-    let examples = "Bieg " + currentG + " wrzucony. Zwróć uwagę na położenie czerwonej przesuwki (synchronizatora). Na 4. biegu wałek wejściowy często jest łączony bezpośrednio z wyjściowym (przełożenie 1:1, direct drive).";
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+    const gb = t.gearboxDrawer || i18n.pl.gearboxDrawer;
+    const currentG = this.config.currentGear || '1';
+
+    let title = gb.title;
+    let principle = gb.principle;
+    let why = gb.why;
+    let history = gb.history;
+    let examples = gb.examplesTemplate.replace('{gear}', currentG);
 
     const drawerTitle = document.getElementById('drawer-title');
     if (drawerTitle) drawerTitle.innerText = title;
@@ -26,34 +31,17 @@ export function showGearboxInfo() {
   }
 
 export function showDiffInfo() {
-    const diffType = this.config.diffType;
-    let title = "Mechanizm różnicowy";
-    let principle = "";
-    let why = "";
-    let history = "";
-    let examples = "";
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+    const diffType = this.config.diffType || 'open';
+    const dInfo = (t.diffs && t.diffs[diffType]) ? t.diffs[diffType] : (i18n.pl.diffs[diffType] || i18n.pl.diffs.open);
 
-    if (diffType === 'open') {
-      title = "Otwarty (Open Diff)";
-      principle = "Satelity (małe zębatki w środku) obracają się swobodnie wokół własnej osi. Jeśli jedno koło traci przyczepność, cała moc wędruje na nie (idzie po najmniejszej linii oporu).";
-      why = "Jest tani, bezobsługowy i pozwala na płynne pokonywanie zakrętów (lewe koło kręci się wolniej niż prawe, a satelity kompensują różnicę obrotów).";
-      history = "Wynaleziony na przełomie XIX i XX wieku. Standard w 99% zwykłych aut cywilnych.";
-      examples = "Toyota Corolla, Honda Civic, bazowe BMW serii 3.";
-    } else if (diffType === 'lsd_mech') {
-      title = "Szpera (1.5 Way LSD)";
-      principle = "Wewnątrz kosza znajdują się płytki cierne (jak w sprzęgle) oraz specjalne krzywki (ramps). Gdy koła obracają się z różną prędkością, krzywki rozpychają się, ściskając płytki. Powoduje to częściowe zablokowanie mechanizmu i przekazanie momentu na oba koła.";
-      why = "Idealny kompromis do sportu. Zapobiega bezsensownemu 'paleniu gumy' jednym kołem w zakręcie. 1.5 Way działa mocniej przy przyspieszaniu, a słabiej przy hamowaniu, co wybacza błędy kierowcy.";
-      history = "Opracowane dla motorsportu w latach 60. i 70., by opanować rosnącą moc aut RWD na torze.";
-      examples = "BMW M3 (wiele generacji), Nissan Silvia, Toyota Supra.";
-    } else if (diffType === 'locker') {
-      title = "Blokada 100% (Locker)";
-      principle = "Ręczne lub pneumatyczne sprzęgło kłowe fizycznie łączy lewą i prawą półoś na sztywno z koszem satelitów. Oś kręci się jak rura (solid axle), a satelity przestają pracować.";
-      why = "Jedyna opcja w ekstremalny teren. Nawet jeśli jedno koło zawiśnie w powietrzu, drugie i tak będzie kręcić się z taką samą prędkością, pozwalając wyjechać z błota.";
-      history = "Stosowane w pojazdach wojskowych, traktorach i ciężkim sprzęcie roboczym od początku motoryzacji.";
-      examples = "Mercedes G-Klasa, Jeep Wrangler Rubicon, Toyota Land Cruiser.";
-    }
+    let title = dInfo.title;
+    let principle = dInfo.principle;
+    let why = dInfo.why;
+    let history = dInfo.history;
+    let examples = dInfo.examples;
 
-    // Attempt to inject info to drawer if app.js functions are available globally or by event
     const drawerTitle = document.getElementById('drawer-title');
     if (drawerTitle) drawerTitle.innerText = title;
     
@@ -328,15 +316,18 @@ export function setupDevPanel() {
       const btnG6 = document.getElementById('btn_gear_6');
       const finalDriveSlider = document.getElementById('dev_final_drive');
       const finalDriveVal = document.getElementById('dev_final_drive_val');
+      const lang = this.lang || 'pl';
+      const t = i18n[lang] || i18n.pl;
 
       if (val === 'custom') {
         if (customContainer) customContainer.style.display = 'block';
-        if (descEl) descEl.innerHTML = `🛠 <b>Własne stopniowanie:</b> Dopasuj przełożenia poszczególnych biegów oraz dyferencjału do charakterystyki silnika.`;
+        if (descEl) descEl.innerHTML = t.ui.customGearboxDesc;
         if (btnG6) btnG6.style.display = 'inline-block';
       } else {
         if (customContainer) customContainer.style.display = 'none';
         const preset = GEARBOX_PRESETS[val] || GEARBOX_PRESETS.opel_f17;
-        if (descEl) descEl.innerText = preset.desc;
+        const gDict = (t.gearboxPresets && t.gearboxPresets[val]) ? t.gearboxPresets[val] : null;
+        if (descEl) descEl.innerText = gDict ? gDict.desc : preset.desc;
         if (btnG6) btnG6.style.display = (preset.speeds === 6) ? 'inline-block' : 'none';
         if (preset.speeds === 5 && this.config.currentGear === '6') {
           this.config.currentGear = '5';
@@ -436,10 +427,12 @@ export function updateV8UI() {
       const isV8 = (this.config.layout === 'V' && this.config.cylinders === 8);
       v8Container.style.display = isV8 ? 'block' : 'none';
       if (isV8 && noteEl) {
+        const lang = this.lang || 'pl';
+        const t = i18n[lang] || i18n.pl;
         if (this.config.v8CrankType === 'crossplane') {
-          noteEl.innerHTML = `<b>Crossplane (90°):</b> Klasyczny bulgot V8. Przeciwciężary niwelują siły bezwładności I i II rzędu.`;
+          noteEl.innerHTML = t.ui.v8CrossplaneNote;
         } else {
-          noteEl.innerHTML = `<b>Flat-Plane (180°):</b> Lekki wał wyścigowy o szybkiej reakcji na obroty, generujący wibracje drugiego rzędu.`;
+          noteEl.innerHTML = t.ui.v8FlatplaneNote;
         }
       }
     }
@@ -454,27 +447,31 @@ export function updatePresetCard() {
 
     if (!card) return;
 
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+
     const key = (this.config.layout === 'V' && this.config.cylinders === 8)
       ? `V_8_${this.config.v8CrankType || 'crossplane'}`
       : `${this.config.layout}_${this.config.cylinders}`;
 
-    const preset = CRANK_PRESETS[key];
+    const preset = (t.crankPresets && t.crankPresets[key]) ? t.crankPresets[key] : CRANK_PRESETS[key];
     if (preset) {
       if (nameEl) nameEl.innerText = preset.name;
       if (descEl) descEl.innerText = preset.description;
       if (techEl) techEl.innerText = preset.technicalNote;
       if (badgeEl) {
-        badgeEl.innerText = 'Preset Inżynieryjny';
+        badgeEl.innerText = t.ui.crankEngineeredBadge;
         badgeEl.className = 'crank-badge engineered';
       }
     } else {
       const cycle = this.config.stroke === 2 ? 360 : 720;
       const dGamma = (cycle / this.config.cylinders).toFixed(1);
-      if (nameEl) nameEl.innerText = `${this.config.layout}-${this.config.cylinders} (Even-Fire)`;
-      if (descEl) descEl.innerText = `Niestandardowa architektura. Równomierny zapłon co ${dGamma}° z czopami dzielonymi (split-pin).`;
-      if (techEl) techEl.innerText = `Interwał zapłonu Δγ = ${dGamma}°`;
+      const fb = t.crankPresets?.fallbackTemplate || i18n.pl.crankPresets.fallbackTemplate;
+      if (nameEl) nameEl.innerText = fb.name.replace('{layout}', this.config.layout).replace('{cylinders}', this.config.cylinders);
+      if (descEl) descEl.innerText = fb.desc.replace('{dGamma}', dGamma);
+      if (techEl) techEl.innerText = fb.tech.replace('{dGamma}', dGamma);
       if (badgeEl) {
-        badgeEl.innerText = 'Algorytm Zapasowy';
+        badgeEl.innerText = t.ui.crankFallbackBadge;
         badgeEl.className = 'crank-badge fallback';
       }
     }
@@ -489,6 +486,9 @@ export function updateBalanceUI() {
 
     if (!this.currentBalanceReport || !box) return;
     const report = this.currentBalanceReport;
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+    const br = t.balanceReports || i18n.pl.balanceReports;
 
     box.className = `crank-diag-box ${report.status}`;
     if (icon) {
@@ -497,16 +497,48 @@ export function updateBalanceUI() {
       else if (report.status === 'warning-moment') icon.innerText = '~';
       else icon.innerText = '✕';
     }
-    if (title) title.innerText = report.title;
-    if (msg) msg.innerText = report.message;
-    if (rec) rec.innerText = report.recommendation;
+
+    let reportTitle = report.title;
+    let reportMsg = report.message;
+    let reportRec = report.recommendation;
+
+    if (report.status === 'perfect' && br.perfect) {
+      reportTitle = br.perfect.title;
+      reportMsg = br.perfect.message;
+      reportRec = br.perfect.recommendation;
+    } else if (report.status === 'warning-secondary' && br.warningSecondary) {
+      reportTitle = br.warningSecondary.title;
+      const pct = (report.metrics?.f2Score ? report.metrics.f2Score * 100 : 0).toFixed(1);
+      reportMsg = br.warningSecondary.messageTemplate.replace('{percent}', pct);
+      reportRec = br.warningSecondary.recommendation;
+    } else if (report.status === 'warning-moment' && br.warningMoment) {
+      reportTitle = br.warningMoment.title;
+      reportMsg = br.warningMoment.message;
+      reportRec = br.warningMoment.recommendation;
+    } else if (report.status === 'error-primary' && br.errorPrimary) {
+      reportTitle = br.errorPrimary.title;
+      const pct = (report.metrics?.f1Score ? report.metrics.f1Score * 100 : 0).toFixed(1);
+      reportMsg = br.errorPrimary.messageTemplate.replace('{percent}', pct);
+      reportRec = br.errorPrimary.recommendation;
+    } else if (br.balanced) {
+      reportTitle = br.balanced.title;
+      reportMsg = br.balanced.message;
+      reportRec = br.balanced.recommendation;
+    }
+
+    if (title) title.innerText = reportTitle;
+    if (msg) msg.innerText = reportMsg;
+    if (rec) rec.innerText = reportRec;
   }
 
 export function updateStatusPills() {
+    const lang = this.lang || 'pl';
+    const t = i18n[lang] || i18n.pl;
+
     // 1. Engine status pill
     const pEngine = document.getElementById('status_engine');
     if (pEngine) {
-      const layoutShort = this.config.layout === 'Inline' ? 'R' : this.config.layout === 'Boxer' ? 'B' : this.config.layout;
+      const layoutShort = (this.config.layout === 'Inline') ? (lang === 'pl' ? 'R' : 'I') : (this.config.layout === 'Boxer' ? 'B' : this.config.layout);
       const bore = this.config.boreMm || 84.0;
       const stroke = this.config.strokeMm || 90.0;
       const cyls = this.config.cylinders || 4;
@@ -524,9 +556,9 @@ export function updateStatusPills() {
         const key = (this.config.layout === 'V' && this.config.cylinders === 8)
           ? `V_8_${this.config.v8CrankType || 'crossplane'}`
           : `${this.config.layout}_${this.config.cylinders}`;
-        const preset = CRANK_PRESETS[key];
+        const preset = (t.crankPresets && t.crankPresets[key]) ? t.crankPresets[key] : CRANK_PRESETS[key];
         if (preset) {
-          pCrank.innerText = preset.name.replace(/^(R\d+|V\d+|B\d+|VR\d+|W\d+)\s+/, '');
+          pCrank.innerText = preset.name.replace(/^(R\d+|I\d+|V\d+|B\d+|VR\d+|W\d+)\s+/, '');
         } else {
           pCrank.innerText = `${this.config.cylinders}-cyl`;
         }
@@ -544,13 +576,13 @@ export function updateStatusPills() {
     // 4. Physics status pill
     const pPhys = document.getElementById('status_physics');
     if (pPhys && this.currentBalanceReport) {
-      pPhys.innerText = this.currentBalanceReport.status === 'perfect' ? 'Balans OK' : 'Wibracje';
+      pPhys.innerText = this.currentBalanceReport.status === 'perfect' ? t.ui.balanceOkPill : t.ui.balanceVibPill;
     }
 
     // 5. View status pill
     const pView = document.getElementById('status_view');
     if (pView) {
-      pView.innerText = this.isCutaway ? 'Przekrój' : 'Studio';
+      pView.innerText = this.isCutaway ? t.ui.viewStatusCutaway : t.ui.viewStatusStudio;
     }
   }
 

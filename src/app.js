@@ -2,14 +2,14 @@
  * Cars-operating-principles - Główny kontroler z Przewodnikiem Edukacyjnym 4-Suwu
  */
 
-import { i18n } from "./i18n.js";
+import { i18n, detectBrowserLanguage } from "./i18n.js";
 import { PARTS_DATA, calculateSpecs } from "./parts.js";
 import { Scene3D } from "./scene3d.js";
 
 class App {
   constructor() {
-    this.lang = window.localStorage.getItem("lang") || "pl";
-    this.t = i18n[this.lang];
+    this.lang = detectBrowserLanguage();
+    this.t = i18n[this.lang] || i18n.pl;
     
     this.config = {
       block: "block_i4",
@@ -26,6 +26,7 @@ class App {
   init() {
     const container = document.getElementById("canvas-container");
     this.scene3d = new Scene3D(container, (stats) => this.onFrameStats(stats));
+    this.scene3d.setLanguage(this.lang);
     this.scene3d.setConfig(this.config, this.activeCategory);
 
     this.cachedUi = {
@@ -38,11 +39,41 @@ class App {
     this.lastCylindersHtml = "";
     this.lastPrimaryDesc = "";
 
+    document.documentElement.lang = this.lang;
+    document.title = `${this.t.appTitle} | ${this.t.subtitle}`;
+
     this.setupUI();
     this.translateUI();
     this.renderCategoryNav();
     this.renderPartsSelector();
     this.updateInfoDrawer();
+  }
+
+  setLanguage(newLang) {
+    if (newLang !== "pl" && newLang !== "en") return;
+    this.lang = newLang;
+    this.t = i18n[this.lang] || i18n.pl;
+    try {
+      window.localStorage.setItem("lang", this.lang);
+    } catch (e) {
+      // ignore
+    }
+    document.documentElement.lang = this.lang;
+    document.title = `${this.t.appTitle} | ${this.t.subtitle}`;
+
+    // Zaktualizuj stan przełącznika
+    document.querySelectorAll(".lang-pill .lang-opt").forEach(opt => {
+      opt.classList.toggle("active", opt.dataset.lang === this.lang);
+    });
+
+    this.translateUI();
+    this.renderCategoryNav();
+    this.renderPartsSelector();
+    this.updateInfoDrawer();
+
+    if (this.scene3d) {
+      this.scene3d.setLanguage(this.lang);
+    }
   }
 
   onFrameStats(stats) {
@@ -80,13 +111,13 @@ class App {
       const primaryCyl = stats.cylinders[0];
       const liveDesc = this.cachedUi.liveDesc;
       if (liveDesc && primaryCyl && primaryCyl.desc !== this.lastPrimaryDesc) {
-        liveDesc.innerHTML = `<strong>Cylinder #1:</strong> ${primaryCyl.desc}`;
+        const prefix = this.lang === 'pl' ? 'Cylinder #1:' : 'Cylinder #1:';
+        liveDesc.innerHTML = `<strong>${prefix}</strong> ${primaryCyl.desc}`;
         this.lastPrimaryDesc = primaryCyl.desc;
       }
     }
   }
 
-  
   translateUI() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
@@ -95,11 +126,50 @@ class App {
       for (const k of keys) {
         if (val) val = val[k];
       }
-      if (val) el.textContent = val;
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'string' && val.includes('<')) {
+          el.innerHTML = val;
+        } else {
+          el.textContent = val;
+        }
+      }
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+      const key = el.getAttribute('data-i18n-title');
+      const keys = key.split('.');
+      let val = this.t;
+      for (const k of keys) {
+        if (val) val = val[k];
+      }
+      if (val) el.title = val;
+    });
+
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      const keys = key.split('.');
+      let val = this.t;
+      for (const k of keys) {
+        if (val) val = val[k];
+      }
+      if (val) el.placeholder = val;
     });
   }
 
   setupUI() {
+    // 0. Przełącznik języka (PL / EN)
+    const langToggleBtn = document.getElementById("lang-toggle-btn");
+    if (langToggleBtn) {
+      document.querySelectorAll(".lang-pill .lang-opt").forEach(opt => {
+        opt.classList.toggle("active", opt.dataset.lang === this.lang);
+      });
+
+      langToggleBtn.addEventListener("click", () => {
+        const nextLang = this.lang === "pl" ? "en" : "pl";
+        this.setLanguage(nextLang);
+      });
+    }
+
     // 1. Przewodnik 4-Suwowy (Skok do suwów 1-4)
     const strokeSteps = document.querySelectorAll(".stroke-step-btn");
     strokeSteps.forEach(btn => {
@@ -500,19 +570,28 @@ Status: BRAK KOLIZJI (Układ w 100% poprawny geometrycznie)
 
   updateInfoDrawer() {
     const currentPartId = this.config[this.activeCategory];
-    const data = this.t.parts[currentPartId];
+    const data = (this.t.parts && this.t.parts[currentPartId]) ? this.t.parts[currentPartId] : (i18n.pl.parts && i18n.pl.parts[currentPartId]);
     if (!data) return;
 
-    document.getElementById("drawer-title").textContent = data.name;
-    document.getElementById("drawer-principle").textContent = data.principle;
-    document.getElementById("drawer-why").textContent = data.why;
-    document.getElementById("drawer-history").textContent = data.history;
-    document.getElementById("drawer-examples").textContent = data.examples;
+    const titleEl = document.getElementById("drawer-title");
+    if (titleEl) titleEl.textContent = data.name;
+    const princEl = document.getElementById("drawer-principle");
+    if (princEl) princEl.textContent = data.principle;
+    const whyEl = document.getElementById("drawer-why");
+    if (whyEl) whyEl.textContent = data.why;
+    const histEl = document.getElementById("drawer-history");
+    if (histEl) histEl.textContent = data.history;
+    const exEl = document.getElementById("drawer-examples");
+    if (exEl) exEl.textContent = data.examples;
 
     const specs = calculateSpecs(this.config);
-    document.getElementById("drawer-hp").textContent = `${specs.hp} KM`;
-    document.getElementById("drawer-torque").textContent = `${specs.torque} Nm`;
-    document.getElementById("drawer-weight").textContent = `${specs.weight} kg`;
+    const hpUnit = this.lang === 'pl' ? 'KM' : 'HP';
+    const hpEl = document.getElementById("drawer-hp");
+    if (hpEl) hpEl.textContent = `${specs.hp} ${hpUnit}`;
+    const tqEl = document.getElementById("drawer-torque");
+    if (tqEl) tqEl.textContent = `${specs.torque} Nm`;
+    const wtEl = document.getElementById("drawer-weight");
+    if (wtEl) wtEl.textContent = `${specs.weight} kg`;
   }
 }
 

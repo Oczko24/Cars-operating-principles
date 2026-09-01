@@ -301,6 +301,43 @@ input[type="text"]:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.lang-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
+.lang-pill .lang-opt {
+  transition: color 0.15s ease, font-weight 0.15s ease;
+}
+
+.lang-pill .lang-opt.active {
+  color: var(--accent-blue);
+  font-weight: 700;
+}
+
+.lang-pill .lang-divider {
+  opacity: 0.3;
+  margin: 0 1px;
+}
+
 /* ═══ 4. SEKCJE AKORDEONU (COLLAPSIBLE SECTIONS) ═══ */
 .panel-section {
   display: flex;
