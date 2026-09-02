@@ -1,80 +1,93 @@
-# AI_DOCS: Cars-operating-principles
+# 🤖 AI_DOCS: Cars-operating-principles
 
-This document is strictly for AI agents maintaining the project.
+> **STRICT ARCHITECTURAL DIRECTIVES FOR AI AGENTS & CONTRIBUTORS**  
+> Read this document thoroughly before proposing or writing code in this repository.
 
-Najwazniejsze: tymczasowe pliki zapisuj w folderze temp
+---
 
-## Project Philosophy
+## ⚡ Fundamental Rules
 
-100% REALISM AND MODULARITY. Every mechanical element (crank angle, firing phase, cam lobes movement, valve spring compression) MUST be based on pure math and procedural geometry. No hardcoded global coordinates. No random visual hacks or intersecting textures.
+1. **Temporary Files**: All scratch scripts, test runners, and diagnostic files **MUST** be placed in the `temp/` folder (which is git-ignored). Never pollute the repository root.
+2. **Realism & Kinematics**: Every mechanical element (crank throws, firing sequences, cam lobes, valve stems, springs, gears, suspension arms) **MUST** be governed by real physics, kinematics, and mathematical geometry. Never use fake visual hacks, hardcoded disjointed coordinates, or intersecting meshes.
+3. **Bilingual Localization**: All UI labels, part names, didactic explanations, and inspector outputs **MUST** be defined in both Polish (`pl`) and English (`en`) within `src/i18n.js`. Never hardcode raw strings in templates or JavaScript logic.
+4. **No Global Regressions**: Always ensure that changes in one module (e.g. changing bore/stroke or cylinder count) dynamically scale all dependent components (e.g. block height, conrods, crankshaft journals, intake/exhaust manifolds).
 
-## 1. Geometric Datum Architecture (NEW)
+---
 
-The entire engine is built procedurally based on a calculated mathematical datum.
+## 📐 Coordinate Systems & Frames of Reference
 
-- **Bore Column Centerline**: Each cylinder has a mathematically perfect axis `u = (-sin(bank), cos(bank), 0)`.
-- **Bore Midpoint (`M_i`)**: The exact center of the stroke `M_i = A_0 + sleeveCenter * u`.
-- **Engine Centroid (`C_engine`)**: The global engine geometric center, calculated as the average of all `M_i`.
-- **`computeEngineDatum()`**: This method computes the arrays of vectors and centroids. All sub-assemblies (crankcase, pistons, valvetrain, intake, exhaust) must position themselves strictly relative to this computed datum.
+The project employs **three hierarchical coordinate frames**:
 
-## 2. Dynamic Placement & Assembly
+### 1. Vehicle / World Space (`carGroup`)
+- **Origin**: Ground level ($Y = 0$).
+- **$Y$-axis (Up)**: Ground level is $Y=0$. Wheel axis is at $Y = \text{tireRadius} = 0.32\text{m}$. Engine crankshaft axis is mounted at $Y = 0.40\text{m}$.
+- **$Z$-axis (Longitudinal)**:
+  - Front axle: $+Z = 1.35\text{m}$ (`wheelbaseFrontZ`)
+  - Rear axle: $-Z = -1.35\text{m}$ (`wheelbaseRearZ`)
+  - Total Wheelbase = $2.70\text{m}$.
+- **$X$-axis (Lateral)**:
+  - Left wheels: $-X = -0.78\text{m}$ (`-trackWidthHalf`)
+  - Right wheels: $+X = +0.78\text{m}$ (`+trackWidthHalf`)
+  - Total Track Width = $1.56\text{m}$.
 
-- **`engineMountGroup`**: A parent container that handles the engine's vehicle-space coordinates:
-  - Placement: `front`, `mid`, `rear` (controls position).
-  - Orientation: `longitudinal`, `transverse` (controls Y-axis rotation).
-  - Tilt: Slant angle $0-90^\circ$ (controls Z-axis rotation).
-- **`engineGroup`**: The child container where all parts are built procedurally.
-- **Drivetrain**: The prop shaft is dynamically generated (using `lookAt` and `distanceTo`) to bridge the gap between the movable `engineMountGroup` (Gearbox Output) and the fixed `diffGroup` (Pinion Input).
+### 2. Engine Space (`engineMountGroup`)
+- Container for the engine and direct-attached bellhousing/transmission.
+- Handles macro-placement within the vehicle chassis:
+  - **Placement**: `front` ($Z \approx +1.10$), `mid` ($Z \approx -0.30$), `rear` ($Z \approx -1.65$).
+  - **Orientation**: `longitudinal` (crankshaft along $Z$), `transverse` (crankshaft along $X$, rotated $90^\circ$ around $Y$).
+  - **Tilt (Slant Angle)**: $0^\circ$ to $45^\circ$ rotation around $Z$.
 
-## 3. Engine Math & Mechanics (Hybrid Crankshaft Pipeline)
+### 3. Geometric Datum Frame (`computeEngineDatum()`)
+All internal engine geometry (sleeves, pistons, wrist pins, conrods, crankpins, valves, cams, manifolds) is calculated relative to the **Computed Geometric Datum**:
+- **Bore Column Centerline**: Vector $\vec{u} = (-\sin(\text{bank}), \cos(\text{bank}), 0)$.
+- **Bore Midpoint ($M_i$)**: Exact center of the stroke $M_i = A_0 + \text{sleeveCenter} \cdot \vec{u}$.
+- **Engine Centroid ($C_{engine}$)**: Calculated average of all $M_i$.
+- **Bore Pitch ($zSpacing$)**: Calculated dynamically based on cylinder bore diameter and cooling jacket wall clearance ($zSpacing \ge 2 \cdot r_{sleeve} + \text{minWallClearance}$).
 
-- **Trójwarstwowy Crankshaft Solver (`src/crankshaft_solver.js`)**:
-  - **Warstwa 1 (Custom Override)**: Pozwala użytkownikowi ręcznie modyfikować kąty wykorbień `customCrankPins` za pomocą interaktywnej tarczy biegunowej (`RadialCrankUI` 360° Drag & Drop).
-  - **Warstwa 2 (Engineered Presets `CRANK_PRESETS`)**:
-    - **L2**: Wał 270° (Crossplane Twin, Yamaha CP2 / Triumph).
-    - **L3**: Even-fire 120° (1-2-3).
-    - **L4**: Flat-plane 180° (1-3-4-2).
-    - **L5**: Even-fire 72° (1-2-4-5-3, Audi 2.5 TFSI).
-    - **L6**: Symetryczny wał 120° (1-5-3-6-2-4, BMW / Supra).
-    - **V8**: Przełącznik `v8CrankType`: `crossplane` (90° z przeciwwagami) vs `flatplane` (180° wyścigowy).
-    - **V10 / V12**: 72° / 60° even-fire.
-    - **Boxer 4 / Boxer 6**: Przeciwsobne czopy 180° / 60°.
-  - **Warstwa 3 (Fallback Even-Fire + Split-Pin)**:
-    - Dla niestandardowych układów (np. V7, L11) wyznacza interwał $\Delta\gamma = \Phi / N$ oraz generuje dynamiczne czopy dzielone (split-pin) na wale z przesunięciem kątowym $\delta = \Delta\gamma - \alpha$.
-- **Crank Pin Angle Calculation:**
-  `crankPin = (firingAngle * Math.PI / 180) + bankAngle` (lub manualnie z `customCrankPins`).
-- **Analiza Wyważenia Masowego (`analyzeEngineBalance`)**:
-  - W czasie rzeczywistym całkuje siły bezwładności I rzędu ($\cos\theta$), II rzędu ($\cos 2\theta$) i momenty kiwające/przechylające, wyświetlając zwięzłą diagnostykę edukacyjną w UI.
-- **Valvetrain (Camshaft & Cam Lobes)**:
-  - 2:1 ratio (camshaft rotates half the speed of the crankshaft).
-  - Physical interaction: cam lobe physically pushes the valve stem and compresses the spring.
+---
 
-## 4. Drivetrain & Rolling Chassis
+## 🛠️ Codebase Structure & Responsibilities
 
-- **Clutch**: Single-plate dry clutch and Dual-Clutch (DCT).
-- **Manual Gearbox & Transmission Presets (`GEARBOX_PRESETS`)**:
-  - **Opel F17 (5-speed FWD)**: 1: 3.73, 2: 2.14, 3: 1.41, 4: 1.12, 5: 0.89, R: -3.31 (Final Drive 3.94).
-  - **BMW ZF GS6-37BZ (6-speed RWD)**: 1: 4.35, 2: 2.50, 3: 1.66, 4: 1.23, 5: 1.00, 6: 0.85, R: -3.93 (Final Drive 3.23).
-  - **Tremec T56 Magnum (6-speed V8 Muscle)**: 1: 2.66, 2: 1.78, 3: 1.30, 4: 1.00, 5: 0.74, 6: 0.50, R: -2.90 (Final Drive 3.73).
-  - **Rajdowa Kłowa (6-speed Dogbox)**: 1: 3.00, 2: 2.20, 3: 1.70, 4: 1.35, 5: 1.10, 6: 0.92, R: -3.00 (Final Drive 4.50).
-  - **Własna (Custom Gear Ratios)**: Pełna edycja przełożeń biegów 1..6, wstecznego (R) oraz przełożenia głównego (Final Drive) z wyliczaniem prędkości kół w czasie rzeczywistym.
-- **Differential**:
-  - **Open**: Basic differential.
-  - **LSD (1.5 Way)**: Limited Slip Differential with friction plates.
-  - **Locker**: 100% lock (off-road dog clutch).
-- **Vehicle Telemetry**: Real-time wheel speed (km/h), wheel RPM, and overall drive reduction calculated directly from engine RPM and active gear ratio.
+| File / Module | Responsibility |
+| :--- | :--- |
+| `index.html` | UI layout, Apple Pro sidebar, Inspector Pro drawer, and global error overlay boundary. |
+| `style.css` | Glassmorphism, CSS variables, dark theme, responsive panels, collapsible sections. |
+| `serve.py` | Python dev server with zero-cache HTTP headers and browser error logger. |
+| `src/app.js` | Top-level application coordinator, language selection, slider event listeners, and parts selector. |
+| `src/scene3d.js` | Core Three.js renderer, animation loop, camera controls, materials dictionary, and module delegator. |
+| `src/crankshaft_solver.js` | Trójwarstwowy solver wału korbowego, kolejności zapłonów, RadialCrankUI (360° Drag & Drop), analiza wyważenia masowego (siły I i II rzędu). |
+| `src/scene/EngineBuilder.js` | Procedural generation of block, sleeves, pistons, conrods, crankshaft, valvetrain (DOHC/SOHC/OHV), intake, exhaust. |
+| `src/scene/DrivetrainBuilder.js` | Flywheel, clutches (single/DCT), manual & automatic gearboxes, prop shafts, differentials (Open, LSD, Locker), half-shafts. |
+| `src/scene/ChassisBuilder.js` | Structural ladder frame/monocoque, double-wishbone front suspension, multi-link rear, coilovers, rack & pinion, wheels & brakes. |
+| `src/scene/VehicleConfig.js` | Single source of truth for chassis dimensions, wheelbases, clearances, and mount heights. |
+| `src/scene/Telemetry.js` | Physical calculations of wheel RPM, linear vehicle speed ($km/h$), overall drive ratios, and engine load. |
+| `src/scene/DevUIController.js` | Event wiring for advanced dev controls, sliders, gearbox ratios, and dynamic UI forms. |
+| `src/scene/DebugTools.js` | Inspector Pro drawer, OBB (Oriented Bounding Box) collision detection, part catalog search, and 3D raycasting coordinates. |
+| `src/i18n.js` | Complete bilingual dictionary (PL & EN) for all UI tags, part encyclopedic descriptions, and diagnostics. |
 
-## 5. Didactics & UI Architecture
+---
 
-- **Collapsible Panel Sections**: Wszystkie sekcje panelu bocznego (`.panel-section.collapsible`) posiadają płynne zwijanie/rozwijanie nagłówków z ikonami `▼/▶`.
-- **Logiczny układ kontrolek**: Suwak obrotów silnika (RPM) umieszczony w sekcji napędu obok skrzyni biegów i telemetrii prędkości.
-- **4-Stroke Cycle Tracker**: Visualized on UI (Intake/Blue, Compression/Yellow, Power/Red, Exhaust/Gray).
-- **Raycasting**: Hover tooltips for parts in Polish.
-- **Block Cutaway**: Visualizing internal mechanics.
-- **Datum Visuals**: Toggleable in UI. Shows cyan bore centerlines, yellow midpoints, and a magenta XYZ centroid tripod.
+## 🔬 Mechanical Implementation Guidelines
 
-## 6. Code Guidelines
+### 1. Valvetrain & Cam Timing
+- The camshaft rotates at **half the crankshaft speed** ($1:2$ drive ratio).
+- Cam lobes must physically contact the valve lifter/bucket.
+- When the cam lobe lobe crest presses down, the valve stem displaces downward and the spring coils compress procedurally using mathematical scaling.
+- **OHV (Overhead Valve / Pushrod)**: Camshaft is located in the engine block; lifters ride on cam lobes, transmitting motion through pushrods to rocker arms, which depress the valves.
 
-- Vanilla JavaScript (ES Modules), Three.js.
-- Avoid unnecessary npm dependencies.
-- Texts should be properly localized or in Polish as per the UI design.
+### 2. Crankshaft Solver
+- Never hardcode crank angles for variable layouts.
+- Presets are defined in `CRANK_PRESETS` for standard configurations (L4 180°, L5 72°, L6 120°, V8 crossplane 90°, V8 flatplane 180°, Boxer).
+- When arbitrary cylinder numbers or custom bank angles are chosen, the fallback layer calculates even-fire intervals $\Delta\gamma = 720^\circ / N$ and generates split-pin offsets $\delta = \Delta\gamma - \alpha$.
+
+### 3. Drivetrain Connection
+- The transmission tailhousing output connects dynamically to the differential pinion input via the prop shaft.
+- Use `Vector3.distanceTo` and `Object3D.lookAt` to dynamically scale and orient the prop shaft, supporting any engine placement (`front`, `mid`, `rear`).
+
+---
+
+## 🔍 Debugging & Quality Verification
+
+1. **Zero Console Errors**: Always verify that running the scene produces zero WebGL or JavaScript runtime exceptions.
+2. **OBB Collision Detection**: Use the built-in **Sprawdź Kolizje OBB** tool in Inspector Pro (`#dev-check-overlap`) to ensure newly added components do not unnaturally intersect existing parts.
+3. **Double Click Raycaster**: Double-clicking any part in the 3D viewport logs its full part name, Vehicle Space coordinates, and Engine Local coordinates to the browser console.
