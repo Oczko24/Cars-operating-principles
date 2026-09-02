@@ -7,10 +7,11 @@
 
 ## ⚡ Fundamental Rules
 
-1. **Temporary Files**: All scratch scripts, test runners, and diagnostic files **MUST** be placed in the `temp/` folder (which is git-ignored). Never pollute the repository root.
-2. **Realism & Kinematics**: Every mechanical element (crank throws, firing sequences, cam lobes, valve stems, springs, gears, suspension arms) **MUST** be governed by real physics, kinematics, and mathematical geometry. Never use fake visual hacks, hardcoded disjointed coordinates, or intersecting meshes.
-3. **Bilingual Localization**: All UI labels, part names, didactic explanations, and inspector outputs **MUST** be defined in both Polish (`pl`) and English (`en`) within `src/i18n.js`. Never hardcode raw strings in templates or JavaScript logic.
-4. **No Global Regressions**: Always ensure that changes in one module (e.g. changing bore/stroke or cylinder count) dynamically scale all dependent components (e.g. block height, conrods, crankshaft journals, intake/exhaust manifolds).
+1. **Static Educational Workbench Nature**: The application is an interactive **virtual automotive cutaway workbench / test stand** (similar to a vehicle on an exhibition turntable or mechanic's lift). It is **not** a driving game or track simulator. Focus is on mechanical clarity, kinematics, fluid/current/power flow, and anatomical cross-sections.
+2. **Temporary Files**: All scratch scripts, test runners, and diagnostic files **MUST** be placed in the `temp/` folder (which is git-ignored). Never pollute the repository root.
+3. **Realism & Kinematics**: Every mechanical element (crank throws, firing sequences, cam lobes, valve stems, springs, gears, suspension arms) **MUST** be governed by real physics, kinematics, and mathematical geometry. Never use fake visual hacks, hardcoded disjointed coordinates, or intersecting meshes.
+4. **Bilingual Localization**: All UI labels, part names, didactic explanations, and inspector outputs **MUST** be defined in both Polish (`pl`) and English (`en`) within `src/i18n.js`. Never hardcode raw strings in templates or JavaScript logic.
+5. **No Global Regressions**: Always ensure that changes in one module (e.g. changing bore/stroke or cylinder count) dynamically scale all dependent components (e.g. block height, conrods, crankshaft journals, intake/exhaust manifolds).
 
 ---
 
