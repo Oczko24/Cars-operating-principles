@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { VehicleDimensions } from './VehicleConfig.js';
 
-export function buildChassisFrame() {
+export class ChassisBuilder {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+
+buildChassisFrame() {
     const frame = new THREE.Group();
     const frontZ = VehicleDimensions.wheelbaseFrontZ;
     const rearZ = VehicleDimensions.wheelbaseRearZ;
@@ -19,7 +25,7 @@ export function buildChassisFrame() {
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, sillY, -0.20), new THREE.Vector3(x, railYRear, rearZ + 0.40)));
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYRear, rearZ + 0.40), new THREE.Vector3(x, railYRear, rearZ - 0.60)));
 
-      const rail = new THREE.Mesh(new THREE.TubeGeometry(railCurve, 16, 0.045, 12, false), this.matChassis);
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(railCurve, 16, 0.045, 12, false), this.scene.matChassis);
       rail.userData.name = "Podłużnica ramy nośnej";
       frame.add(rail);
     });
@@ -28,7 +34,7 @@ export function buildChassisFrame() {
     const sillX = VehicleDimensions.trackWidthHalf - 0.05;
     [-sillX, sillX].forEach(x => {
       const sillLength = (frontZ - rearZ) * 0.8;
-      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, sillLength), this.matDarkSteel);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, sillLength), this.scene.matDarkSteel);
       sill.position.set(x, sillY + 0.06, (frontZ + rearZ) / 2);
       sill.userData.name = "Próg boczny nadwozia";
       frame.add(sill);
@@ -42,16 +48,16 @@ export function buildChassisFrame() {
       { z: rearZ + 0.40, w: railX * 2.0, y: railYRear, name: "Kołyska dyferencjału (Subframe tylny)" },
       { z: rearZ - 0.50, w: railX * 2.2, y: railYRear, name: "Belka tylna zderzaka" }
     ].forEach(cm => {
-      const cross = new THREE.Mesh(new THREE.BoxGeometry(cm.w, 0.06, 0.08), this.matChassis);
+      const cross = new THREE.Mesh(new THREE.BoxGeometry(cm.w, 0.06, 0.08), this.scene.matChassis);
       cross.position.set(0, cm.y, cm.z);
       cross.userData.name = cm.name;
       frame.add(cross);
     });
 
-    this.carGroup.add(frame);
+    this.scene.carGroup.add(frame);
   }
 
-export function buildSuspensionAssembly() {
+buildSuspensionAssembly() {
     const suspGroup = new THREE.Group();
     const wheelY = VehicleDimensions.wheelCenterY;
     const trackX = VehicleDimensions.trackWidthHalf;
@@ -87,7 +93,7 @@ export function buildSuspensionAssembly() {
         new THREE.Vector3(armEndX, wheelY - 0.10, frontZ),
         new THREE.Vector3(armStartX, wheelY - 0.15, frontZ + 0.20)
       ]);
-      const lArm = new THREE.Mesh(new THREE.TubeGeometry(lArmCurve, 16, 0.024, 8, false), this.matDarkSteel);
+      const lArm = new THREE.Mesh(new THREE.TubeGeometry(lArmCurve, 16, 0.024, 8, false), this.scene.matDarkSteel);
       lArm.userData.name = `Wahacz dolny przedni (${sign < 0 ? 'Lewy' : 'Prawy'})`;
       suspGroup.add(lArm);
 
@@ -97,7 +103,7 @@ export function buildSuspensionAssembly() {
         new THREE.Vector3(armEndX, wheelY + 0.15, frontZ),
         new THREE.Vector3(armStartX + sign * 0.08, wheelY + 0.20, frontZ + 0.15)
       ]);
-      const uArm = new THREE.Mesh(new THREE.TubeGeometry(uArmCurve, 16, 0.020, 8, false), this.matDarkSteel);
+      const uArm = new THREE.Mesh(new THREE.TubeGeometry(uArmCurve, 16, 0.020, 8, false), this.scene.matDarkSteel);
       uArm.userData.name = `Wahacz górny przedni (${sign < 0 ? 'Lewy' : 'Prawy'})`;
       suspGroup.add(uArm);
 
@@ -111,12 +117,12 @@ export function buildSuspensionAssembly() {
       strutG.position.copy(strutMid);
       strutG.lookAt(strutTop);
 
-      const damperBody = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, strutLen * 0.5, 16), this.matGold);
+      const damperBody = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, strutLen * 0.5, 16), this.scene.matGold);
       damperBody.rotation.x = Math.PI / 2;
       damperBody.position.z = -strutLen * 0.2;
       strutG.add(damperBody);
 
-      const damperRod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, strutLen * 0.6, 16), this.matChrome);
+      const damperRod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, strutLen * 0.6, 16), this.scene.matChrome);
       damperRod.rotation.x = Math.PI / 2;
       damperRod.position.z = strutLen * 0.15;
       strutG.add(damperRod);
@@ -131,7 +137,7 @@ export function buildSuspensionAssembly() {
         springPts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z));
       }
       const springCurve = new THREE.CatmullRomCurve3(springPts);
-      const springMesh = new THREE.Mesh(new THREE.TubeGeometry(springCurve, 80, 0.010, 8, false), this.matIntake);
+      const springMesh = new THREE.Mesh(new THREE.TubeGeometry(springCurve, 80, 0.010, 8, false), this.scene.matIntake);
       springMesh.userData.name = `Sprężyna zawieszenia przedniego (${sign < 0 ? 'Lewa' : 'Prawa'})`;
       strutG.add(springMesh);
       suspGroup.add(strutG);
@@ -141,13 +147,13 @@ export function buildSuspensionAssembly() {
         new THREE.Vector3(sign * (trackX - 0.5), wheelY - 0.05, frontZ - 0.15),
         new THREE.Vector3(sign * (trackX - 0.1), wheelY, frontZ - 0.05)
       ]);
-      const tieRod = new THREE.Mesh(new THREE.TubeGeometry(tieRodCurve, 12, 0.018, 8, false), this.matSteel);
+      const tieRod = new THREE.Mesh(new THREE.TubeGeometry(tieRodCurve, 12, 0.018, 8, false), this.scene.matSteel);
       tieRod.userData.name = `Drążek kierowniczy (${sign < 0 ? 'Lewy' : 'Prawy'})`;
       suspGroup.add(tieRod);
     });
 
     // Maglownica / Przekładnia kierownicza
-    const rackMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, (trackX - 0.5) * 2, 16), this.matDarkSteel);
+    const rackMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, (trackX - 0.5) * 2, 16), this.scene.matDarkSteel);
     rackMesh.rotation.z = Math.PI / 2;
     rackMesh.position.set(0, wheelY - 0.05, frontZ - 0.15);
     rackMesh.userData.name = "Przekładnia kierownicza (Maglownica)";
@@ -165,7 +171,7 @@ export function buildSuspensionAssembly() {
         new THREE.Vector3(armEndX, wheelY - 0.05, rearZ),
         new THREE.Vector3(armStartX, wheelY - 0.10, rearZ + 0.20)
       ]);
-      const rLArm = new THREE.Mesh(new THREE.TubeGeometry(rLArmCurve, 16, 0.026, 8, false), this.matDarkSteel);
+      const rLArm = new THREE.Mesh(new THREE.TubeGeometry(rLArmCurve, 16, 0.026, 8, false), this.scene.matDarkSteel);
       rLArm.userData.name = `Wahacz nośny tylny (${sign < 0 ? 'Lewy' : 'Prawy'})`;
       suspGroup.add(rLArm);
 
@@ -174,7 +180,7 @@ export function buildSuspensionAssembly() {
         new THREE.Vector3(armStartX + sign * 0.08, wheelY + 0.20, rearZ + 0.15),
         new THREE.Vector3(armEndX, wheelY + 0.15, rearZ)
       ]);
-      const rUArm = new THREE.Mesh(new THREE.TubeGeometry(rUArmCurve, 12, 0.020, 8, false), this.matDarkSteel);
+      const rUArm = new THREE.Mesh(new THREE.TubeGeometry(rUArmCurve, 12, 0.020, 8, false), this.scene.matDarkSteel);
       rUArm.userData.name = `Drążek poprzeczny tylny (${sign < 0 ? 'Lewy' : 'Prawy'})`;
       suspGroup.add(rUArm);
 
@@ -188,12 +194,12 @@ export function buildSuspensionAssembly() {
       rStrutG.position.copy(rStrutMid);
       rStrutG.lookAt(rStrutTop);
 
-      const rDamper = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, rStrutLen * 0.5, 16), this.matGold);
+      const rDamper = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, rStrutLen * 0.5, 16), this.scene.matGold);
       rDamper.rotation.x = Math.PI / 2;
       rDamper.position.z = -rStrutLen * 0.2;
       rStrutG.add(rDamper);
 
-      const rRod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, rStrutLen * 0.6, 16), this.matChrome);
+      const rRod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, rStrutLen * 0.6, 16), this.scene.matChrome);
       rRod.rotation.x = Math.PI / 2;
       rRod.position.z = rStrutLen * 0.15;
       rStrutG.add(rRod);
@@ -208,16 +214,16 @@ export function buildSuspensionAssembly() {
         rSpringPts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z));
       }
       const rSpringCurve = new THREE.CatmullRomCurve3(rSpringPts);
-      const rSpringMesh = new THREE.Mesh(new THREE.TubeGeometry(rSpringCurve, 80, 0.010, 8, false), this.matExhaust);
+      const rSpringMesh = new THREE.Mesh(new THREE.TubeGeometry(rSpringCurve, 80, 0.010, 8, false), this.scene.matExhaust);
       rSpringMesh.userData.name = `Sprężyna tylna (${sign < 0 ? 'Lewa' : 'Prawa'})`;
       rStrutG.add(rSpringMesh);
       suspGroup.add(rStrutG);
     });
 
-    this.carGroup.add(suspGroup);
+    this.scene.carGroup.add(suspGroup);
   }
 
-export function createCarWheel(isFront = false, isRight = false) {
+createCarWheel(isFront = false, isRight = false) {
     const wheelGroup = new THREE.Group();
     wheelGroup.userData.name = isFront 
       ? (isRight ? "Koło przednie prawe" : "Koło przednie lewe")
@@ -234,28 +240,28 @@ export function createCarWheel(isFront = false, isRight = false) {
 
     // Profil opony (Bieżnik + boki)
     const tireGeo = new THREE.CylinderGeometry(tireR, tireR, tireWidth, 32, 1, false);
-    const tireMesh = new THREE.Mesh(tireGeo, this.matTire);
+    const tireMesh = new THREE.Mesh(tireGeo, this.scene.matTire);
     tireMesh.rotation.z = Math.PI / 2;
     tireMesh.userData.name = "Opona radialna (Sport)";
     spinner.add(tireMesh);
 
     // Krawędzie opony / zaokrąglenie barku
     [-tireWidth / 2 + 0.02, tireWidth / 2 - 0.02].forEach(tx => {
-      const shoulder = new THREE.Mesh(new THREE.TorusGeometry(tireR - 0.03, 0.03, 16, 32), this.matTire);
+      const shoulder = new THREE.Mesh(new THREE.TorusGeometry(tireR - 0.03, 0.03, 16, 32), this.scene.matTire);
       shoulder.rotation.y = Math.PI / 2;
       shoulder.position.x = tx;
       spinner.add(shoulder);
     });
 
     // Rant felgi (Rim barrel)
-    const rimBarrel = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, rimWidth, 32, 1, true), this.matRim);
+    const rimBarrel = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, rimWidth, 32, 1, true), this.scene.matRim);
     rimBarrel.rotation.z = Math.PI / 2;
     rimBarrel.userData.name = "Rant felgi aluminiowej";
     spinner.add(rimBarrel);
 
     // Centralna piasta felgi (Hub)
     const hubOutX = isRight ? (tireWidth / 2 - 0.02) : (-tireWidth / 2 + 0.02);
-    const rimHub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.05, 24), this.matDarkSteel);
+    const rimHub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.05, 24), this.scene.matDarkSteel);
     rimHub.rotation.z = Math.PI / 2;
     rimHub.position.x = hubOutX;
     rimHub.userData.name = "Piasta felgi";
@@ -269,7 +275,7 @@ export function createCarWheel(isFront = false, isRight = false) {
       spokeG.rotation.x = ang;
 
       [-0.015, 0.015].forEach(spokeOffY => {
-        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.025, rimR - 0.08), this.matRim);
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.025, rimR - 0.08), this.scene.matRim);
         spoke.position.set(hubOutX, spokeOffY, (rimR - 0.08) / 2 + 0.06);
         spokeG.add(spoke);
       });
@@ -277,7 +283,7 @@ export function createCarWheel(isFront = false, isRight = false) {
 
       // Śruby koła (Lug nuts)
       const boltR = 0.045;
-      const boltMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.018, 6), this.matSteel);
+      const boltMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.018, 6), this.scene.matSteel);
       boltMesh.rotation.z = Math.PI / 2;
       boltMesh.position.set(hubOutX + (isRight ? 0.018 : -0.018), Math.sin(ang) * boltR, Math.cos(ang) * boltR);
       boltMesh.userData.name = "Śruba mocująca koło";
@@ -289,14 +295,14 @@ export function createCarWheel(isFront = false, isRight = false) {
     const discWidth = 0.030;
     const discX = isRight ? (hubOutX - 0.06) : (hubOutX + 0.06);
 
-    const brakeRotor = new THREE.Mesh(new THREE.CylinderGeometry(discR, discR, discWidth, 32), this.matSteel);
+    const brakeRotor = new THREE.Mesh(new THREE.CylinderGeometry(discR, discR, discWidth, 32), this.scene.matSteel);
     brakeRotor.rotation.z = Math.PI / 2;
     brakeRotor.position.x = discX;
     brakeRotor.userData.name = "Tarcza hamulcowa wentylowana";
     spinner.add(brakeRotor);
 
     // Dzwon tarczy (Center brake hat)
-    const brakeHat = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.04, 24), this.matDarkSteel);
+    const brakeHat = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.04, 24), this.scene.matDarkSteel);
     brakeHat.rotation.z = Math.PI / 2;
     brakeHat.position.x = discX;
     brakeHat.userData.name = "Dzwon tarczy hamulcowej";
@@ -311,13 +317,13 @@ export function createCarWheel(isFront = false, isRight = false) {
     caliperG.position.set(discX, Math.SQRT1_2 * (discR - 0.02), Math.SQRT1_2 * (discR - 0.02));
     caliperG.rotation.x = -Math.PI / 4;
 
-    const caliperBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.18), this.matBrake);
+    const caliperBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.18), this.scene.matBrake);
     caliperBody.userData.name = "Zacisk hamulcowy 6-tłoczkowy";
     caliperG.add(caliperBody);
 
     // Tłoczki i detale zacisku
     [-0.045, 0, 0.045].forEach(pz => {
-      const pistonRing = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.09, 16), this.matDarkSteel);
+      const pistonRing = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.09, 16), this.scene.matDarkSteel);
       pistonRing.rotation.z = Math.PI / 2;
       pistonRing.position.set(0, 0, pz);
       caliperG.add(pistonRing);
@@ -325,11 +331,13 @@ export function createCarWheel(isFront = false, isRight = false) {
     knuckleG.add(caliperG);
 
     // Zwrotnica koła / Piasta nośna
-    const knuckleMesh = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.25, 0.15), this.matDarkSteel);
+    const knuckleMesh = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.25, 0.15), this.scene.matDarkSteel);
     knuckleMesh.position.set(isRight ? (discX - 0.05) : (discX + 0.05), 0, 0);
     knuckleMesh.userData.name = "Zwrotnica koła (Knuckle)";
     knuckleG.add(knuckleMesh);
 
-    this.carWheels.push(spinner);
+    this.scene.carWheels.push(spinner);
     return wheelGroup;
   }
+
+}

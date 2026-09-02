@@ -3,11 +3,17 @@ import { GEARBOX_PRESETS } from '../scene3d.js';
 import { CRANK_PRESETS, RadialCrankUI } from '../crankshaft_solver.js';
 import { i18n } from '../i18n.js';
 
-export function showGearboxInfo() {
-    const lang = this.lang || 'pl';
+export class DevUIController {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+
+showGearboxInfo() {
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
     const gb = t.gearboxDrawer || i18n.pl.gearboxDrawer;
-    const currentG = this.config.currentGear || '1';
+    const currentG = this.scene.config.currentGear || '1';
 
     let title = gb.title;
     let principle = gb.principle;
@@ -30,10 +36,10 @@ export function showGearboxInfo() {
     if (drawer) drawer.classList.add('open');
   }
 
-export function showDiffInfo() {
-    const lang = this.lang || 'pl';
+showDiffInfo() {
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
-    const diffType = this.config.diffType || 'open';
+    const diffType = this.scene.config.diffType || 'open';
     const dInfo = (t.diffs && t.diffs[diffType]) ? t.diffs[diffType] : (i18n.pl.diffs[diffType] || i18n.pl.diffs.open);
 
     let title = dInfo.title;
@@ -62,7 +68,7 @@ export function showDiffInfo() {
     if (drawer) drawer.classList.add('open');
   }
 
-export function setupDevPanel() {
+setupDevPanel() {
     const setupButtonGroup = (groupId, callback) => {
       const container = document.getElementById(groupId);
       if (!container) return;
@@ -106,9 +112,9 @@ export function setupDevPanel() {
     });
 
     const updateDisplacementDisplay = () => {
-      const bore = this.config.boreMm || 84.0;
-      const stroke = this.config.strokeMm || 90.0;
-      const cyls = this.config.cylinders || 4;
+      const bore = this.scene.config.boreMm || 84.0;
+      const stroke = this.scene.config.strokeMm || 90.0;
+      const cyls = this.scene.config.cylinders || 4;
       const dispCm3 = cyls * Math.PI * Math.pow(bore / 20, 2) * (stroke / 10);
       const dispL = (dispCm3 / 1000).toFixed(2);
       const dispRounded = Math.round(dispCm3);
@@ -120,7 +126,7 @@ export function setupDevPanel() {
     };
 
     setupButtonGroup('dev_layout', (val) => {
-      this.config.layout = val;
+      this.scene.config.layout = val;
       const angleContainer = document.getElementById('dev_angle_container');
       if (angleContainer) {
           angleContainer.style.display = (val === 'Inline' || val === 'VR' || val === 'Boxer') ? 'none' : 'block';
@@ -130,11 +136,11 @@ export function setupDevPanel() {
         if (devAngle) devAngle.value = 15;
         const devAngleVal = document.getElementById('dev_angle_val');
         if (devAngleVal) devAngleVal.innerText = 15;
-        this.config.vAngle = 15;
+        this.scene.config.vAngle = 15;
       }
       this.updateV8UI();
       updateDisplacementDisplay();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     const devCyl = document.getElementById('dev_cyl');
@@ -142,10 +148,10 @@ export function setupDevPanel() {
       devCyl.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_cyl_val');
         if (valEl) valEl.innerText = e.target.value;
-        this.config.cylinders = parseInt(e.target.value);
+        this.scene.config.cylinders = parseInt(e.target.value);
         this.updateV8UI();
         updateDisplacementDisplay();
-        this.rebuildFullCar();
+        this.scene.rebuildFullCar();
       });
     }
 
@@ -155,9 +161,9 @@ export function setupDevPanel() {
         const val = parseFloat(e.target.value);
         const valEl = document.getElementById('dev_bore_val');
         if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
-        this.config.boreMm = val;
+        this.scene.config.boreMm = val;
         updateDisplacementDisplay();
-        this.rebuildFullCar();
+        this.scene.rebuildFullCar();
       });
     }
 
@@ -167,9 +173,9 @@ export function setupDevPanel() {
         const val = parseFloat(e.target.value);
         const valEl = document.getElementById('dev_stroke_len_val');
         if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
-        this.config.strokeMm = val;
+        this.scene.config.strokeMm = val;
         updateDisplacementDisplay();
-        this.rebuildFullCar();
+        this.scene.rebuildFullCar();
       });
     }
 
@@ -178,59 +184,59 @@ export function setupDevPanel() {
       devAngle.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_angle_val');
         if (valEl) valEl.innerText = e.target.value;
-        this.config.vAngle = parseInt(e.target.value);
+        this.scene.config.vAngle = parseInt(e.target.value);
         this.updateEngineStats();
-        this.rebuildFullCar();
+        this.scene.rebuildFullCar();
       });
     }
 
     // ═══ WYBÓR UKŁADU WYDECHOWEGO (1 vs 2 rury) ═══
     setupButtonGroup('dev_exhaust_pipes', (val) => {
-      this.config.exhaustPipes = val;
+      this.scene.config.exhaustPipes = val;
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     // ═══ WYBÓR WAŁU DLA V8 (Crossplane vs Flatplane) ═══
     setupButtonGroup('dev_v8_crank', (val) => {
-      this.config.v8CrankType = val;
+      this.scene.config.v8CrankType = val;
       this.updateV8UI();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     // ═══ TRYB WAŁU (Wzorce vs Własny Tuning) ═══
     setupButtonGroup('dev_crank_mode', (val) => {
-      this.config.customOverride = (val === 'custom');
+      this.scene.config.customOverride = (val === 'custom');
       const radialContainer = document.getElementById('radial_tuning_container');
       const presetCard = document.getElementById('crank_preset_card');
       if (radialContainer) radialContainer.style.display = (val === 'custom') ? 'block' : 'none';
       if (presetCard) presetCard.style.display = (val === 'custom') ? 'none' : 'block';
 
-      if (val === 'custom' && this.radialUI && this.movingCylinders.length > 0) {
-        const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
-        this.radialUI.setAngles(angles);
+      if (val === 'custom' && this.scene.radialUI && this.scene.movingCylinders.length > 0) {
+        const angles = this.scene.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+        this.scene.radialUI.setAngles(angles);
       }
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     // ═══ INTERAKTYWNY RADIAL UI (Biegunowa Tarcza 360°) ═══
     const radialCanvas = document.getElementById('radial_crank_canvas');
     if (radialCanvas) {
-      this.radialUI = new RadialCrankUI(radialCanvas, (newAnglesDeg) => {
-        this.config.customOverride = true;
-        this.config.customCrankPins = [...newAnglesDeg];
-        this.rebuildFullCar();
+      this.scene.radialUI = new RadialCrankUI(radialCanvas, (newAnglesDeg) => {
+        this.scene.config.customOverride = true;
+        this.scene.config.customCrankPins = [...newAnglesDeg];
+        this.scene.rebuildFullCar();
       });
     }
 
     const btnResetCrank = document.getElementById('btn_reset_crank');
     if (btnResetCrank) {
       btnResetCrank.addEventListener('click', () => {
-        this.config.customCrankPins = null;
-        this.rebuildFullCar();
-        if (this.radialUI && this.movingCylinders.length > 0) {
-          const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
-          this.radialUI.setAngles(angles);
+        this.scene.config.customCrankPins = null;
+        this.scene.rebuildFullCar();
+        if (this.scene.radialUI && this.scene.movingCylinders.length > 0) {
+          const angles = this.scene.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+          this.scene.radialUI.setAngles(angles);
         }
       });
     }
@@ -238,14 +244,14 @@ export function setupDevPanel() {
     const chkSnap15 = document.getElementById('radial_snap_15');
     if (chkSnap15) {
       chkSnap15.addEventListener('change', (e) => {
-        if (this.radialUI) this.radialUI.snapToGrid = e.target.checked;
+        if (this.scene.radialUI) this.scene.radialUI.snapToGrid = e.target.checked;
       });
     }
 
     const updateValveButtonsState = () => {
       const btn4V = document.querySelector('#dev_valves button[data-val="4"]');
       if (btn4V) {
-        if (this.config.valvetrain === 'OHV') {
+        if (this.scene.config.valvetrain === 'OHV') {
           btn4V.disabled = true;
           btn4V.style.opacity = '0.5';
           btn4V.style.cursor = 'not-allowed';
@@ -260,18 +266,18 @@ export function setupDevPanel() {
     };
 
     setupButtonGroup('dev_valves', (val) => {
-      if (this.config.valvetrain === 'OHV' && val === '4') return; // Prevent if OHV
-      this.config.valves = parseInt(val);
+      if (this.scene.config.valvetrain === 'OHV' && val === '4') return; // Prevent if OHV
+      this.scene.config.valves = parseInt(val);
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     setupButtonGroup('dev_valvetrain', (val) => {
-      this.config.valvetrain = val;
+      this.scene.config.valvetrain = val;
       
       // Force 2 valves if switching to OHV and currently on 4 valves
-      if (val === 'OHV' && this.config.valves === 4) {
-        this.config.valves = 2;
+      if (val === 'OHV' && this.scene.config.valves === 4) {
+        this.scene.config.valves = 2;
         const btns = document.querySelectorAll('#dev_valves button');
         btns.forEach(b => b.classList.remove('active'));
         const btn2V = document.querySelector('#dev_valves button[data-val="2"]');
@@ -280,13 +286,13 @@ export function setupDevPanel() {
       
       updateValveButtonsState();
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     const updateAspirationPill = () => {
       const pill = document.getElementById('status_aspiration');
       if (pill) {
-        if (this.config.intakeType === 'sport') {
+        if (this.scene.config.intakeType === 'sport') {
           pill.innerText = "Sport (Stożek)";
           pill.style.background = "rgba(239, 68, 68, 0.2)";
           pill.style.color = "#f87171";
@@ -299,41 +305,41 @@ export function setupDevPanel() {
     };
 
     setupButtonGroup('dev_intake', (val) => {
-      this.config.intakeType = val;
+      this.scene.config.intakeType = val;
       updateAspirationPill();
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
     
     // Initialize defaults from DOM (Sport by default)
-    this.config.intakeType = document.querySelector('#dev_intake .active')?.dataset.val || 'sport';
+    this.scene.config.intakeType = document.querySelector('#dev_intake .active')?.dataset.val || 'sport';
     updateAspirationPill();
 
     // Initialize button state on load
     updateValveButtonsState();
 
     setupButtonGroup('dev_stroke', (val) => {
-      this.config.stroke = parseInt(val);
+      this.scene.config.stroke = parseInt(val);
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     setupButtonGroup('dev_placement', (val) => {
-      this.config.placement = val;
+      this.scene.config.placement = val;
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     setupButtonGroup('dev_orientation', (val) => {
-      this.config.orientation = val;
+      this.scene.config.orientation = val;
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     setupButtonGroup('dev_drivetrain_layout', (val) => {
-      this.config.drivetrainLayout = val;
+      this.scene.config.drivetrainLayout = val;
       this.updateEngineStats();
-      this.rebuildFullCar();
+      this.scene.rebuildFullCar();
     });
 
     const devTilt = document.getElementById('dev_tilt');
@@ -341,14 +347,14 @@ export function setupDevPanel() {
       devTilt.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_tilt_val');
         if (valEl) valEl.innerText = e.target.value;
-        this.config.tiltAngle = parseInt(e.target.value);
-        this.rebuildFullCar();
+        this.scene.config.tiltAngle = parseInt(e.target.value);
+        this.scene.rebuildFullCar();
       });
     }
 
     const updateDatumVisibility = (isChecked) => {
-      this.config.showDatum = isChecked;
-      if (this.datumGroup) this.datumGroup.visible = this.config.showDatum;
+      this.scene.config.showDatum = isChecked;
+      if (this.scene.datumGroup) this.scene.datumGroup.visible = this.scene.config.showDatum;
       const chk1 = document.getElementById('toggle_datum');
       const chk2 = document.getElementById('dev-toggle-datum');
       if (chk1) chk1.checked = isChecked;
@@ -384,7 +390,7 @@ export function setupDevPanel() {
       devRpm.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_rpm_val');
         if (valEl) valEl.innerText = e.target.value;
-        this.config.rpm = parseInt(e.target.value);
+        this.scene.config.rpm = parseInt(e.target.value);
         this.updateEngineStats();
       });
     }
@@ -392,7 +398,7 @@ export function setupDevPanel() {
     const devClutchEngaged = document.getElementById('dev_clutch_engaged');
     if (devClutchEngaged) {
       devClutchEngaged.addEventListener('change', (e) => {
-        this.config.clutchEngaged = e.target.checked;
+        this.scene.config.clutchEngaged = e.target.checked;
         this.updateEngineStats();
       });
     }
@@ -402,20 +408,20 @@ export function setupDevPanel() {
       devFinalDrive.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_final_drive_val');
         if (valEl) valEl.innerText = parseFloat(e.target.value).toFixed(2);
-        this.config.finalDrive = parseFloat(e.target.value);
+        this.scene.config.finalDrive = parseFloat(e.target.value);
         this.updateEngineStats();
       });
     }
 
     // ═══ PRESETY SKRZYNI BIEGÓW ═══
     setupButtonGroup('dev_gearbox_preset', (val) => {
-      this.config.gearboxPreset = val;
+      this.scene.config.gearboxPreset = val;
       const customContainer = document.getElementById('custom_gearbox_container');
       const descEl = document.getElementById('dev_gearbox_desc');
       const btnG6 = document.getElementById('btn_gear_6');
       const finalDriveSlider = document.getElementById('dev_final_drive');
       const finalDriveVal = document.getElementById('dev_final_drive_val');
-      const lang = this.lang || 'pl';
+      const lang = this.scene.lang || 'pl';
       const t = i18n[lang] || i18n.pl;
 
       if (val === 'custom') {
@@ -428,13 +434,13 @@ export function setupDevPanel() {
         const gDict = (t.gearboxPresets && t.gearboxPresets[val]) ? t.gearboxPresets[val] : null;
         if (descEl) descEl.innerText = gDict ? gDict.desc : preset.desc;
         if (btnG6) btnG6.style.display = (preset.speeds === 6) ? 'inline-block' : 'none';
-        if (preset.speeds === 5 && this.config.currentGear === '6') {
-          this.config.currentGear = '5';
+        if (preset.speeds === 5 && this.scene.config.currentGear === '6') {
+          this.scene.config.currentGear = '5';
           const btns = document.querySelectorAll('#dev_gearbox button');
           btns.forEach(b => b.classList.remove('active'));
           document.querySelector('#dev_gearbox button[data-gear="5"]')?.classList.add('active');
         }
-        this.config.finalDrive = preset.finalDrive;
+        this.scene.config.finalDrive = preset.finalDrive;
         if (finalDriveSlider) finalDriveSlider.value = preset.finalDrive;
         if (finalDriveVal) finalDriveVal.innerText = preset.finalDrive.toFixed(2);
       }
@@ -450,7 +456,7 @@ export function setupDevPanel() {
           const ratioVal = parseFloat(e.target.value);
           const actualKey = gKey === 'r' ? 'R' : gKey;
           const finalVal = gKey === 'r' ? -ratioVal : ratioVal;
-          this.config.gearboxCustomRatios[actualKey] = finalVal;
+          this.scene.config.gearboxCustomRatios[actualKey] = finalVal;
           if (valEl) valEl.innerText = (gKey === 'r' ? '-' : '') + ratioVal.toFixed(2);
           this.updateEngineStats();
         });
@@ -459,7 +465,7 @@ export function setupDevPanel() {
 
     // ═══ WYBÓR AKTUALNEGO BIEGU (R, N, 1..6) ═══
     setupButtonGroup('dev_gearbox', (val) => {
-      this.config.currentGear = val;
+      this.scene.config.currentGear = val;
       this.updateEngineStats();
     });
 
@@ -474,7 +480,7 @@ export function setupDevPanel() {
     const chkWireframes = document.getElementById('toggle_wireframes');
     if (chkWireframes) {
       chkWireframes.addEventListener('change', (e) => {
-        this.config.showWireframes = e.target.checked;
+        this.scene.config.showWireframes = e.target.checked;
         this.updateWireframeVisibility();
       });
     }
@@ -482,57 +488,57 @@ export function setupDevPanel() {
     const chkHover = document.getElementById('toggle_hover');
     if (chkHover) {
       chkHover.addEventListener('change', (e) => {
-        this.config.enableHover = e.target.checked;
-        if (!this.config.enableHover && this.hoveredPart) {
-           this.hoveredPart.material.emissive.setHex(0x000000);
-           this.hoveredPart = null;
+        this.scene.config.enableHover = e.target.checked;
+        if (!this.scene.config.enableHover && this.scene.hoveredPart) {
+           this.scene.hoveredPart.material.emissive.setHex(0x000000);
+           this.scene.hoveredPart = null;
         }
       });
     }
 
     const chkChassis = document.getElementById('toggle_chassis');
     if (chkChassis) {
-      chkChassis.checked = this.config.showChassis || false;
+      chkChassis.checked = this.scene.config.showChassis || false;
       chkChassis.addEventListener('change', (e) => {
-        this.config.showChassis = e.target.checked;
-        this.rebuildFullCar();
+        this.scene.config.showChassis = e.target.checked;
+        this.scene.rebuildFullCar();
       });
     }
   }
 
-export function getCurrentGearRatio() {
-    const currentG = this.config.currentGear || '1';
+getCurrentGearRatio() {
+    const currentG = this.scene.config.currentGear || '1';
     if (currentG === 'N') return 0;
-    if (this.config.gearboxPreset === 'custom') {
-      return this.config.gearboxCustomRatios[currentG] !== undefined ? this.config.gearboxCustomRatios[currentG] : 1.0;
+    if (this.scene.config.gearboxPreset === 'custom') {
+      return this.scene.config.gearboxCustomRatios[currentG] !== undefined ? this.scene.config.gearboxCustomRatios[currentG] : 1.0;
     }
-    const preset = GEARBOX_PRESETS[this.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
+    const preset = GEARBOX_PRESETS[this.scene.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
     return preset.ratios[currentG] !== undefined ? preset.ratios[currentG] : 1.0;
   }
 
-export function updateCrankshaftUI() {
+updateCrankshaftUI() {
     this.updateV8UI();
     this.updatePresetCard();
     this.updateBalanceUI();
     this.updateStatusPills();
     this.updateEngineStats();
 
-    if (this.radialUI && !this.config.customOverride && this.movingCylinders && this.movingCylinders.length > 0) {
-      const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
-      this.radialUI.setCylinderCount(this.config.cylinders, angles);
+    if (this.scene.radialUI && !this.scene.config.customOverride && this.scene.movingCylinders && this.scene.movingCylinders.length > 0) {
+      const angles = this.scene.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
+      this.scene.radialUI.setCylinderCount(this.scene.config.cylinders, angles);
     }
   }
 
-export function updateV8UI() {
+updateV8UI() {
     const v8Container = document.getElementById('dev_v8_crank_container');
     const noteEl = document.getElementById('v8_crank_note');
     if (v8Container) {
-      const isV8 = (this.config.layout === 'V' && this.config.cylinders === 8);
+      const isV8 = (this.scene.config.layout === 'V' && this.scene.config.cylinders === 8);
       v8Container.style.display = isV8 ? 'block' : 'none';
       if (isV8 && noteEl) {
-        const lang = this.lang || 'pl';
+        const lang = this.scene.lang || 'pl';
         const t = i18n[lang] || i18n.pl;
-        if (this.config.v8CrankType === 'crossplane') {
+        if (this.scene.config.v8CrankType === 'crossplane') {
           noteEl.innerHTML = t.ui.v8CrossplaneNote;
         } else {
           noteEl.innerHTML = t.ui.v8FlatplaneNote;
@@ -541,7 +547,7 @@ export function updateV8UI() {
     }
   }
 
-export function updatePresetCard() {
+updatePresetCard() {
     const card = document.getElementById('crank_preset_card');
     const nameEl = document.getElementById('crank_preset_name');
     const descEl = document.getElementById('crank_preset_desc');
@@ -550,12 +556,12 @@ export function updatePresetCard() {
 
     if (!card) return;
 
-    const lang = this.lang || 'pl';
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
 
-    const key = (this.config.layout === 'V' && this.config.cylinders === 8)
-      ? `V_8_${this.config.v8CrankType || 'crossplane'}`
-      : `${this.config.layout}_${this.config.cylinders}`;
+    const key = (this.scene.config.layout === 'V' && this.scene.config.cylinders === 8)
+      ? `V_8_${this.scene.config.v8CrankType || 'crossplane'}`
+      : `${this.scene.config.layout}_${this.scene.config.cylinders}`;
 
     const preset = (t.crankPresets && t.crankPresets[key]) ? t.crankPresets[key] : CRANK_PRESETS[key];
     if (preset) {
@@ -567,10 +573,10 @@ export function updatePresetCard() {
         badgeEl.className = 'crank-badge engineered';
       }
     } else {
-      const cycle = this.config.stroke === 2 ? 360 : 720;
-      const dGamma = (cycle / this.config.cylinders).toFixed(1);
+      const cycle = this.scene.config.stroke === 2 ? 360 : 720;
+      const dGamma = (cycle / this.scene.config.cylinders).toFixed(1);
       const fb = t.crankPresets?.fallbackTemplate || i18n.pl.crankPresets.fallbackTemplate;
-      if (nameEl) nameEl.innerText = fb.name.replace('{layout}', this.config.layout).replace('{cylinders}', this.config.cylinders);
+      if (nameEl) nameEl.innerText = fb.name.replace('{layout}', this.scene.config.layout).replace('{cylinders}', this.scene.config.cylinders);
       if (descEl) descEl.innerText = fb.desc.replace('{dGamma}', dGamma);
       if (techEl) techEl.innerText = fb.tech.replace('{dGamma}', dGamma);
       if (badgeEl) {
@@ -580,16 +586,16 @@ export function updatePresetCard() {
     }
   }
 
-export function updateBalanceUI() {
+updateBalanceUI() {
     const box = document.getElementById('crank_diagnostics_box');
     const icon = document.getElementById('diag_status_icon');
     const title = document.getElementById('diag_title');
     const msg = document.getElementById('diag_message');
     const rec = document.getElementById('diag_rec');
 
-    if (!this.currentBalanceReport || !box) return;
-    const report = this.currentBalanceReport;
-    const lang = this.lang || 'pl';
+    if (!this.scene.currentBalanceReport || !box) return;
+    const report = this.scene.currentBalanceReport;
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
     const br = t.balanceReports || i18n.pl.balanceReports;
 
@@ -657,17 +663,17 @@ export function updateBalanceUI() {
     }
   }
 
-export function updateStatusPills() {
-    const lang = this.lang || 'pl';
+updateStatusPills() {
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
 
     // 1. Engine status pill
     const pEngine = document.getElementById('status_engine');
     if (pEngine) {
-      const layoutShort = (this.config.layout === 'Inline') ? (lang === 'pl' ? 'R' : 'I') : (this.config.layout === 'Boxer' ? 'B' : this.config.layout);
-      const bore = this.config.boreMm || 84.0;
-      const stroke = this.config.strokeMm || 90.0;
-      const cyls = this.config.cylinders || 4;
+      const layoutShort = (this.scene.config.layout === 'Inline') ? (lang === 'pl' ? 'R' : 'I') : (this.scene.config.layout === 'Boxer' ? 'B' : this.scene.config.layout);
+      const bore = this.scene.config.boreMm || 84.0;
+      const stroke = this.scene.config.strokeMm || 90.0;
+      const cyls = this.scene.config.cylinders || 4;
       const dispCm3 = cyls * Math.PI * Math.pow(bore / 20, 2) * (stroke / 10);
       const dispL = (dispCm3 / 1000).toFixed(1);
       pEngine.innerText = `${layoutShort}${cyls} • ${dispL}L`;
@@ -676,17 +682,17 @@ export function updateStatusPills() {
     // 2. Crank status pill
     const pCrank = document.getElementById('status_crank');
     if (pCrank) {
-      if (this.config.customOverride) {
+      if (this.scene.config.customOverride) {
         pCrank.innerText = 'Custom 360°';
       } else {
-        const key = (this.config.layout === 'V' && this.config.cylinders === 8)
-          ? `V_8_${this.config.v8CrankType || 'crossplane'}`
-          : `${this.config.layout}_${this.config.cylinders}`;
+        const key = (this.scene.config.layout === 'V' && this.scene.config.cylinders === 8)
+          ? `V_8_${this.scene.config.v8CrankType || 'crossplane'}`
+          : `${this.scene.config.layout}_${this.scene.config.cylinders}`;
         const preset = (t.crankPresets && t.crankPresets[key]) ? t.crankPresets[key] : CRANK_PRESETS[key];
         if (preset) {
           pCrank.innerText = preset.name.replace(/^(R\d+|I\d+|V\d+|B\d+|VR\d+|W\d+)\s+/, '');
         } else {
-          pCrank.innerText = `${this.config.cylinders}-cyl`;
+          pCrank.innerText = `${this.scene.config.cylinders}-cyl`;
         }
       }
     }
@@ -694,35 +700,35 @@ export function updateStatusPills() {
     // 3. Drivetrain status pill
     const pDrive = document.getElementById('status_drivetrain');
     if (pDrive) {
-      const g = this.config.currentGear || '1';
-      const rpm = this.config.rpm || 1000;
+      const g = this.scene.config.currentGear || '1';
+      const rpm = this.scene.config.rpm || 1000;
       pDrive.innerText = `${g} • ${rpm} RPM`;
     }
 
     // 4. Physics status pill
     const pPhys = document.getElementById('status_physics');
-    if (pPhys && this.currentBalanceReport) {
-      pPhys.innerText = this.currentBalanceReport.status === 'perfect' ? t.ui.balanceOkPill : t.ui.balanceVibPill;
+    if (pPhys && this.scene.currentBalanceReport) {
+      pPhys.innerText = this.scene.currentBalanceReport.status === 'perfect' ? t.ui.balanceOkPill : t.ui.balanceVibPill;
     }
 
     // 5. View status pill
     const pView = document.getElementById('status_view');
     if (pView) {
-      pView.innerText = this.isCutaway ? t.ui.viewStatusCutaway : t.ui.viewStatusStudio;
+      pView.innerText = this.scene.isCutaway ? t.ui.viewStatusCutaway : t.ui.viewStatusStudio;
     }
   }
 
-export function updateWireframeVisibility() {
-    const v = this.config.showWireframes;
-    if (this.movingCylinders) {
-        this.movingCylinders.forEach(c => {
+updateWireframeVisibility() {
+    const v = this.scene.config.showWireframes;
+    if (this.scene.movingCylinders) {
+        this.scene.movingCylinders.forEach(c => {
             if (c.sleeve) c.sleeve.visible = v;
             if (c.head) c.head.visible = v;
         });
     }
     // Wyszukaj miskę olejową po nazwie
-    if (this.engineGroup) {
-      this.engineGroup.children.forEach(child => {
+    if (this.scene.engineGroup) {
+      this.scene.engineGroup.children.forEach(child => {
           if (child.userData.name === "Miska olejowa (Zarys)") {
               child.visible = v;
           }
@@ -730,28 +736,28 @@ export function updateWireframeVisibility() {
     }
   }
 
-export function setupTooltip() {
-    this.raycaster = new THREE.Raycaster();
-    this.raycaster.params.Line.threshold = 0.005;
-    this.raycaster.params.Points.threshold = 0.005;
-    this.mouse = new THREE.Vector2(-9999, -9999);
-    this.tooltip = document.createElement('div');
-    this.tooltip.style.position = 'fixed';
-    this.tooltip.style.background = 'rgba(20, 20, 25, 0.94)';
-    this.tooltip.style.color = '#ffffff';
-    this.tooltip.style.padding = '6px 12px';
-    this.tooltip.style.borderRadius = '8px';
-    this.tooltip.style.border = '1px solid rgba(255, 255, 255, 0.14)';
-    this.tooltip.style.pointerEvents = 'none';
-    this.tooltip.style.display = 'none';
-    this.tooltip.style.fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif';
-    this.tooltip.style.fontSize = '11.5px';
-    this.tooltip.style.letterSpacing = '-0.01em';
-    this.tooltip.style.zIndex = '90';
-    this.tooltip.style.boxShadow = '0 8px 24px rgba(0,0,0,0.6)';
-    this.tooltip.style.fontWeight = '600';
-    this.tooltip.style.whiteSpace = 'nowrap';
-    document.body.appendChild(this.tooltip);
+setupTooltip() {
+    this.scene.raycaster = new THREE.Raycaster();
+    this.scene.raycaster.params.Line.threshold = 0.005;
+    this.scene.raycaster.params.Points.threshold = 0.005;
+    this.scene.mouse = new THREE.Vector2(-9999, -9999);
+    this.scene.tooltip = document.createElement('div');
+    this.scene.tooltip.style.position = 'fixed';
+    this.scene.tooltip.style.background = 'rgba(20, 20, 25, 0.94)';
+    this.scene.tooltip.style.color = '#ffffff';
+    this.scene.tooltip.style.padding = '6px 12px';
+    this.scene.tooltip.style.borderRadius = '8px';
+    this.scene.tooltip.style.border = '1px solid rgba(255, 255, 255, 0.14)';
+    this.scene.tooltip.style.pointerEvents = 'none';
+    this.scene.tooltip.style.display = 'none';
+    this.scene.tooltip.style.fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif';
+    this.scene.tooltip.style.fontSize = '11.5px';
+    this.scene.tooltip.style.letterSpacing = '-0.01em';
+    this.scene.tooltip.style.zIndex = '90';
+    this.scene.tooltip.style.boxShadow = '0 8px 24px rgba(0,0,0,0.6)';
+    this.scene.tooltip.style.fontWeight = '600';
+    this.scene.tooltip.style.whiteSpace = 'nowrap';
+    document.body.appendChild(this.scene.tooltip);
 
     window.addEventListener('mousemove', (e) => {
       // Jeśli kursor znajduje się nad elementami interfejsu (sidebar, HUD, drawer, przyciski), ukryj tooltip
@@ -761,37 +767,37 @@ export function setupTooltip() {
         target.closest &&
         target.closest('.sidebar-left, .bottom-hud, .info-drawer, .dev-drawer, .dev-mode-toggle, button, input, select, textarea')
       ) {
-        this.mouse.set(-9999, -9999);
-        this.tooltip.style.display = 'none';
+        this.scene.mouse.set(-9999, -9999);
+        this.scene.tooltip.style.display = 'none';
         return;
       }
 
-      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      this.scene.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.scene.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       
       let left = e.clientX + 16;
       let top = e.clientY + 16;
       if (left + 220 > window.innerWidth) left = e.clientX - 230;
       if (top + 40 > window.innerHeight) top = e.clientY - 40;
-      this.tooltip.style.left = `${left}px`;
-      this.tooltip.style.top = `${top}px`;
+      this.scene.tooltip.style.left = `${left}px`;
+      this.scene.tooltip.style.top = `${top}px`;
       this.updateTooltip();
     });
 
     window.addEventListener('mouseleave', () => {
-      this.mouse.set(-9999, -9999);
-      if (this.tooltip) this.tooltip.style.display = 'none';
+      this.scene.mouse.set(-9999, -9999);
+      if (this.scene.tooltip) this.scene.tooltip.style.display = 'none';
     });
 
-    this.isRaycasting = false;
+    this.scene.isRaycasting = false;
   }
 
-export function updateTooltip() {
-    if (!this.raycaster || !this.scene || !this.camera || this.isRaycasting) return;
-    this.isRaycasting = true;
+updateTooltip() {
+    if (!this.scene.raycaster || !this.scene.scene || !this.scene.camera || this.scene.isRaycasting) return;
+    this.scene.isRaycasting = true;
     requestAnimationFrame(() => {
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+      this.scene.raycaster.setFromCamera(this.scene.mouse, this.scene.camera);
+      const intersects = this.scene.raycaster.intersectObjects(this.scene.scene.children, true);
       let foundName = null;
       for (let i = 0; i < intersects.length; i++) {
         const item = intersects[i];
@@ -842,34 +848,34 @@ export function updateTooltip() {
       }
 
       if (foundName) {
-        this.tooltip.innerHTML = `<span style="color: #86868b; font-size: 9.5px; text-transform: uppercase; margin-right: 6px; font-weight: 500;">ELEMENT</span><span>${foundName}</span>`;
-        this.tooltip.style.display = 'block';
+        this.scene.tooltip.innerHTML = `<span style="color: #86868b; font-size: 9.5px; text-transform: uppercase; margin-right: 6px; font-weight: 500;">ELEMENT</span><span>${foundName}</span>`;
+        this.scene.tooltip.style.display = 'block';
       } else {
-        this.tooltip.style.display = 'none';
+        this.scene.tooltip.style.display = 'none';
       }
-      this.isRaycasting = false;
+      this.scene.isRaycasting = false;
     });
   }
 
 /**
  * Kompleksowe obliczanie statystyk, osiągów i parametrów inżynieryjnych w czasie rzeczywistym
  */
-export function updateEngineStats() {
-  const lang = this.lang || 'pl';
+updateEngineStats() {
+  const lang = this.scene.lang || 'pl';
   const t = i18n[lang] || i18n.pl;
 
-  const bore = this.config.boreMm || 84.0;
-  const stroke = this.config.strokeMm || 90.0;
-  const cyls = this.config.cylinders || 4;
-  const layout = this.config.layout || 'Inline';
-  const cycle = this.config.stroke || 4;
-  const valves = this.config.valves || 4;
-  const valvetrain = this.config.valvetrain || 'OHC';
-  const intake = this.config.intakeType || 'sport';
-  const aspiration = this.config.aspiration || 'na';
-  const rpm = this.config.rpm || 1000;
-  const exhaustPipes = this.config.exhaustPipes || 'single';
-  const drivetrain = this.config.drivetrainLayout || 'RWD';
+  const bore = this.scene.config.boreMm || 84.0;
+  const stroke = this.scene.config.strokeMm || 90.0;
+  const cyls = this.scene.config.cylinders || 4;
+  const layout = this.scene.config.layout || 'Inline';
+  const cycle = this.scene.config.stroke || 4;
+  const valves = this.scene.config.valves || 4;
+  const valvetrain = this.scene.config.valvetrain || 'OHC';
+  const intake = this.scene.config.intakeType || 'sport';
+  const aspiration = this.scene.config.aspiration || 'na';
+  const rpm = this.scene.config.rpm || 1000;
+  const exhaustPipes = this.scene.config.exhaustPipes || 'single';
+  const drivetrain = this.scene.config.drivetrainLayout || 'RWD';
 
   // 1. Geometria i pojemność
   const dispCm3 = cyls * Math.PI * Math.pow(bore / 20, 2) * (stroke / 10);
@@ -1042,7 +1048,7 @@ export function updateEngineStats() {
   const qsCrankF1 = document.getElementById('qs_crank_f1');
   const qsCrankStatus = document.getElementById('qs_crank_status');
   if (qsCrankOrder) {
-    const key = (layout === 'V' && cyls === 8) ? `V_8_${this.config.v8CrankType || 'crossplane'}` : `${layout}_${cyls}`;
+    const key = (layout === 'V' && cyls === 8) ? `V_8_${this.scene.config.v8CrankType || 'crossplane'}` : `${layout}_${cyls}`;
     const preset = CRANK_PRESETS[key];
     qsCrankOrder.innerText = preset ? (preset.firingOrder ? preset.firingOrder.join('-') : `${cyls} cyl`) : `${cyls} cyl`;
   }
@@ -1066,9 +1072,9 @@ export function updateEngineStats() {
   const qsDriveRedlineSpd = document.getElementById('qs_drive_redline_spd');
   const currentRatio = this.getCurrentGearRatio();
   const absRatio = Math.abs(currentRatio);
-  const totalReduction = absRatio > 0 ? (absRatio * (this.config.finalDrive || 3.94)) : 0;
+  const totalReduction = absRatio > 0 ? (absRatio * (this.scene.config.finalDrive || 3.94)) : 0;
   const tireCircumferenceM = 2 * Math.PI * 0.32;
-  const currentSpeed = (totalReduction > 0 && this.config.clutchEngaged) ? Math.round((rpm * tireCircumferenceM * 60) / (totalReduction * 1000)) : 0;
+  const currentSpeed = (totalReduction > 0 && this.scene.config.clutchEngaged) ? Math.round((rpm * tireCircumferenceM * 60) / (totalReduction * 1000)) : 0;
   const redlineSpeed = (totalReduction > 0) ? Math.round((redline * tireCircumferenceM * 60) / (totalReduction * 1000)) : 0;
 
   if (qsDriveSpeed) qsDriveSpeed.innerText = `${currentSpeed} km/h`;
@@ -1082,14 +1088,14 @@ export function updateEngineStats() {
 /**
  * Tabela prędkości teoretycznych na poszczególnych biegach
  */
-export function updateGearSpeedTable(redline) {
+updateGearSpeedTable(redline) {
   const tableBody = document.getElementById('gear_matrix_body');
   if (!tableBody) return;
 
-  const currentGear = this.config.currentGear || '1';
-  const rpm = this.config.rpm || 1000;
+  const currentGear = this.scene.config.currentGear || '1';
+  const rpm = this.scene.config.rpm || 1000;
   const red = redline || 6800;
-  const finalDrive = this.config.finalDrive || 3.94;
+  const finalDrive = this.scene.config.finalDrive || 3.94;
   const tireCircumferenceM = 2 * Math.PI * 0.32; // ~2.011m (promień koła 32cm)
 
   const thRpm = document.getElementById('th_speed_rpm');
@@ -1099,10 +1105,10 @@ export function updateGearSpeedTable(redline) {
 
   // Pobierz przełożenia biegów
   let ratios = {};
-  if (this.config.gearboxPreset === 'custom') {
-    ratios = this.config.gearboxCustomRatios || {};
+  if (this.scene.config.gearboxPreset === 'custom') {
+    ratios = this.scene.config.gearboxCustomRatios || {};
   } else {
-    const preset = GEARBOX_PRESETS[this.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
+    const preset = GEARBOX_PRESETS[this.scene.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
     ratios = preset.ratios || {};
   }
 
@@ -1136,4 +1142,6 @@ export function updateGearSpeedTable(redline) {
   }).join('');
 
   tableBody.innerHTML = rowsHtml;
+}
+
 }

@@ -2,22 +2,28 @@ import * as THREE from 'three';
 import { resolveFiringSequence, resolveCrankPinAngles, analyzeEngineBalance } from '../crankshaft_solver.js';
 import { VehicleDimensions } from './VehicleConfig.js';
 
-export function createCylConfig(id, z, bank, firingAngleDeg, crankPinAngle) {
+export class EngineBuilder {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+
+createCylConfig(id, z, bank, firingAngleDeg, crankPinAngle) {
     const firingAngle = (firingAngleDeg * Math.PI) / 180;
-    const is2Stroke = this.config.stroke === 2;
+    const is2Stroke = this.scene.config.stroke === 2;
     const cyclePi = is2Stroke ? 2 : 4;
     const phaseOffset = (2 * Math.PI - firingAngle + cyclePi * Math.PI) % (cyclePi * Math.PI);
     return { id, z, bank, crankPinAngle, phaseOffset, firingAngle };
   }
 
-export function computeEngineDatum() {
-    const layout = this.config.layout;
-    const cylCount = this.config.cylinders;
-    const vAngle = this.config.vAngle * Math.PI / 180;
+computeEngineDatum() {
+    const layout = this.scene.config.layout;
+    const cylCount = this.scene.config.cylinders;
+    const vAngle = this.scene.config.vAngle * Math.PI / 180;
     
     // Skalowanie fizyczne (Bore mm -> Three units, Stroke mm -> Three units)
-    const boreMm = this.config.boreMm || 84.0;
-    const strokeMm = this.config.strokeMm || 90.0;
+    const boreMm = this.scene.config.boreMm || 84.0;
+    const strokeMm = this.scene.config.strokeMm || 90.0;
     const boreScale = boreMm / 84.0;
     const strokeScale = strokeMm / 90.0;
     const boreRadius = 0.105 * boreScale;
@@ -88,8 +94,8 @@ export function computeEngineDatum() {
       bankAngles.push(bank);
     }
 
-    const firingAnglesDeg = resolveFiringSequence(this.config);
-    const crankPinAngles = resolveCrankPinAngles(this.config, bankAngles);
+    const firingAnglesDeg = resolveFiringSequence(this.scene.config);
+    const crankPinAngles = resolveCrankPinAngles(this.scene.config, bankAngles);
 
     let cylinderConfigs = [];
     for (let i = 0; i < cylCount; i++) {
@@ -133,7 +139,7 @@ export function computeEngineDatum() {
     const minZ = Math.min(...cylinderConfigs.map(c => c.z)) - 0.15;
     const engineLength = maxZ - minZ;
 
-    this.currentBalanceReport = analyzeEngineBalance(cylinderConfigs, this.config);
+    this.scene.currentBalanceReport = analyzeEngineBalance(cylinderConfigs, this.scene.config);
 
     return { 
       cylinderConfigs, centroid, maxZ, minZ, engineLength, zSpacing, 
@@ -142,7 +148,7 @@ export function computeEngineDatum() {
     };
   }
 
-export function createDatumLabel(text, color = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)') {
+createDatumLabel(text, color = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)') {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 64;
@@ -171,39 +177,39 @@ export function createDatumLabel(text, color = '#ffffff', bgColor = 'rgba(15, 23
     return sprite;
   }
 
-export function buildDatumVisuals(engineGroup, datum) {
-    this.datumGroup = new THREE.Group();
-    this.datumGroup.visible = this.config.showDatum;
+buildDatumVisuals(engineGroup, datum) {
+    this.scene.datumGroup = new THREE.Group();
+    this.scene.datumGroup.visible = this.scene.config.showDatum;
 
     datum.cylinderConfigs.forEach(cfg => {
       // Bore Centerline
       const topPt = cfg.a0.clone().add(cfg.u.clone().multiplyScalar(1.2));
       const pts = [cfg.a0, topPt];
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const line = new THREE.Line(geo, this.matDatumLine);
-      this.datumGroup.add(line);
+      const line = new THREE.Line(geo, this.scene.matDatumLine);
+      this.scene.datumGroup.add(line);
 
       // Bore Midpoint Node
-      const node = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16), this.matDatumNode);
+      const node = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16), this.scene.matDatumNode);
       node.position.copy(cfg.m);
       node.userData.name = `Punkt środka Cyl #${cfg.id}`;
-      this.datumGroup.add(node);
+      this.scene.datumGroup.add(node);
 
       // Etykieta wektora cylindra
       const cylLabel = this.createDatumLabel(`Oś Cyl #${cfg.id}`, '#f59e0b');
       cylLabel.position.copy(topPt).add(new THREE.Vector3(0, 0.04, 0));
-      this.datumGroup.add(cylLabel);
+      this.scene.datumGroup.add(cylLabel);
     });
 
     // Engine Centroid Marker
-    const oMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), this.matDatumOrigin);
+    const oMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), this.scene.matDatumOrigin);
     oMarker.position.copy(datum.centroid);
     oMarker.userData.name = "Centrum geometryczne silnika (Centroid)";
-    this.datumGroup.add(oMarker);
+    this.scene.datumGroup.add(oMarker);
 
     const centroidLabel = this.createDatumLabel(`📍 CENTRUM SILNIKA`, '#ff007f');
     centroidLabel.position.copy(datum.centroid).add(new THREE.Vector3(0, 0.08, 0));
-    this.datumGroup.add(centroidLabel);
+    this.scene.datumGroup.add(centroidLabel);
 
     // Tripod axes from Centroid
     const size = 0.45;
@@ -211,10 +217,10 @@ export function buildDatumVisuals(engineGroup, datum) {
     const endY = datum.centroid.clone().add(new THREE.Vector3(0, size, 0));
     const endZ = datum.centroid.clone().add(new THREE.Vector3(0, 0, size));
 
-    const xLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endX]), this.matDatumAxisX);
-    const yLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endY]), this.matDatumAxisY);
-    const zLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endZ]), this.matDatumAxisZ);
-    this.datumGroup.add(xLine, yLine, zLine);
+    const xLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endX]), this.scene.matDatumAxisX);
+    const yLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endY]), this.scene.matDatumAxisY);
+    const zLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endZ]), this.scene.matDatumAxisZ);
+    this.scene.datumGroup.add(xLine, yLine, zLine);
 
     // Etykiety osi X, Y, Z
     const lblX = this.createDatumLabel(`+X (Poprzeczna)`, '#ef4444');
@@ -226,58 +232,58 @@ export function buildDatumVisuals(engineGroup, datum) {
     const lblZ = this.createDatumLabel(`+Z (Wzdłużna / Wał)`, '#3b82f6');
     lblZ.position.copy(endZ).add(new THREE.Vector3(0, 0, 0.08));
 
-    this.datumGroup.add(lblX, lblY, lblZ);
+    this.scene.datumGroup.add(lblX, lblY, lblZ);
 
-    engineGroup.add(this.datumGroup);
+    engineGroup.add(this.scene.datumGroup);
   }
 
-export function buildEngineAssembly() {
+buildEngineAssembly() {
     const datum = this.computeEngineDatum();
-    this.currentEngineDatum = datum;
+    this.scene.currentEngineDatum = datum;
     const { 
       cylinderConfigs, centroid, maxZ, minZ, engineLength, zSpacing, 
       boreScale, strokeScale, boreRadius, sleeveRadius, crankRadius, 
       rodLength, pistonCrownH, sleeveCenter, deckHeight, sleeveLength 
     } = datum;
 
-    const isTransverse = this.config.orientation === 'transverse';
+    const isTransverse = this.scene.config.orientation === 'transverse';
     const compactGbLen = isTransverse ? 0.32 : 0.65;
     const gbEndLocal = minZ - 0.05 - compactGbLen;
     const midZLocal = (maxZ + gbEndLocal) / 2.0;
 
-    this.engineMountGroup = new THREE.Group();
+    this.scene.engineMountGroup = new THREE.Group();
     
     // 1. Placement (Vehicle Coordinates)
     const mountY = VehicleDimensions.engineMountY;
     const frontZ = VehicleDimensions.wheelbaseFrontZ;
     const rearZ = VehicleDimensions.wheelbaseRearZ;
     
-    if (this.config.placement === 'front') {
-      this.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.18) : (frontZ - 0.25));
-    } else if (this.config.placement === 'mid') {
-      this.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ + 0.8) : (rearZ + 0.90));
-    } else if (this.config.placement === 'rear') {
-      this.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ - 0.20) : (rearZ - 0.25));
+    if (this.scene.config.placement === 'front') {
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.18) : (frontZ - 0.25));
+    } else if (this.scene.config.placement === 'mid') {
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ + 0.8) : (rearZ + 0.90));
+    } else if (this.scene.config.placement === 'rear') {
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ - 0.20) : (rearZ - 0.25));
     }
 
     // 2. Orientation (Transverse vs Longitudinal)
     if (isTransverse) {
-      this.engineMountGroup.rotation.y = -Math.PI / 2;
+      this.scene.engineMountGroup.rotation.y = -Math.PI / 2;
     }
 
     // 3. Tilt / Slant
-    if (this.config.tiltAngle) {
-      this.engineMountGroup.rotation.z = (this.config.tiltAngle * Math.PI) / 180;
+    if (this.scene.config.tiltAngle) {
+      this.scene.engineMountGroup.rotation.z = (this.scene.config.tiltAngle * Math.PI) / 180;
     }
 
     const engineGroup = new THREE.Group();
-    this.engineMountGroup.add(engineGroup);
+    this.scene.engineMountGroup.add(engineGroup);
 
     this.buildDatumVisuals(engineGroup, datum);
 
-    const layout = this.config.layout;
-    const cylCount = this.config.cylinders;
-    const vAngle = this.config.vAngle * Math.PI / 180;
+    const layout = this.scene.config.layout;
+    const cylCount = this.scene.config.cylinders;
+    const vAngle = this.scene.config.vAngle * Math.PI / 180;
     const strokeLength = crankRadius * 2;
     const pistonLength = Math.max(0.12, boreRadius * 1.4);
 
@@ -292,7 +298,7 @@ export function buildEngineAssembly() {
     const crankcaseHeight = Math.max(0.20, crankRadius * 1.3 + 0.04);
     const crankcase = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(blockWidth, crankcaseHeight, engineLength + 0.12)), 
-      this.crankcaseLineMat
+      this.scene.crankcaseLineMat
     );
     crankcase.position.set(0, -crankcaseHeight / 2, (maxZ+minZ)/2);
     crankcase.userData.name = "Miska olejowa (Zarys)";
@@ -325,19 +331,19 @@ export function buildEngineAssembly() {
     webGeo.translate(0, 0, -webThick / 2);
 
     // ═══ KOŁO ZĘBATE WAŁU (Timing Gear) ═══
-    const crankGear = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 32), this.matDarkSteel);
+    const crankGear = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 32), this.scene.matDarkSteel);
     crankGear.rotation.x = Math.PI / 2;
     crankGear.position.z = maxZ + 0.05;
     crankGear.userData.name = "Koło zębate wału";
     crankMaster.add(crankGear);
 
     // ═══ EXPLODE DISTANCE (musi być przed komponentami które go używają) ═══
-    const explodeDist = this.explodedFactor * 0.45;
+    const explodeDist = this.scene.explodedFactor * 0.45;
 
     // ═══ KOŁO PASOWE WAŁU KORBOWEGO (Crank Pulley) ═══
     const crankPulleyR = 0.085;
     const crankPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(crankPulleyR, crankPulleyR, 0.02, 32), this.matDarkSteel
+      new THREE.CylinderGeometry(crankPulleyR, crankPulleyR, 0.02, 32), this.scene.matDarkSteel
     );
     crankPulley.rotation.x = Math.PI / 2;
     crankPulley.position.set(0, 0, maxZ + 0.08);
@@ -348,13 +354,13 @@ export function buildEngineAssembly() {
     const wpPulleyR = 0.045;
     const wpPosX = 0.0, wpPosY = 0.14;
     const wpPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(wpPulleyR, wpPulleyR, 0.02, 24), this.matDarkSteel
+      new THREE.CylinderGeometry(wpPulleyR, wpPulleyR, 0.02, 24), this.scene.matDarkSteel
     );
     wpPulley.rotation.x = Math.PI / 2;
     wpPulley.position.set(wpPosX, wpPosY, maxZ + 0.08);
     wpPulley.userData.name = "Koło pasowe pompy wody";
     engineGroup.add(wpPulley);
-    this.wpPulley = wpPulley;
+    this.scene.wpPulley = wpPulley;
 
     // ═══ ALTERNATOR (z kołem pasowym i regulatorem napięcia) ═══
     const altG = new THREE.Group();
@@ -363,7 +369,7 @@ export function buildEngineAssembly() {
     altG.position.set(altPosX, altPosY, maxZ + 0.05);
 
     const altBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.065, 0.065, 0.1, 20), this.matSilver
+      new THREE.CylinderGeometry(0.065, 0.065, 0.1, 20), this.scene.matSilver
     );
     altBody.rotation.x = Math.PI / 2;
     altBody.userData.name = "Alternator";
@@ -371,13 +377,13 @@ export function buildEngineAssembly() {
 
     const altPulleyR = 0.033;
     const altPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(altPulleyR, altPulleyR, 0.018, 24), this.matDarkSteel
+      new THREE.CylinderGeometry(altPulleyR, altPulleyR, 0.018, 24), this.scene.matDarkSteel
     );
     altPulley.rotation.x = Math.PI / 2;
     altPulley.position.z = 0.058;
     altPulley.userData.name = "Koło pasowe alternatora";
     altG.add(altPulley);
-    this.alternatorGroup = altG;
+    this.scene.alternatorGroup = altG;
     engineGroup.add(altG);
 
     // Pasek klinowy wielorowkowy (Serpentine Belt) opasający wał, pompę wody i alternator
@@ -391,14 +397,14 @@ export function buildEngineAssembly() {
       new THREE.Vector3(-crankPulleyR, 0, 0)
     ], true);
     const altBelt = new THREE.Mesh(
-      new THREE.TubeGeometry(beltCurve, 80, 0.007, 6, true), this.matRubber
+      new THREE.TubeGeometry(beltCurve, 80, 0.007, 6, true), this.scene.matRubber
     );
     altBelt.position.z = maxZ + 0.08;
     altBelt.userData.name = "Pasek klinowy (Serpentine)";
     engineGroup.add(altBelt);
 
     // ═══ Tablice do zbierania pozycji cylindrów (dla uniwersalnych kolektorów) ═══
-    this.cylinderPositions = [];
+    this.scene.cylinderPositions = [];
 
     // Generowanie wykorbień (throws) dla każdego cylindra
     cylinderConfigs.forEach(cfg => {
@@ -407,14 +413,14 @@ export function buildEngineAssembly() {
       throwG.rotation.z = cfg.crankPinAngle;
 
       // Czop korbowodowy (Crankpin journal) - w odległości crankRadius
-      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, pinWidth, 24), this.matSteel);
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, pinWidth, 24), this.scene.matSteel);
       pin.rotation.x = Math.PI / 2;
       pin.position.set(0, crankRadius, 0); 
       pin.userData.name = "Czop korbowodowy";
       throwG.add(pin);
 
       // Kanał olejowy w czopie
-      const oilHole = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.004, 8), this.matDarkSteel);
+      const oilHole = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.004, 8), this.scene.matDarkSteel);
       oilHole.position.set(0, crankRadius + 0.025, 0);
       oilHole.userData.name = "Kanał olejowy czopa korbowodowego";
       throwG.add(oilHole);
@@ -422,7 +428,7 @@ export function buildEngineAssembly() {
       // Ramiona wykorbienia (Webs) i przeciwciężary (Counterweights) z przodu i z tyłu czopa
       [-1, 1].forEach(dir => {
         const webZOff = dir * (pinWidth / 2 + webThick / 2);
-        const web = new THREE.Mesh(webGeo, this.matDarkSteel);
+        const web = new THREE.Mesh(webGeo, this.scene.matDarkSteel);
         web.position.set(0, 0, webZOff);
         web.userData.name = "Ramię wykorbienia i przeciwciężar";
         throwG.add(web);
@@ -446,7 +452,7 @@ export function buildEngineAssembly() {
       const jEnd = zB - throwHalfWidth;
       const jLen = jEnd - jStart;
       if (jLen > 0.004) {
-        const midJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, jLen, 24), this.matSteel);
+        const midJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, jLen, 24), this.scene.matSteel);
         midJ.rotation.x = Math.PI / 2;
         midJ.position.set(0, 0, (jStart + jEnd) / 2);
         midJ.userData.name = `Czop główny wału (Segment ${k + 1})`;
@@ -458,7 +464,7 @@ export function buildEngineAssembly() {
     const frontStart = maxCylZ + throwHalfWidth;
     const frontEnd = maxZ + 0.05;
     if (frontEnd > frontStart) {
-      const frontJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, frontEnd - frontStart, 24), this.matSteel);
+      const frontJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, frontEnd - frontStart, 24), this.scene.matSteel);
       frontJ.rotation.x = Math.PI / 2;
       frontJ.position.set(0, 0, (frontStart + frontEnd) / 2);
       frontJ.userData.name = "Czop główny przedni wału";
@@ -469,7 +475,7 @@ export function buildEngineAssembly() {
     const rearStart = minZ - 0.01;
     const rearEnd = minCylZ - throwHalfWidth;
     if (rearEnd > rearStart) {
-      const rearJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, rearEnd - rearStart, 24), this.matSteel);
+      const rearJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, rearEnd - rearStart, 24), this.scene.matSteel);
       rearJ.rotation.x = Math.PI / 2;
       rearJ.position.set(0, 0, (rearStart + rearEnd) / 2);
       rearJ.userData.name = "Czop główny tylny wału";
@@ -477,14 +483,14 @@ export function buildEngineAssembly() {
     }
 
     // Kołnierz montażowy koła zamachowego (Flywheel Flange)
-    const flywheelFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.012, 32), this.matDarkSteel);
+    const flywheelFlange = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.012, 32), this.scene.matDarkSteel);
     flywheelFlange.rotation.x = Math.PI / 2;
     flywheelFlange.position.set(0, 0, rearStart);
     flywheelFlange.userData.name = "Kołnierz koła zamachowego";
     crankMaster.add(flywheelFlange);
 
     engineGroup.add(crankMaster);
-    this.crankMaster = crankMaster;
+    this.scene.crankMaster = crankMaster;
 
     const banks = {};
     cylinderConfigs.forEach(cfg => {
@@ -494,12 +500,12 @@ export function buildEngineAssembly() {
       banks[bankKey].push(cfg);
     });
 
-    this.banksData = [];
+    this.scene.banksData = [];
     const headBase = deckHeight + 0.02 * boreScale + explodeDist * 1.5; 
-    const isOHV = this.config.valvetrain === "OHV" || this.config.valvetrain === "valve_ohv";
+    const isOHV = this.scene.config.valvetrain === "OHV" || this.scene.config.valvetrain === "valve_ohv";
     const valveBaseY = headBase + 0.084 + 0.025 * boreScale;
     const trueCamY = isOHV ? (rodLength * 0.5 + explodeDist * 0.5) : (valveBaseY + 0.095 * boreScale);
-    const camOffsetX = (this.config.valves === 4 ? 0.048 : 0.038) * boreScale;
+    const camOffsetX = (this.scene.config.valves === 4 ? 0.048 : 0.038) * boreScale;
     
     let firstBankOHV = true;
 
@@ -508,7 +514,7 @@ export function buildEngineAssembly() {
       const cylinders = banks[bankAngleStr];
 
       // Dla VR: jedna wspólna głowica cross-flow (dolot po lewej inSign=-1, wydech po prawej exSign=1 dla obu rzędów)
-      const flipBank = (this.config.layout === 'V' || this.config.layout === 'W' || this.config.layout === 'Boxer') && bankAngle > 0.001;
+      const flipBank = (this.scene.config.layout === 'V' || this.scene.config.layout === 'W' || this.scene.config.layout === 'Boxer') && bankAngle > 0.001;
       const inSign = flipBank ? 1 : -1;
       const exSign = -inSign;
 
@@ -537,8 +543,8 @@ export function buildEngineAssembly() {
       let localY = 0;
 
       if (isOHV) {
-          const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.16 * boreScale : 0;
-          const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (rodLength * 0.5 + explodeDist * 0.5) : (rodLength * 0.35 + explodeDist * 0.5);
+          const globalCamX = (this.scene.config.layout === 'Inline' || this.scene.config.layout === 'VR') ? 0.16 * boreScale : 0;
+          const globalCamY = (this.scene.config.layout === 'Inline' || this.scene.config.layout === 'VR') ? (rodLength * 0.5 + explodeDist * 0.5) : (rodLength * 0.35 + explodeDist * 0.5);
           
           localX = globalCamX * Math.cos(bankAngle) + globalCamY * Math.sin(bankAngle);
           localY = -globalCamX * Math.sin(bankAngle) + globalCamY * Math.cos(bankAngle);
@@ -550,51 +556,52 @@ export function buildEngineAssembly() {
               const centralCamGroup = new THREE.Group();
               centralCamGroup.position.set(globalCamX, globalCamY, 0);
               
-              const meshOHV = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.matBronze);
+              const meshOHV = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.scene.matBronze);
               meshOHV.rotation.x = Math.PI / 2;
               meshOHV.position.z = midZ;
               meshOHV.userData.name = "Wałek rozrządu (OHV)";
               centralCamGroup.add(meshOHV);
               
-              const gearOHV = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.matGold);
+              const gearOHV = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.scene.matGold);
               gearOHV.rotation.x = Math.PI / 2;
               gearOHV.position.z = gearZ;
               gearOHV.userData.name = "Koło wałka rozrządu (OHV)";
               centralCamGroup.add(gearOHV);
               
               engineGroup.add(centralCamGroup);
-              this.centralCamGroupOHV = centralCamGroup;
+              this.scene.centralCamGroupOHV = centralCamGroup;
+              this.scene.camshafts.push(centralCamGroup);
           }
-          this.camshafts.push(camShaftEx);
+          this.scene.camshafts.push(camShaftEx);
       } else {
           camBaseIn.position.set(inSign * camOffsetX, trueCamY, 0);
           camBaseEx.position.set(exSign * camOffsetX, trueCamY, 0);
           
-          const meshIn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.matBronze);
+          const meshIn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.scene.matBronze);
           meshIn.rotation.x = Math.PI / 2;
           meshIn.position.z = midZ;
           meshIn.userData.name = "Wałek rozrządu ssący";
           camShaftIn.add(meshIn);
 
-          const meshEx = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.matBronze);
+          const meshEx = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), this.scene.matBronze);
           meshEx.rotation.x = Math.PI / 2;
           meshEx.position.z = midZ;
           meshEx.userData.name = "Wałek rozrządu wydechowy";
           camShaftEx.add(meshEx);
 
-          const gearIn = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.matGold);
+          const gearIn = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.scene.matGold);
           gearIn.rotation.x = Math.PI / 2;
           gearIn.position.z = gearZ;
           gearIn.userData.name = "Koło wałka ssącego";
           camShaftIn.add(gearIn);
 
-          const gearEx = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.matGold);
+          const gearEx = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.025, 32), this.scene.matGold);
           gearEx.rotation.x = Math.PI / 2;
           gearEx.position.z = gearZ;
           gearEx.userData.name = "Koło wałka wydechowego";
           camShaftEx.add(gearEx);
           
-          this.camshafts.push(camShaftIn, camShaftEx);
+          this.scene.camshafts.push(camShaftIn, camShaftEx);
       }
 
       cylinders.forEach(cfg => {
@@ -603,39 +610,39 @@ export function buildEngineAssembly() {
         cylG.userData.cylId = cfg.id;
         bankG.add(cylG);
 
-        const sleeve = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLength, 16)), this.lineMat);
+        const sleeve = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLength, 16)), this.scene.lineMat);
         sleeve.position.set(0, sleeveCenter + explodeDist, 0);
         sleeve.userData.name = "Tuleja cylindra (Zarys)";
-        sleeve.visible = this.config.showWireframes !== false;
+        sleeve.visible = this.scene.config.showWireframes !== false;
         cylG.add(sleeve);
 
         const headWidth = Math.max(0.28, 2 * sleeveRadius + 0.06);
         const headDepth = zSpacing - 0.02;
-        const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16 * boreScale, headDepth)), this.lineMat);
+        const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16 * boreScale, headDepth)), this.scene.lineMat);
         head.position.set(0, headBase + 0.08 * boreScale, 0);
-        if (this.config.layout === 'VR') {
+        if (this.scene.config.layout === 'VR') {
            head.scale.set(1.45, 1, 2.0); // scale Z to bridge gap between offset cylinders
            head.rotation.z = -bankAngle;
            head.position.x = -bankAngle * 0.2; // slight shift to center
-        } else if (this.config.layout === 'W') {
+        } else if (this.scene.config.layout === 'W') {
            head.scale.set(1.45, 1, 2.0);
            const wVRBaseAngle = bankAngle > 0 ? (72 * Math.PI/180)/2 : -(72 * Math.PI/180)/2;
            head.rotation.z = -(bankAngle - wVRBaseAngle);
         }
         head.userData.name = "Głowica cylindra (Zarys)";
-        head.visible = this.config.showWireframes !== false;
+        head.visible = this.scene.config.showWireframes !== false;
         cylG.add(head);
 
         const valvesList = [];
-        const vOffZ = (this.config.valves === 4 ? 0.045 : 0) * boreScale;
+        const vOffZ = (this.scene.config.valves === 4 ? 0.045 : 0) * boreScale;
         const vOffX = 0.045 * boreScale;
-        const vDiscR = (this.config.valves === 4 ? 0.024 : 0.035) * boreScale;
+        const vDiscR = (this.scene.config.valves === 4 ? 0.024 : 0.035) * boreScale;
 
-        if (this.config.valves === 4) {
-            const vIn1 = this.createValve(this.matSteel, "Ssący 1", vDiscR);
-            const vIn2 = this.createValve(this.matSteel, "Ssący 2", vDiscR);
-            const vEx1 = this.createValve(this.matSteel, "Wydechowy 1", vDiscR);
-            const vEx2 = this.createValve(this.matSteel, "Wydechowy 2", vDiscR);
+        if (this.scene.config.valves === 4) {
+            const vIn1 = this.createValve(this.scene.matSteel, "Ssący 1", vDiscR);
+            const vIn2 = this.createValve(this.scene.matSteel, "Ssący 2", vDiscR);
+            const vEx1 = this.createValve(this.scene.matSteel, "Wydechowy 1", vDiscR);
+            const vEx2 = this.createValve(this.scene.matSteel, "Wydechowy 2", vDiscR);
             const sIn1 = this.createSpringMesh();
             const sIn2 = this.createSpringMesh();
             const sEx1 = this.createSpringMesh();
@@ -648,13 +655,13 @@ export function buildEngineAssembly() {
                 { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ }
             );
         } else {
-            const vIn = this.createValve(this.matSteel, "Ssący", vDiscR);
-            const vEx = this.createValve(this.matSteel, "Wydechowy", vDiscR);
+            const vIn = this.createValve(this.scene.matSteel, "Ssący", vDiscR);
+            const vEx = this.createValve(this.scene.matSteel, "Wydechowy", vDiscR);
             const sIn = this.createSpringMesh();
             const sEx = this.createSpringMesh();
             cylG.add(vIn, vEx, sIn, sEx);
             
-            if (this.config.valvetrain === 'OHV') {
+            if (this.scene.config.valvetrain === 'OHV') {
                 // OHV: Zawory w jednej linii wzdłuż wału korbowego (oś Z)
                 const vOffZOHV = 0.045 * boreScale;
                 valvesList.push(
@@ -696,12 +703,12 @@ export function buildEngineAssembly() {
         // ═══ WTRYSKIWACZ PALIWA (Fuel Injector) ═══
         const injectorG = new THREE.Group();
         const injBody = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.007, 0.009, 0.05, 12), this.matDarkSteel
+          new THREE.CylinderGeometry(0.007, 0.009, 0.05, 12), this.scene.matDarkSteel
         );
         injBody.userData.name = "Wtryskiwacz paliwa";
         injectorG.add(injBody);
         const injNozzle = new THREE.Mesh(
-          new THREE.ConeGeometry(0.009, 0.015, 8), this.matSilver
+          new THREE.ConeGeometry(0.009, 0.015, 8), this.scene.matSilver
         );
         injNozzle.position.y = -0.032;
         injNozzle.rotation.x = Math.PI;
@@ -763,7 +770,7 @@ export function buildEngineAssembly() {
         ).normalize();
 
         // Zapisz konfigurację dla uniwersalnego generatora dolotu, wydechu i linii przepływu
-        this.cylinderPositions.push({
+        this.scene.cylinderPositions.push({
           id: cfg.id,
           z: cfg.z,
           bank: cfg.bank,
@@ -787,7 +794,7 @@ export function buildEngineAssembly() {
         const lobeRotIn = cfg.firingAngle / 2 + Math.PI / 4;
         const lobeRotEx = cfg.firingAngle / 2 + (7 * Math.PI) / 4;
 
-        this.movingCylinders.push({
+        this.scene.movingCylinders.push({
           id: cfg.id, z: cfg.z, bank: cfg.bank,
           crankPinAngle: cfg.crankPinAngle, phaseOffset: cfg.phaseOffset,
           crankRadius, rodLength, sleeve, head, pistonG, rodG,
@@ -835,12 +842,12 @@ export function buildEngineAssembly() {
                 bankG.add(ra);
                 
                 prGeo = new THREE.CylinderGeometry(0.003, 0.003, 1, 8);
-                prMesh = new THREE.Mesh(prGeo, this.matSteel);
+                prMesh = new THREE.Mesh(prGeo, this.scene.matSteel);
                 prMesh.userData.name = "Laska popychacza (Pushrod)";
                 bankG.add(prMesh);
             }
 
-            this.valvesToDrive.push({
+            this.scene.valvesToDrive.push({
                 vg: vData.vg,
                 sp: vData.sp,
                 valveG: vData.vg,
@@ -867,18 +874,18 @@ export function buildEngineAssembly() {
       let bankBelt = null;
       if (isOHV) {
         if (firstBankOHV) {
-            const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.16 * boreScale : 0;
-            const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (rodLength * 0.5 + explodeDist * 0.5) : (rodLength * 0.35 + explodeDist * 0.5);
+            const globalCamX = (this.scene.config.layout === 'Inline' || this.scene.config.layout === 'VR') ? 0.16 * boreScale : 0;
+            const globalCamY = (this.scene.config.layout === 'Inline' || this.scene.config.layout === 'VR') ? (rodLength * 0.5 + explodeDist * 0.5) : (rodLength * 0.35 + explodeDist * 0.5);
             const beltPath = new THREE.CatmullRomCurve3([
               new THREE.Vector3(0, -0.045, 0),
-              new THREE.Vector3(0.045, 0, 0),
-              new THREE.Vector3(globalCamX + 0.042, globalCamY, 0),
-              new THREE.Vector3(globalCamX, globalCamY + 0.042, 0),
-              new THREE.Vector3(globalCamX - 0.042, globalCamY, 0),
+              new THREE.Vector3(-0.045, 0, 0),
               new THREE.Vector3(-0.045, 0.045, 0),
-              new THREE.Vector3(-0.045, 0, 0)
+              new THREE.Vector3(globalCamX - 0.042, globalCamY, 0),
+              new THREE.Vector3(globalCamX, globalCamY + 0.042, 0),
+              new THREE.Vector3(globalCamX + 0.042, globalCamY, 0),
+              new THREE.Vector3(0.045, 0, 0)
             ], true);
-            bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), this.matBelt);
+            bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), this.scene.matBelt);
             bankBelt.position.set(0, 0, gearZ);
             bankBelt.userData.name = "Pasek rozrządu (OHV)";
             engineGroup.add(bankBelt); // Added globally for OHV
@@ -895,13 +902,13 @@ export function buildEngineAssembly() {
           new THREE.Vector3(camOffsetX + 0.015, trueCamY / 2, 0),
           new THREE.Vector3(camOffsetX, 0, 0)
         ], true);
-        bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), this.matBelt);
+        bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), this.scene.matBelt);
         bankBelt.position.set(0, 0, gearZ);
         bankBelt.userData.name = "Pasek rozrządu";
         bankG.add(bankBelt); // Added per-bank for DOHC
       }
 
-      this.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle, inSign, exSign });
+      this.scene.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle, inSign, exSign });
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -929,7 +936,7 @@ export function buildEngineAssembly() {
 
     // Korpus plenum (komora wyrównawcza)
     const plenumMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(plenumR, plenumR, plenumLen, 20), this.matSilver
+      new THREE.CylinderGeometry(plenumR, plenumR, plenumLen, 20), this.scene.matSilver
     );
     plenumMesh.rotation.x = Math.PI / 2;
     plenumMesh.position.set(plenumX, plenumY, plenumMidZ);
@@ -942,7 +949,7 @@ export function buildEngineAssembly() {
     tbG.position.set(plenumX, plenumY, tbPosZ);
 
     const tbBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.042, 0.042, 0.07, 24), this.matSilver
+      new THREE.CylinderGeometry(0.042, 0.042, 0.07, 24), this.scene.matSilver
     );
     tbBody.rotation.x = Math.PI / 2;
     tbBody.userData.name = "Przepustnica (Throttle Body)";
@@ -951,22 +958,22 @@ export function buildEngineAssembly() {
     // Klapa motylkowa (Butterfly flap)
     const flapG = new THREE.Group();
     const flap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.039, 0.039, 0.003, 20), this.matBronze
+      new THREE.CylinderGeometry(0.039, 0.039, 0.003, 20), this.scene.matBronze
     );
     flap.rotation.x = Math.PI / 2;
     flap.userData.name = "Klapa motylkowa";
     flapG.add(flap);
     const flapAxis = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.003, 0.003, 0.09, 8), this.matSteel
+      new THREE.CylinderGeometry(0.003, 0.003, 0.09, 8), this.scene.matSteel
     );
     flapAxis.rotation.z = Math.PI / 2;
     flapAxis.userData.name = "Oś klapy przepustnicy";
     flapG.add(flapAxis);
     tbG.add(flapG);
-    this.throttleFlapG = flapG;
+    this.scene.throttleFlapG = flapG;
 
     // Układ dolotowy przed przepustnicą (rura i filtr powietrza)
-    const isSport = this.config.intakeType === 'sport';
+    const isSport = this.scene.config.intakeType === 'sport';
 
     // Punkt A (przy wylocie przepustnicy)
     const ptA = new THREE.Vector3(0, 0, 0.04);
@@ -1024,7 +1031,7 @@ export function buildEngineAssembly() {
 
     // Rura dolotowa (Przepustnica → Filtr)
     const intakePipe = new THREE.Mesh(
-      new THREE.TubeGeometry(intakePipeCurve, 16, 0.038, 12, false), this.matRubber
+      new THREE.TubeGeometry(intakePipeCurve, 16, 0.038, 12, false), this.scene.matRubber
     );
     intakePipe.userData.name = "Rura dolotowa (Przepustnica → Filtr)";
     tbG.add(intakePipe);
@@ -1035,7 +1042,7 @@ export function buildEngineAssembly() {
       // Duży stożek sportowy
       const coneLength = 0.24;
       intakeFilter = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.040, 0.125, coneLength, 24), this.matIntake
+        new THREE.CylinderGeometry(0.040, 0.125, coneLength, 24), this.scene.matIntake
       );
       intakeFilter.userData.name = "Filtr powietrza stożkowy (Sportowy)";
 
@@ -1047,38 +1054,38 @@ export function buildEngineAssembly() {
 
       if (isTransverse) {
         // Poprzeczny: Przód to +X, Tył to -X, Silnik to -X i -Z
-        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.28), this.matSilver);
+        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.28), this.scene.matSilver);
         rearWall.position.set(filterPos.x - 0.13, filterPos.y, filterPos.z);
         rearWall.userData.name = "Ściana tylna osłony termicznej (Od silnika)";
         shieldG.add(rearWall);
 
-        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), this.matSilver);
+        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), this.scene.matSilver);
         innerWall.position.set(filterPos.x, filterPos.y, filterPos.z - 0.13);
         innerWall.userData.name = "Ściana boczna osłony termicznej (Wewnętrzna)";
         shieldG.add(innerWall);
 
-        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.28), this.matSilver);
+        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.28), this.scene.matSilver);
         bottomWall.position.set(filterPos.x, filterPos.y - 0.10, filterPos.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
       } else {
         // Wzdłużny: Przód to +Z, Tył to -Z, Silnik to +X
-        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), this.matSilver);
+        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), this.scene.matSilver);
         rearWall.position.set(filterPos.x, filterPos.y, filterPos.z - 0.13);
         rearWall.userData.name = "Ściana tylna osłony termicznej (Od silnika)";
         shieldG.add(rearWall);
 
-        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.26), this.matSilver);
+        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.26), this.scene.matSilver);
         innerWall.position.set(filterPos.x + 0.12, filterPos.y, filterPos.z);
         innerWall.userData.name = "Ściana boczna osłony termicznej (Od głowic V)";
         shieldG.add(innerWall);
 
-        const outerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.15, 0.26), this.matSilver);
+        const outerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.15, 0.26), this.scene.matSilver);
         outerWall.position.set(filterPos.x - 0.12, filterPos.y - 0.025, filterPos.z);
         outerWall.userData.name = "Ściana boczna osłony termicznej (Nadkole)";
         shieldG.add(outerWall);
 
-        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.26), this.matSilver);
+        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.26), this.scene.matSilver);
         bottomWall.position.set(filterPos.x, filterPos.y - 0.10, filterPos.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
@@ -1088,21 +1095,21 @@ export function buildEngineAssembly() {
       // Płaska, prostokątna puszka airboxa (jak akumulator z przetłoczeniami)
       const boxW = 0.22, boxH = 0.16, boxD = 0.22;
       intakeFilter = new THREE.Mesh(
-        new THREE.BoxGeometry(boxW, boxH, boxD), this.matDarkSteel
+        new THREE.BoxGeometry(boxW, boxH, boxD), this.scene.matDarkSteel
       );
       intakeFilter.userData.name = "Puszka filtra powietrza (Cywilny Airbox)";
     }
 
     intakeFilter.position.copy(filterPos);
     intakeFilter.rotation.copy(filterRot);
-    this.intakeFilterMesh = intakeFilter;
+    this.scene.intakeFilterMesh = intakeFilter;
     tbG.add(intakeFilter);
     intakeG.add(tbG);
 
     // ═══ LISTWY PALIWOWE (Fuel Rails) ═══
     if (layout === 'Inline' || layout === 'VR') {
       const fuelRail = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.010, 0.010, engineLength + 0.08, 16), this.matExhaust
+        new THREE.CylinderGeometry(0.010, 0.010, engineLength + 0.08, 16), this.scene.matExhaust
       );
       fuelRail.rotation.x = Math.PI / 2;
       fuelRail.position.set(-Math.max(0.13, 0.13 * boreScale + 0.02), headBase + 0.08 * boreScale, plenumMidZ);
@@ -1118,7 +1125,7 @@ export function buildEngineAssembly() {
         const railX = railLocalX * Math.cos(bAng) - (headBase + 0.08 * boreScale) * Math.sin(bAng);
         const railY = railLocalX * Math.sin(bAng) + (headBase + 0.08 * boreScale) * Math.cos(bAng);
         const fuelRail = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.009, 0.009, engineLength * 0.7 + 0.06, 16), this.matExhaust
+          new THREE.CylinderGeometry(0.009, 0.009, engineLength * 0.7 + 0.06, 16), this.scene.matExhaust
         );
         fuelRail.rotation.x = Math.PI / 2;
         fuelRail.position.set(railX, railY, railZ);
@@ -1128,7 +1135,7 @@ export function buildEngineAssembly() {
     }
 
     // ═══ RUNNERY DOLOTU (Intake Runners) + LINIE PRZEPŁYWU (Streamlines) ═══
-    this.cylinderPositions.forEach((cyl, idx) => {
+    this.scene.cylinderPositions.forEach((cyl, idx) => {
       // Punkt startu z plenum
       let pStart = new THREE.Vector3();
       let pMid1 = new THREE.Vector3();
@@ -1153,7 +1160,7 @@ export function buildEngineAssembly() {
 
       const runnerCurve = new THREE.CatmullRomCurve3([pStart, pMid1, pMid2, pEnd], false, 'centripetal', 0.2);
       const runnerMesh = new THREE.Mesh(
-        new THREE.TubeGeometry(runnerCurve, 20, 0.016, 12, false), this.matIntake
+        new THREE.TubeGeometry(runnerCurve, 20, 0.016, 12, false), this.scene.matIntake
       );
       runnerMesh.userData.name = `Kolektor dolotowy (Kanał #${idx + 1})`;
       intakeG.add(runnerMesh);
@@ -1174,7 +1181,7 @@ export function buildEngineAssembly() {
         streamDashes.push({ lineMesh, lineMat, offset: s / numStreams });
       }
 
-      this.flowStreamlines.push({
+      this.scene.flowStreamlines.push({
         type: 'intake',
         cylId: cyl.id,
         phaseOffset: cyl.phaseOffset,
@@ -1198,7 +1205,7 @@ export function buildEngineAssembly() {
 
       // Zbiornik / złącze 4-1 (Pyramid / Merge Collector)
       const collectorMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.040, 0.026, 0.14, 16), this.matDarkSteel
+        new THREE.CylinderGeometry(0.040, 0.026, 0.14, 16), this.scene.matDarkSteel
       );
       collectorMesh.rotation.x = Math.PI / 2 - 0.2;
       collectorMesh.position.set(colX, colY, colZ);
@@ -1206,17 +1213,17 @@ export function buildEngineAssembly() {
       exhaustG.add(collectorMesh);
 
       // Rury wydechowe (runners) z poszczególnych cylindrów zbiegające się w punkcie Z = 0
-      this.cylinderPositions.forEach((cyl, idx) => {
+      this.scene.cylinderPositions.forEach((cyl, idx) => {
         const pStart = cyl.exPort.clone();
         // Wyprowadzenie rury po wektorze normalnym na zewnątrz poza obrys bloku
         const p1 = pStart.clone().addScaledVector(cyl.exNorm, 0.08);
-        const perpOffset = 0.032 * Math.sin((idx / Math.max(1, this.cylinderPositions.length - 1)) * Math.PI);
+        const perpOffset = 0.032 * Math.sin((idx / Math.max(1, this.scene.cylinderPositions.length - 1)) * Math.PI);
         const p2 = new THREE.Vector3(colX + 0.055, pStart.y * 0.35 + colY * 0.65 + perpOffset, pStart.z * 0.4 + colZ * 0.6);
         const pEnd = collectorPoint.clone();
 
         const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'centripetal', 0.25);
         const headerMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(headerCurve, 24, 0.016, 12, false), this.matExhaust
+          new THREE.TubeGeometry(headerCurve, 24, 0.016, 12, false), this.scene.matExhaust
         );
         headerMesh.userData.name = `Kolektor wydechowy (Rura #${idx + 1})`;
         exhaustG.add(headerMesh);
@@ -1232,7 +1239,7 @@ export function buildEngineAssembly() {
         const lineMesh = new THREE.Line(lineGeo, lineMat);
         exhaustG.add(lineMesh);
 
-        this.flowStreamlines.push({
+        this.scene.flowStreamlines.push({
           type: 'exhaust',
           cylId: cyl.id,
           phaseOffset: cyl.phaseOffset,
@@ -1248,19 +1255,19 @@ export function buildEngineAssembly() {
         exhaustMergePoint
       ]);
       const downpipeMesh = new THREE.Mesh(
-        new THREE.TubeGeometry(downpipeCurve, 16, 0.022, 12, false), this.matExhaustPipe
+        new THREE.TubeGeometry(downpipeCurve, 16, 0.022, 12, false), this.scene.matExhaustPipe
       );
       downpipeMesh.userData.name = "Rura spustowa kolektora (Downpipe)";
       exhaustG.add(downpipeMesh);
     } else if (layout === 'V' || layout === 'W') {
       // Dwa kolektory po bokach (Lewy i Prawy) wyprowadzone na zewnątrz głowic i łączące się w Y-pipe
-      const maxExX = Math.max(...this.cylinderPositions.map(c => Math.abs(c.exPort.x)), 0.38);
+      const maxExX = Math.max(...this.scene.cylinderPositions.map(c => Math.abs(c.exPort.x)), 0.38);
       const colXOffset = maxExX + 0.08; // kolektor bezpiecznie poza obrysem cylindrów i świec
       const colL = new THREE.Vector3(-colXOffset, -0.10, minZ - 0.05);
       const colR = new THREE.Vector3(colXOffset, -0.10, minZ - 0.05);
       exhaustMergePoint.set(exhaustX, -0.12, minZ - 0.20);
 
-      this.cylinderPositions.forEach((cyl, idx) => {
+      this.scene.cylinderPositions.forEach((cyl, idx) => {
         const isLeft = cyl.exPort.x < 0;
         const targetCol = isLeft ? colL : colR;
         const sideSign = isLeft ? -1 : 1;
@@ -1278,7 +1285,7 @@ export function buildEngineAssembly() {
 
         const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'centripetal', 0.2);
         const headerMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(headerCurve, 20, 0.015, 10, false), this.matExhaust
+          new THREE.TubeGeometry(headerCurve, 20, 0.015, 10, false), this.scene.matExhaust
         );
         headerMesh.userData.name = `Kolektor wydechowy (Rura #${idx + 1})`;
         exhaustG.add(headerMesh);
@@ -1293,7 +1300,7 @@ export function buildEngineAssembly() {
         const lineMesh = new THREE.Line(lineGeo, lineMat);
         exhaustG.add(lineMesh);
 
-        this.flowStreamlines.push({
+        this.scene.flowStreamlines.push({
           type: 'exhaust',
           cylId: cyl.id,
           phaseOffset: cyl.phaseOffset,
@@ -1303,9 +1310,9 @@ export function buildEngineAssembly() {
       });
 
       // Y-Pipe łączący oba banki (tylko jeśli nie jest to true dual exhaust)
-      this.colLWorld = colL.clone();
-      this.colRWorld = colR.clone();
-      const isTrueDual = this.config.exhaustPipes === 'dual'; // true dual dla V/W/Boxer
+      this.scene.colLWorld = colL.clone();
+      this.scene.colRWorld = colR.clone();
+      const isTrueDual = this.scene.config.exhaustPipes === 'dual'; // true dual dla V/W/Boxer
 
       if (!isTrueDual) {
         const yLeftCurve = new THREE.CatmullRomCurve3([
@@ -1319,26 +1326,26 @@ export function buildEngineAssembly() {
           new THREE.Vector3(colXOffset * 0.6, -0.10, minZ - 0.12),
           exhaustMergePoint
         ]);
-        const yLeftMesh = new THREE.Mesh(new THREE.TubeGeometry(yLeftCurve, 16, 0.020, 8, false), this.matExhaustPipe);
-        const yRightMesh = new THREE.Mesh(new THREE.TubeGeometry(yRightCurve, 16, 0.020, 8, false), this.matExhaustPipe);
+        const yLeftMesh = new THREE.Mesh(new THREE.TubeGeometry(yLeftCurve, 16, 0.020, 8, false), this.scene.matExhaustPipe);
+        const yRightMesh = new THREE.Mesh(new THREE.TubeGeometry(yRightCurve, 16, 0.020, 8, false), this.scene.matExhaustPipe);
         yLeftMesh.userData.name = "Rura Y-Pipe (Lewa)";
         yRightMesh.userData.name = "Rura Y-Pipe (Prawa)";
         exhaustG.add(yLeftMesh, yRightMesh);
       }
     } else if (layout === 'Boxer') {
       // Dla Boxera
-      const isTrueDual = this.config.exhaustPipes === 'dual';
+      const isTrueDual = this.scene.config.exhaustPipes === 'dual';
       exhaustMergePoint.set(exhaustX, -0.14, minZ - 0.15);
       
-      this.colLWorld = new THREE.Vector3(-exhaustX, -0.14, minZ - 0.15);
-      this.colRWorld = new THREE.Vector3(exhaustX, -0.14, minZ - 0.15);
+      this.scene.colLWorld = new THREE.Vector3(-exhaustX, -0.14, minZ - 0.15);
+      this.scene.colRWorld = new THREE.Vector3(exhaustX, -0.14, minZ - 0.15);
 
-      this.cylinderPositions.forEach((cyl, idx) => {
+      this.scene.cylinderPositions.forEach((cyl, idx) => {
         const pStart = cyl.exPort.clone(); // znajduje się na dole głowicy (y < 0)
         const p1 = pStart.clone().add(new THREE.Vector3(0, -0.06, 0));
         const sideSign = cyl.exPort.x < 0 ? -1 : 1;
         
-        const targetCol = (isTrueDual) ? (sideSign < 0 ? this.colLWorld : this.colRWorld) : exhaustMergePoint;
+        const targetCol = (isTrueDual) ? (sideSign < 0 ? this.scene.colLWorld : this.scene.colRWorld) : exhaustMergePoint;
         
         const p2 = (sideSign < 0)
           ? new THREE.Vector3(0.0, -0.16, cyl.z * 0.5 + targetCol.z * 0.5)
@@ -1347,7 +1354,7 @@ export function buildEngineAssembly() {
 
         const headerCurve = new THREE.CatmullRomCurve3([pStart, p1, p2, pEnd], false, 'centripetal', 0.2);
         const headerMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(headerCurve, 20, 0.015, 10, false), this.matExhaust
+          new THREE.TubeGeometry(headerCurve, 20, 0.015, 10, false), this.scene.matExhaust
         );
         headerMesh.userData.name = `Kolektor wydechowy Boxer (Rura #${idx + 1})`;
         exhaustG.add(headerMesh);
@@ -1362,7 +1369,7 @@ export function buildEngineAssembly() {
         const lineMesh = new THREE.Line(lineGeo, lineMat);
         exhaustG.add(lineMesh);
 
-        this.flowStreamlines.push({
+        this.scene.flowStreamlines.push({
           type: 'exhaust',
           cylId: cyl.id,
           phaseOffset: cyl.phaseOffset,
@@ -1376,26 +1383,26 @@ export function buildEngineAssembly() {
     // ════════════════════════════════════════════════════════════════════════
     // ═══ 3. PEŁNY UKŁAD WYDECHOWY DO TYŁU POJAZDU (Single / Dual Exhaust) ══
     // ════════════════════════════════════════════════════════════════════════
-    this.carGroup.add(this.engineMountGroup);
-    this.engineGroup = engineGroup;
-    this.engineZMin = minZ; // Used to place gearbox securely behind engine
+    this.scene.carGroup.add(this.scene.engineMountGroup);
+    this.scene.engineGroup = engineGroup;
+    this.scene.engineZMin = minZ; // Used to place gearbox securely behind engine
 
-    this.engineMountGroup.updateMatrixWorld(true);
-    const mergePointWorld = exhaustMergePoint.clone().applyMatrix4(this.engineMountGroup.matrixWorld);
+    this.scene.engineMountGroup.updateMatrixWorld(true);
+    const mergePointWorld = exhaustMergePoint.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
     
     let startPointL = mergePointWorld;
     let startPointR = mergePointWorld;
-    if (this.config.exhaustPipes === 'dual' && (layout === 'V' || layout === 'W' || layout === 'Boxer')) {
-      if (this.colLWorld) startPointL = this.colLWorld.clone().applyMatrix4(this.engineMountGroup.matrixWorld);
-      if (this.colRWorld) startPointR = this.colRWorld.clone().applyMatrix4(this.engineMountGroup.matrixWorld);
+    if (this.scene.config.exhaustPipes === 'dual' && (layout === 'V' || layout === 'W' || layout === 'Boxer')) {
+      if (this.scene.colLWorld) startPointL = this.scene.colLWorld.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
+      if (this.scene.colRWorld) startPointR = this.scene.colRWorld.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
     }
 
     const fullExhaustG = new THREE.Group();
-    const isDual = this.config.exhaustPipes === 'dual';
+    const isDual = this.scene.config.exhaustPipes === 'dual';
 
     // Rysowanie traktu wydechowego dla wybranej strony (+1 prawa, -1 lewa)
     const buildExhaustTract = (tractSign, namePrefix, startPointWorld, needsCrossover) => {
-      const underbodyX = (this.config.orientation === 'transverse') ? (tractSign * 0.12) : (tractSign * exhaustX);
+      const underbodyX = (this.scene.config.orientation === 'transverse') ? (tractSign * 0.12) : (tractSign * exhaustX);
       const exhaustY = 0.25;
       
       // Przesuwamy elementy bliżej silnika (-0.40 zamiast -0.55)
@@ -1410,7 +1417,7 @@ export function buildEngineAssembly() {
           new THREE.Vector3(0, exhaustY, -0.45),
           flexStart
         ]);
-        const xCrossoverMesh = new THREE.Mesh(new THREE.TubeGeometry(xCrossoverCurve, 12, 0.020, 8, false), this.matExhaustPipe);
+        const xCrossoverMesh = new THREE.Mesh(new THREE.TubeGeometry(xCrossoverCurve, 12, 0.020, 8, false), this.scene.matExhaustPipe);
         xCrossoverMesh.userData.name = "Rura rozdzielająca wydech (Dual X-Pipe)";
         fullExhaustG.add(xCrossoverMesh);
         initialPoint = new THREE.Vector3(0.12, exhaustY, -0.40);
@@ -1425,7 +1432,7 @@ export function buildEngineAssembly() {
           flexStart
         ]);
         const downpipeMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(downpipeCurve, 20, 0.022, 12, false), this.matExhaustPipe
+          new THREE.TubeGeometry(downpipeCurve, 20, 0.022, 12, false), this.scene.matExhaustPipe
         );
         downpipeMesh.userData.name = `${namePrefix} Rura spustowa kolektora (Downpipe)`;
         fullExhaustG.add(downpipeMesh);
@@ -1433,14 +1440,14 @@ export function buildEngineAssembly() {
 
       const flexEnd = new THREE.Vector3(underbodyX, exhaustY, -0.52);
       const flexCurve = new THREE.CatmullRomCurve3([flexStart, flexEnd]);
-      const flexMesh = new THREE.Mesh(new THREE.TubeGeometry(flexCurve, 10, 0.024, 12, false), this.matFlexPipe);
+      const flexMesh = new THREE.Mesh(new THREE.TubeGeometry(flexCurve, 10, 0.024, 12, false), this.scene.matFlexPipe);
       flexMesh.userData.name = `${namePrefix} Złącze elastyczne (Flex Pipe)`;
       fullExhaustG.add(flexMesh);
 
       // Katalizator (przesunięty bliżej silnika, Z = -0.65)
       const catZ = -0.65;
       const catMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.055, 0.22, 20), this.matCatalyst
+        new THREE.CylinderGeometry(0.055, 0.055, 0.22, 20), this.scene.matCatalyst
       );
       catMesh.rotation.x = Math.PI / 2;
       catMesh.position.set(underbodyX, exhaustY, catZ);
@@ -1450,14 +1457,14 @@ export function buildEngineAssembly() {
 
       // Rura łącząca Flex Pipe z Katalizatorem
       const p1Curve = new THREE.LineCurve3(flexEnd, new THREE.Vector3(underbodyX, exhaustY, catZ + 0.11));
-      const p1Mesh = new THREE.Mesh(new THREE.TubeGeometry(p1Curve, 4, 0.020, 8, false), this.matExhaustPipe);
+      const p1Mesh = new THREE.Mesh(new THREE.TubeGeometry(p1Curve, 4, 0.020, 8, false), this.scene.matExhaustPipe);
       p1Mesh.userData.name = `${namePrefix} Rura przed katalizatorem`;
       fullExhaustG.add(p1Mesh);
 
       // Tłumik środkowy (przesunięty na Z = -1.05)
       const resZ = -1.05; 
       const resMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.065, 0.35, 20), this.matMuffler
+        new THREE.CylinderGeometry(0.065, 0.065, 0.35, 20), this.scene.matMuffler
       );
       resMesh.rotation.x = Math.PI / 2;
       resMesh.position.set(underbodyX, exhaustY, resZ);
@@ -1469,7 +1476,7 @@ export function buildEngineAssembly() {
         new THREE.Vector3(underbodyX, exhaustY, catZ - 0.11),
         new THREE.Vector3(underbodyX, exhaustY, resZ + 0.175)
       ]);
-      const p2Mesh = new THREE.Mesh(new THREE.TubeGeometry(p2Curve, 8, 0.020, 8, false), this.matExhaustPipe);
+      const p2Mesh = new THREE.Mesh(new THREE.TubeGeometry(p2Curve, 8, 0.020, 8, false), this.scene.matExhaustPipe);
       p2Mesh.userData.name = `${namePrefix} Rura środkowa wydechu`;
       fullExhaustG.add(p2Mesh);
 
@@ -1479,7 +1486,7 @@ export function buildEngineAssembly() {
       const mufflerX = tractSign * 0.38;
       
       const rearMuffler = new THREE.Mesh(
-        new THREE.BoxGeometry(0.30, 0.16, 0.42), this.matMuffler
+        new THREE.BoxGeometry(0.30, 0.16, 0.42), this.scene.matMuffler
       );
       rearMuffler.position.set(mufflerX, exhaustY, rearMufflerZ);
       rearMuffler.userData.name = `${namePrefix} Tłumik końcowy (Rear Silencer)`;
@@ -1492,14 +1499,14 @@ export function buildEngineAssembly() {
         new THREE.Vector3(underbodyX + (mufflerX - underbodyX) * 0.7, exhaustY, rearZ - 0.15),
         new THREE.Vector3(mufflerX, exhaustY, rearMufflerZ + 0.21)
       ], false, 'centripetal', 0.2);
-      const p3Mesh = new THREE.Mesh(new THREE.TubeGeometry(p3Curve, 20, 0.020, 8, false), this.matExhaustPipe);
+      const p3Mesh = new THREE.Mesh(new THREE.TubeGeometry(p3Curve, 20, 0.020, 8, false), this.scene.matExhaustPipe);
       p3Mesh.userData.name = `${namePrefix} Rura podwoziowa`;
       fullExhaustG.add(p3Mesh);
 
       // Chromowana końcówka wydechu
       const tipZ = rearZ - 0.70;
       const tailpipeMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.045, 0.045, 0.30, 24), this.matChrome
+        new THREE.CylinderGeometry(0.045, 0.045, 0.30, 24), this.scene.matChrome
       );
       tailpipeMesh.rotation.x = Math.PI / 2;
       tailpipeMesh.position.set(mufflerX, exhaustY, tipZ);
@@ -1510,7 +1517,7 @@ export function buildEngineAssembly() {
         new THREE.Vector3(mufflerX, exhaustY, rearMufflerZ - 0.21),
         new THREE.Vector3(mufflerX, exhaustY, tipZ + 0.15)
       );
-      const p4Mesh = new THREE.Mesh(new THREE.TubeGeometry(p4Curve, 4, 0.028, 8, false), this.matExhaustPipe);
+      const p4Mesh = new THREE.Mesh(new THREE.TubeGeometry(p4Curve, 4, 0.028, 8, false), this.scene.matExhaustPipe);
       p4Mesh.userData.name = `${namePrefix} Rura końcówki wydechu`;
       fullExhaustG.add(p4Mesh);
 
@@ -1527,9 +1534,9 @@ export function buildEngineAssembly() {
       ], false, 'centripetal', 0.2);
 
       const mainExhaustLineGeo = new THREE.BufferGeometry().setFromPoints(fullExhaustCurve.getPoints(60));
-      const mainExhaustLine = new THREE.Line(mainExhaustLineGeo, this.matStreamlineMainExhaust);
+      const mainExhaustLine = new THREE.Line(mainExhaustLineGeo, this.scene.matStreamlineMainExhaust);
       fullExhaustG.add(mainExhaustLine);
-      this.exhaustMainStreamlines.push({ lineMesh: mainExhaustLine, curve: fullExhaustCurve });
+      this.scene.exhaustMainStreamlines.push({ lineMesh: mainExhaustLine, curve: fullExhaustCurve });
     };
 
     const isTrueDualLayout = isDual && (layout === 'V' || layout === 'W' || layout === 'Boxer');
@@ -1542,7 +1549,7 @@ export function buildEngineAssembly() {
       buildExhaustTract(-1, "Lewy", startPointL, !isTrueDualLayout);
     }
 
-    this.carGroup.add(fullExhaustG);
+    this.scene.carGroup.add(fullExhaustG);
 
     // ════════════════════════════════════════════════════════════════════════
     // ═══ 4. CHŁODNICA I W PEŁNI POŁĄCZONE WĘŻE CHŁODZENIA (Cooling) ════════
@@ -1550,12 +1557,12 @@ export function buildEngineAssembly() {
     const radG = new THREE.Group();
     const coreW = (layout === 'Boxer') ? 0.95 : 0.85;
     const coreH = 0.55, coreD = 0.055;
-    const carRadZ = (this.config.placement === 'front') ? 2.30 : (this.config.placement === 'mid' ? -0.50 : -2.40);
+    const carRadZ = (this.scene.config.placement === 'front') ? 2.30 : (this.scene.config.placement === 'mid' ? -0.50 : -2.40);
     const carRadY = 0.65;
 
     // Rdzeń chłodnicy
     const radCore = new THREE.Mesh(
-      new THREE.BoxGeometry(coreW, coreH, coreD), this.matDarkSteel
+      new THREE.BoxGeometry(coreW, coreH, coreD), this.scene.matDarkSteel
     );
     radCore.userData.name = "Rdzeń chłodnicy";
     radG.add(radCore);
@@ -1565,7 +1572,7 @@ export function buildEngineAssembly() {
     const finPitch = coreW / (finCount + 1);
     for (let i = 1; i <= finCount; i++) {
       const fin = new THREE.Mesh(
-        new THREE.BoxGeometry(0.003, coreH * 0.88, coreD * 1.3), this.matSilver
+        new THREE.BoxGeometry(0.003, coreH * 0.88, coreD * 1.3), this.scene.matSilver
       );
       fin.position.x = -coreW / 2 + i * finPitch;
       fin.userData.name = "Lamela chłodnicy";
@@ -1574,29 +1581,29 @@ export function buildEngineAssembly() {
 
     // Zbiorniki górny i dolny
     const tankGeo = new THREE.BoxGeometry(coreW + 0.04, 0.055, 0.08);
-    const topTank = new THREE.Mesh(tankGeo, this.matDarkSteel);
+    const topTank = new THREE.Mesh(tankGeo, this.scene.matDarkSteel);
     topTank.position.y = coreH / 2 + 0.025;
     topTank.userData.name = "Zbiornik górny chłodnicy";
 
-    const bottomTank = new THREE.Mesh(tankGeo.clone(), this.matDarkSteel);
+    const bottomTank = new THREE.Mesh(tankGeo.clone(), this.scene.matDarkSteel);
     bottomTank.position.y = -coreH / 2 - 0.025;
     bottomTank.userData.name = "Zbiornik dolny chłodnicy";
     radG.add(topTank, bottomTank);
 
     // Króćce chłodnicy
-    const topInlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), this.matDarkSteel);
+    const topInlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), this.scene.matDarkSteel);
     topInlet.rotation.x = Math.PI / 2;
     topInlet.position.set(0.25, coreH / 2 + 0.025, -0.04);
     radG.add(topInlet);
 
-    const botOutlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), this.matDarkSteel);
+    const botOutlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), this.scene.matDarkSteel);
     botOutlet.rotation.x = Math.PI / 2;
     botOutlet.position.set(-0.25, -coreH / 2 - 0.025, -0.04);
     radG.add(botOutlet);
 
     // Wentylator chłodnicy zamontowany z tyłu rdzenia
     const fanShroud = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.24, 0.03, 24), this.matRubber
+      new THREE.CylinderGeometry(0.24, 0.24, 0.03, 24), this.scene.matRubber
     );
     fanShroud.rotation.x = Math.PI / 2;
     fanShroud.position.set(0, 0, -0.035);
@@ -1605,7 +1612,7 @@ export function buildEngineAssembly() {
 
     radG.position.set(0, carRadY, carRadZ);
     radG.userData.name = "Chłodnica";
-    this.carGroup.add(radG);
+    this.scene.carGroup.add(radG);
 
     // ════════════════════════════════════════════════════════════════════════
     // ═══ CHWYTAK POWIETRZA ZAMONTOWANY NA SZTYWNO NAD CHŁODNICĄ (RAM-AIR) ══
@@ -1618,7 +1625,7 @@ export function buildEngineAssembly() {
 
     // Obudowa czerpni
     const scoopOuter = new THREE.Mesh(
-      new THREE.BoxGeometry(scoopW, scoopH, scoopD), this.matDarkSteel
+      new THREE.BoxGeometry(scoopW, scoopH, scoopD), this.scene.matDarkSteel
     );
     scoopOuter.position.set(scoopX, scoopY, scoopZ);
     scoopOuter.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop nad chłodnicą)";
@@ -1626,7 +1633,7 @@ export function buildEngineAssembly() {
 
     // Gardziel wlotowa czerpni (skierowana w przód auta +Z)
     const scoopMouth = new THREE.Mesh(
-      new THREE.BoxGeometry(scoopW * 0.92, scoopH * 0.75, 0.02), this.matSteel
+      new THREE.BoxGeometry(scoopW * 0.92, scoopH * 0.75, 0.02), this.scene.matSteel
     );
     scoopMouth.position.set(scoopX, scoopY, scoopZ + scoopD * 0.45);
     scoopMouth.userData.name = "Gardziel wlotowa czerpni powietrza";
@@ -1635,7 +1642,7 @@ export function buildEngineAssembly() {
     // Wewnętrzne kierownice strugi powietrza
     [-0.08, 0, 0.08].forEach((offset, idx) => {
       const vane = new THREE.Mesh(
-        new THREE.BoxGeometry(0.003, scoopH * 0.8, scoopD * 0.8), this.matSilver
+        new THREE.BoxGeometry(0.003, scoopH * 0.8, scoopD * 0.8), this.scene.matSilver
       );
       vane.position.set(scoopX + offset, scoopY, scoopZ);
       vane.userData.name = `Kierownica powietrza #${idx + 1}`;
@@ -1645,7 +1652,7 @@ export function buildEngineAssembly() {
     // Sztywne uchwyty montażowe chwytaka do górnego zbiornika chłodnicy
     [-0.11, 0.11].forEach((offset) => {
       const bracket = new THREE.Mesh(
-        new THREE.BoxGeometry(0.016, 0.035, 0.02), this.matSteel
+        new THREE.BoxGeometry(0.016, 0.035, 0.02), this.scene.matSteel
       );
       bracket.position.set(scoopX + offset, coreH / 2 + 0.025, scoopZ);
       bracket.userData.name = "Uchwyt mocowania chwytaka do chłodnicy";
@@ -1655,14 +1662,14 @@ export function buildEngineAssembly() {
     radG.add(scoopG);
 
     // ═══ KANAŁ DOLOTOWY: CHWYTAK NAD CHŁODNICĄ → AIRBOX / KOMORA STOŻKA ═══
-    this.engineMountGroup.updateMatrixWorld(true);
+    this.scene.engineMountGroup.updateMatrixWorld(true);
 
     const scoopBackWorld = new THREE.Vector3(scoopX, carRadY + scoopY, carRadZ - scoopD * 0.5);
 
     // Oblicz rzeczywistą pozycję filtra w przestrzeni pojazdu (World coordinates)
     const filterCenterWorld = new THREE.Vector3();
-    if (this.intakeFilterMesh) {
-      this.intakeFilterMesh.getWorldPosition(filterCenterWorld);
+    if (this.scene.intakeFilterMesh) {
+      this.scene.intakeFilterMesh.getWorldPosition(filterCenterWorld);
     } else {
       filterCenterWorld.set(-0.18, carRadY, 0.40);
     }
@@ -1686,41 +1693,41 @@ export function buildEngineAssembly() {
     ], false, 'centripetal', 0.2);
 
     const coldAirDuctMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(coldAirDuctCurve, 20, 0.036, 14, false), this.matDarkSteel
+      new THREE.TubeGeometry(coldAirDuctCurve, 20, 0.036, 14, false), this.scene.matDarkSteel
     );
     coldAirDuctMesh.userData.name = isSport
       ? "Kanał dolotu zimnego powietrza (Chwytak → Nadmuch na stożek)"
       : "Kanał dolotu zimnego powietrza (Chwytak → Puszka Airbox)";
-    this.carGroup.add(coldAirDuctMesh);
+    this.scene.carGroup.add(coldAirDuctMesh);
 
     // Zwieńczenie kanału (Kołnierz / Trąbka nadmuchu)
     if (isSport) {
       // Rozszerzający się kielich trąbki skierowany w stronę filtra stożkowego
       const trumpet = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.036, 0.052, 0.04, 20), this.matSilver
+        new THREE.CylinderGeometry(0.036, 0.052, 0.04, 20), this.scene.matSilver
       );
       trumpet.rotation.x = Math.PI / 2;
       trumpet.position.copy(filterInletWorld);
       trumpet.userData.name = "Trąbka nadmuchu zimnego powietrza na stożek";
-      this.carGroup.add(trumpet);
+      this.scene.carGroup.add(trumpet);
     } else {
       const collar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.040, 0.040, 0.03, 16), this.matRubber
+        new THREE.CylinderGeometry(0.040, 0.040, 0.03, 16), this.scene.matRubber
       );
       collar.rotation.x = Math.PI / 2;
       collar.position.copy(filterInletWorld);
       collar.userData.name = "Kołnierz wlotowy puszki filtra";
-      this.carGroup.add(collar);
+      this.scene.carGroup.add(collar);
     }
 
     // ═══ WĘŻE CHŁODNICY (100% POŁĄCZONE Z BLOKIEM I GŁOWICĄ W PRZESTRZENI POJAZDU) ═══
     // Górny wąż (Gorący płyn: z głowicy/termostatu do górnego zbiornika chłodnicy)
     const thermostatPosLocal = new THREE.Vector3(
-      this.cylinderPositions[0].inPort.x * 0.4,
-      Math.max(0.55, this.cylinderPositions[0].inPort.y + 0.06),
+      this.scene.cylinderPositions[0].inPort.x * 0.4,
+      Math.max(0.55, this.scene.cylinderPositions[0].inPort.y + 0.06),
       maxZ + 0.10
     );
-    const thermoInWorld = thermostatPosLocal.clone().applyMatrix4(this.engineMountGroup.matrixWorld);
+    const thermoInWorld = thermostatPosLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
     const radTopInletPos = new THREE.Vector3(0.25, carRadY + coreH / 2 + 0.025, carRadZ - 0.04);
 
     const hoseUpperCurve = new THREE.CatmullRomCurve3([
@@ -1729,14 +1736,14 @@ export function buildEngineAssembly() {
       radTopInletPos
     ]);
     const hoseUpperMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(hoseUpperCurve, 20, 0.020, 10, false), this.matRubber
+      new THREE.TubeGeometry(hoseUpperCurve, 20, 0.020, 10, false), this.scene.matRubber
     );
     hoseUpperMesh.userData.name = "Wąż chłodnicy górny (Głowica → Chłodnica)";
-    this.carGroup.add(hoseUpperMesh);
+    this.scene.carGroup.add(hoseUpperMesh);
 
     // Dolny wąż (Zimny płyn: z dolnego zbiornika chłodnicy do pompy wody)
     const wpInletPosLocal = new THREE.Vector3(0, 0.14, maxZ + 0.06);
-    const wpInWorld = wpInletPosLocal.clone().applyMatrix4(this.engineMountGroup.matrixWorld);
+    const wpInWorld = wpInletPosLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
     const radBotOutletPos = new THREE.Vector3(-0.25, carRadY - coreH / 2 - 0.025, carRadZ - 0.04);
 
     const hoseLowerCurve = new THREE.CatmullRomCurve3([
@@ -1745,17 +1752,17 @@ export function buildEngineAssembly() {
       wpInWorld
     ]);
     const hoseLowerMesh = new THREE.Mesh(
-      new THREE.TubeGeometry(hoseLowerCurve, 20, 0.020, 10, false), this.matRubber
+      new THREE.TubeGeometry(hoseLowerCurve, 20, 0.020, 10, false), this.scene.matRubber
     );
     hoseLowerMesh.userData.name = "Wąż chłodnicy dolny (Chłodnica → Pompa wody)";
-    this.carGroup.add(hoseLowerMesh);
+    this.scene.carGroup.add(hoseLowerMesh);
   }
 
-export function createConnectingRod(length) {
+createConnectingRod(length) {
     const g = new THREE.Group();
-    const rodMat = this.matSteel;
-    const darkMat = this.matDarkSteel;
-    const bronzeMat = this.matBronze;
+    const rodMat = this.scene.matSteel;
+    const darkMat = this.scene.matDarkSteel;
+    const bronzeMat = this.scene.matBronze;
 
     // ═══ PARAMETRY STOPY (Big End) ═══
     const pinR = 0.026;         // promień czopa korbowodowego
@@ -1919,17 +1926,17 @@ export function createConnectingRod(length) {
     return g;
   }
 
-export function createPiston(radius, length) {
+createPiston(radius, length) {
     const g = new THREE.Group();
     // Korpus tłoka (denko i płaszcz) - sworzeń znajduje się w Y = 0
-    const piston = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 32), this.matPiston);
+    const piston = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 32), this.scene.matPiston);
     piston.position.y = 0.035;
     piston.userData.name = "Tłok";
     g.add(piston);
 
     // Pierścienie tłokowe (2 kompresyjne + 1 zgarniający olejowy)
     for (let i = 0; i < 3; i++) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.001, 0.002, 8, 32), this.matDarkSteel);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.001, 0.002, 8, 32), this.scene.matDarkSteel);
       ring.rotation.x = Math.PI / 2;
       ring.position.y = 0.035 + length / 2 - 0.015 - i * 0.012;
       ring.userData.name = (i < 2) ? `Pierścień uszczelniający #${i+1}` : "Pierścień zgarniający olejowy";
@@ -1937,7 +1944,7 @@ export function createPiston(radius, length) {
     }
 
     // Sworzeń tłokowy (dokładnie w Y = 0, spasowany z główką korbowodu)
-    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, radius * 1.82, 20), this.matSteel);
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, radius * 1.82, 20), this.scene.matSteel);
     pin.rotation.x = Math.PI / 2;
     pin.position.set(0, 0, 0);
     pin.userData.name = "Sworzeń tłokowy";
@@ -1945,7 +1952,7 @@ export function createPiston(radius, length) {
 
     // Pierścienie osadcze sworznia (Segera)
     [-radius * 0.91, radius * 0.91].forEach(sz => {
-      const circlip = new THREE.Mesh(new THREE.TorusGeometry(0.0135, 0.0012, 6, 16), this.matDarkSteel);
+      const circlip = new THREE.Mesh(new THREE.TorusGeometry(0.0135, 0.0012, 6, 16), this.scene.matDarkSteel);
       circlip.position.set(0, 0, sz);
       circlip.userData.name = "Pierścień osadczy sworznia (Seger)";
       g.add(circlip);
@@ -1955,13 +1962,13 @@ export function createPiston(radius, length) {
     return g;
   }
 
-export function createSparkPlug() {
+createSparkPlug() {
     const g = new THREE.Group();
-    const ceramic = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 16), this.matCeramic);
+    const ceramic = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 16), this.scene.matCeramic);
     ceramic.position.y = 0.02;
     ceramic.userData.name = "Izolator świecy";
     g.add(ceramic);
-    const hex = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.015, 6), this.matDarkSteel);
+    const hex = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.015, 6), this.scene.matDarkSteel);
     hex.position.y = 0.0075;
     hex.userData.name = "Świeca zapłonowa";
     g.add(hex);
@@ -1969,7 +1976,7 @@ export function createSparkPlug() {
     return g;
   }
 
-export function createValve(material, name) {
+createValve(material, name) {
     const vg = new THREE.Group();
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.16, 12), material);
     stem.userData.name = "Trzonek zaworu " + name;
@@ -1978,11 +1985,11 @@ export function createValve(material, name) {
     disc.position.y = -0.08;
     disc.userData.name = "Grzybek zaworu " + name;
     vg.add(disc);
-    const retainer = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 16), this.matDarkSteel);
+    const retainer = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 16), this.scene.matDarkSteel);
     retainer.position.y = 0.065;
     retainer.userData.name = "Talerzyk oporowy";
     vg.add(retainer);
-    const tappet = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 24), this.matSteel);
+    const tappet = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 24), this.scene.matSteel);
     tappet.position.y = 0.08 + 0.0075; 
     tappet.userData.name = "Szklanka popychacza";
     vg.add(tappet);
@@ -1990,7 +1997,7 @@ export function createValve(material, name) {
     return vg;
   }
 
-export function createSpringMesh() {
+createSpringMesh() {
     class CoilCurve extends THREE.Curve {
       getPoint(t) {
         const turns = 6;
@@ -2000,16 +2007,16 @@ export function createSpringMesh() {
       }
     }
     const geo = new THREE.TubeGeometry(new CoilCurve(), 64, 0.0025, 8, false);
-    const mesh = new THREE.Mesh(geo, this.matGold);
+    const mesh = new THREE.Mesh(geo, this.scene.matGold);
     mesh.userData.name = "Sprężyna zaworowa";
     return mesh;
   }
 
-export function createRockerArm() {
+createRockerArm() {
     const ra = new THREE.Group();
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.016), this.matGold);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.016), this.scene.matGold);
     arm.userData.name = "Dźwigienka zaworowa (Rocker Arm)";
-    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.024, 16), this.matSteel);
+    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.024, 16), this.scene.matSteel);
     pivot.rotation.x = Math.PI / 2;
     pivot.userData.name = "Oś dźwigienki zaworowej";
     ra.add(arm, pivot);
@@ -2017,7 +2024,7 @@ export function createRockerArm() {
     return ra;
   }
 
-export function createCamLobe() {
+createCamLobe() {
     const shape = new THREE.Shape();
     const R_base = 0.025;
     const R_max = 0.045;
@@ -2037,12 +2044,12 @@ export function createCamLobe() {
     }
     const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false });
     geo.translate(0, 0, -0.01);
-    const mesh = new THREE.Mesh(geo, this.matSteel);
+    const mesh = new THREE.Mesh(geo, this.scene.matSteel);
     mesh.userData.name = "Krzywka rozrządu";
     return mesh;
   }
 
-export function getCamRadius(angle) {
+getCamRadius(angle) {
     const R_base = 0.025;
     const R_max = 0.045;
     let alpha = angle % (Math.PI * 2);
@@ -2054,3 +2061,5 @@ export function getCamRadius(angle) {
     return R_base;
   }
 
+
+}

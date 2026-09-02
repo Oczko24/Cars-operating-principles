@@ -5,11 +5,11 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
-import * as ChassisBuilder from './scene/ChassisBuilder.js';
-import * as EngineBuilder from './scene/EngineBuilder.js';
-import * as DrivetrainBuilder from './scene/DrivetrainBuilder.js';
-import * as DevUIController from './scene/DevUIController.js';
-import * as Telemetry from './scene/Telemetry.js';
+import { ChassisBuilder } from './scene/ChassisBuilder.js';
+import { EngineBuilder } from './scene/EngineBuilder.js';
+import { DrivetrainBuilder } from './scene/DrivetrainBuilder.js';
+import { DevUIController } from './scene/DevUIController.js';
+import { Telemetry } from './scene/Telemetry.js';
 import { setupDebugClicker } from './scene/DebugTools.js';
 
 import {
@@ -131,6 +131,13 @@ export class Scene3D {
     this.lastFpsUpdate = performance.now();
     this.fps = 60;
 
+    
+    this.chassisBuilder = new ChassisBuilder(this);
+    this.engineBuilder = new EngineBuilder(this);
+    this.drivetrainBuilder = new DrivetrainBuilder(this);
+    this.devUIController = new DevUIController(this);
+    this.telemetry = new Telemetry(this);
+
     this.initMaterials();
 
     this.carGroup = new THREE.Group();
@@ -148,8 +155,8 @@ export class Scene3D {
 
     this.setupLighting();
     this.setupEnvironment();
-    this.setupTooltip();
-    this.setupDevPanel();
+    this.devUIController.setupTooltip();
+    this.devUIController.setupDevPanel();
 
     // Cache elementów DOM do telemetrii w pętli animacji
     this.cachedDom = {
@@ -298,15 +305,15 @@ export class Scene3D {
       this.exhaustMainStreamlines = [];
 
       if (this.config.showChassis) {
-        this.buildChassisFrame();
+        this.chassisBuilder.buildChassisFrame();
       }
-      this.buildEngineAssembly();
-      this.buildDrivetrainAssembly();
+      this.engineBuilder.buildEngineAssembly();
+      this.drivetrainBuilder.buildDrivetrainAssembly();
       if (this.config.showChassis) {
-        this.buildSuspensionAssembly();
+        this.chassisBuilder.buildSuspensionAssembly();
       }
 
-      this.updateCrankshaftUI();
+      this.devUIController.updateCrankshaftUI();
   }
 
   animate(time) {
@@ -322,7 +329,7 @@ export class Scene3D {
         fps: this.fps,
         frameTime: Math.round(dt * 1000),
         crankAngleDeg: Math.round((this.crankAngle * 180 / Math.PI) % 720),
-        cylinders: this.getCylindersState()
+        cylinders: this.telemetry.getCylindersState()
       });
     }
 
@@ -385,7 +392,7 @@ export class Scene3D {
     
     // ═══ SKRZYNIA BIEGÓW I NAPĘD (DYNAMIC RATIOS & TELEMETRIA) ═══
     const currentG = this.config.currentGear || '1';
-    const realRatio = this.getCurrentGearRatio();
+    const realRatio = this.devUIController.getCurrentGearRatio();
 
     let outputSpeed = 0;
     let overallGearRatio = 0;
@@ -748,7 +755,7 @@ export class Scene3D {
     this.valvesToDrive.forEach(v => {
       const theta_lobe = -camAngle + v.lobeRot;
       const alpha_valve_relative = Math.PI - theta_lobe;
-      const r = this.getCamRadius(alpha_valve_relative);
+      const r = this.engineBuilder.getCamRadius(alpha_valve_relative);
       
       const pushDown = (r - 0.025) * (boreScale || 1.0);
       const valveBaseY = headBase + 0.084 + 0.025 * (boreScale || 1.0);
@@ -764,63 +771,47 @@ export class Scene3D {
       
       if (v.isOHV) {
           if (v.camGroup && v.camGroup.parent && v.pushrod) {
+            const boreScale = this.config.boreMm / 84.0 || 1.0;
+            const pushrodSideSign = (v.localCamX >= 0) ? 1 : -1;
+            const prTopXLocal = pushrodSideSign * 0.13 * boreScale;
+            const vTopX = v.offsetX;
+            
+            const prDisp = (r - 0.025); // Unscaled lift at the cam lobe
+            
+            // Calculate perfect pivot point based on lever ratio (boreScale)
+            // leverRatio = pushDown / prDisp = boreScale
+            const totalX = Math.abs(prTopXLocal - vTopX);
+            const rHalfPushrod = totalX / (1.0 + boreScale);
+            const rHalfValve = totalX - rHalfPushrod;
+            
+            const pivotX = prTopXLocal - pushrodSideSign * rHalfPushrod;
+            const pivotY = valveBaseY + 0.095 * boreScale + 0.005 * boreScale; 
+            
+            if (v.rocker) {
+               v.rocker.position.set(pivotX, pivotY, v.prZ);
+               const angle = Math.asin(pushDown / Math.max(0.001, rHalfValve));
+               v.rocker.rotation.set(0, 0, (vTopX < pivotX) ? angle : -angle);
+               v.rocker.children[0].scale.set(totalX / 0.12, 1, 1);
+            }
+            
+            // Pushrod bottom rests on cam lobe
             const prBottomYLocal = v.camGroup.parent.position.y + r;
             const prBottomXLocal = v.camGroup.parent.position.x;
             
-            // Valve base position when closed is valveBaseY
-            // vGeo is positioned at valveY, its tappet top is locally at +0.095
-            const pushrodSideSign = (v.localCamX >= 0) ? 1 : -1;
-            const prTopXLocal = pushrodSideSign * 0.13 * (boreScale || 1.0);
-            
-            // Pushrod top should match the valve top height
-            const vTopY = valveY + 0.095 * (boreScale || 1.0);
-            const prTopYLocal = v.baseY + 0.095 * (boreScale || 1.0) + pushDown;
-            
+            // Calculate rigid pushrod length ONCE using base circle (r = 0.025)
+            const prBottomY0 = v.camGroup.parent.position.y + 0.025;
+            const prTopY0 = pivotY; // Horizontal rocker
             const dx = prTopXLocal - prBottomXLocal;
-            const dy = prTopYLocal - prBottomYLocal;
-            const dz = 0; // Pushrod stands vertically in Z plane of the cam lobe
-            const prLen = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            const dy0 = prTopY0 - prBottomY0;
+            const prLen = Math.sqrt(dx*dx + dy0*dy0);
             
-            v.pushrod.scale.y = prLen;
-            v.pushrod.position.set(prBottomXLocal + dx/2, prBottomYLocal + dy/2, v.prZ);
+            // Move entire pushrod up by prDisp
+            v.pushrod.scale.set(1, prLen, 1);
+            v.pushrod.position.set(prBottomXLocal + dx/2, prBottomY0 + prDisp + dy0/2, v.prZ);
             
             const up = new THREE.Vector3(0, 1, 0);
-            const dir = new THREE.Vector3(dx, dy, dz).normalize();
+            const dir = new THREE.Vector3(dx, dy0, 0).normalize();
             v.pushrod.quaternion.setFromUnitVectors(up, dir);
-            
-            if (v.rocker && v.rocker.children && v.rocker.children.length > 0) {
-                const vTopX = v.offsetX;
-                const vTopZ = v.valveG.parent.position.z + v.offsetZ; // Absolute Z of valve in engine block
-                
-                const prTopX = prTopXLocal;
-                const prTopY = prTopYLocal;
-                const prTopZ = v.prZ; // Pushrod Z
-                
-                const midX = (vTopX + prTopX) / 2;
-                const midY = (vTopY + prTopY) / 2;
-                const midZ = (vTopZ + prTopZ) / 2;
-                
-                v.rocker.position.set(midX, midY, midZ);
-                
-                const rdx = vTopX - prTopX;
-                const rdy = vTopY - prTopY;
-                const rdz = vTopZ - prTopZ;
-                
-                const rdist = Math.sqrt(rdx*rdx + rdy*rdy + rdz*rdz);
-                
-                // The rocker arm is BoxGeometry in createRockerArm, not a cylinder.
-                // It was 0.12 length along X. 
-                v.rocker.children[0].scale.x = rdist / 0.12; 
-                
-                // Align the +X axis of the rocker arm to the vector (rdx, rdy, rdz)
-                // Keep the Y axis (up) pointing generally upwards to avoid twisting
-                const xVec = new THREE.Vector3(rdx, rdy, rdz).normalize();
-                const yVec = new THREE.Vector3(0, 1, 0);
-                const zVec = new THREE.Vector3().crossVectors(xVec, yVec).normalize();
-                yVec.crossVectors(zVec, xVec).normalize();
-                const rotMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec);
-                v.rocker.quaternion.setFromRotationMatrix(rotMat);
-            }
           }
       }
     });
@@ -832,7 +823,7 @@ export class Scene3D {
 
   setLanguage(lang) {
     this.lang = lang;
-    this.updateCrankshaftUI();
+    this.devUIController.updateCrankshaftUI();
     const devGearboxDesc = document.getElementById('dev_gearbox_desc');
     if (devGearboxDesc && this.config.gearboxPreset) {
       const gDict = (i18n[this.lang] && i18n[this.lang].gearboxPresets) ? i18n[this.lang].gearboxPresets : null;
@@ -846,8 +837,3 @@ export class Scene3D {
 
 }
 
-Object.assign(Scene3D.prototype, ChassisBuilder);
-Object.assign(Scene3D.prototype, EngineBuilder);
-Object.assign(Scene3D.prototype, DrivetrainBuilder);
-Object.assign(Scene3D.prototype, DevUIController);
-Object.assign(Scene3D.prototype, Telemetry);

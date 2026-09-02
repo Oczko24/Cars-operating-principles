@@ -1,18 +1,24 @@
 import * as THREE from 'three';
 import { i18n } from '../i18n.js';
 
-export function getCylindersState() {
-    const lang = this.lang || 'pl';
+export class Telemetry {
+  constructor(scene) {
+    this.scene = scene;
+  }
+
+
+getCylindersState() {
+    const lang = this.scene.lang || 'pl';
     const t = i18n[lang] || i18n.pl;
     const strokes = t.strokes;
 
-    return this.movingCylinders.map(p => {
+    return this.scene.movingCylinders.map(p => {
       let phase = "";
       let phaseClass = "";
       let desc = "";
       
-      if (this.config.stroke === 2) {
-        const strokeAngle = (this.crankAngle + p.phaseOffset) % (Math.PI * 2);
+      if (this.scene.config.stroke === 2) {
+        const strokeAngle = (this.scene.crankAngle + p.phaseOffset) % (Math.PI * 2);
         if (strokeAngle < Math.PI) {
           phase = strokes.s2.power.phase;
           phaseClass = "stroke-power";
@@ -23,7 +29,7 @@ export function getCylindersState() {
           desc = strokes.s2.compression.desc;
         }
       } else {
-        const strokeAngle = (this.crankAngle + p.phaseOffset) % (Math.PI * 4);
+        const strokeAngle = (this.scene.crankAngle + p.phaseOffset) % (Math.PI * 4);
         phase = strokes.s4.intake.phase;
         phaseClass = "stroke-intake";
         desc = strokes.s4.intake.desc;
@@ -45,8 +51,8 @@ export function getCylindersState() {
     });
   }
 
-export function getPartsCatalog() {
-    if (!this.carGroup) return { totalCount: 0, uniqueCount: 0, categories: [] };
+getPartsCatalog() {
+    if (!this.scene.carGroup) return { totalCount: 0, uniqueCount: 0, categories: [] };
     
     // Lista zdefiniowanych kategorii mechanicznych
     const categoryDefs = [
@@ -97,7 +103,7 @@ export function getPartsCatalog() {
     const partCounts = {};
     let totalMeshCount = 0;
 
-    this.carGroup.traverse((child) => {
+    this.scene.carGroup.traverse((child) => {
       if (child.isMesh && child.visible && child.userData && child.userData.name) {
         const name = child.userData.name;
         if (
@@ -174,11 +180,11 @@ export function getPartsCatalog() {
     };
   }
 
-export function checkOverlap() {
-    if (!this.carGroup) return { totalChecked: 0, collisions: [], rawList: [] };
+checkOverlap() {
+    if (!this.scene.carGroup) return { totalChecked: 0, collisions: [], rawList: [] };
     
     // Zaktualizuj macierze transformacji świata
-    this.scene.updateMatrixWorld(true);
+    this.scene.scene.updateMatrixWorld(true);
     
     // Test twierdzenia o osiach rozdzielających (SAT) dla dwóch OBB (Oriented Bounding Box) w 3D
     const testOBBIntersection = (a, b) => {
@@ -239,7 +245,7 @@ export function checkOverlap() {
     };
 
     const meshes = [];
-    this.carGroup.traverse((child) => {
+    this.scene.carGroup.traverse((child) => {
       if (child.isMesh && child.visible && child.userData && child.userData.name) {
         const name = child.userData.name;
         
@@ -480,7 +486,7 @@ export function checkOverlap() {
     }
 
     const uniqueOverlaps = [...new Set(overlaps)];
-    const deg = Math.round(((this.crankAngle * 180 / Math.PI) % 720 + 720) % 720);
+    const deg = Math.round(((this.scene.crankAngle * 180 / Math.PI) % 720 + 720) % 720);
     return {
       totalChecked: meshes.length,
       collisions: uniqueOverlaps,
@@ -488,3 +494,5 @@ export function checkOverlap() {
       crankAngleDeg: deg
     };
   }
+
+}
