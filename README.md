@@ -70,7 +70,7 @@ No build step or Node.js toolchain is strictly required to run the client—it r
 Using Python 3:
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Cars-operating-principles.git
+git clone https://github.com/Oczko24/Cars-operating-principles.git
 cd Cars-operating-principles
 
 # Start local server with cache-busting headers
