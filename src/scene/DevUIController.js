@@ -76,6 +76,35 @@ export function setupDevPanel() {
       });
     };
 
+    // ═══ OBSŁUGA GŁÓWNYCH TRYBÓW (Konfigurator vs Statystyki) ═══
+    const modeBtns = document.querySelectorAll('.mode-tab-btn');
+    const modeViews = document.querySelectorAll('.mode-view');
+    modeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        modeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        modeViews.forEach(v => v.classList.remove('active'));
+        const targetView = document.getElementById(`mode_${mode}_view`);
+        if (targetView) targetView.classList.add('active');
+        this.updateEngineStats();
+      });
+    });
+
+    // ═══ OBSŁUGA PODZAKŁADEK KONFIGURATORA ═══
+    const subtabBtns = document.querySelectorAll('.subtab-btn');
+    const subtabPanes = document.querySelectorAll('.subtab-pane');
+    subtabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const subtab = btn.dataset.subtab;
+        subtabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        subtabPanes.forEach(p => p.classList.remove('active'));
+        const targetPane = document.getElementById(`subtab_${subtab}`);
+        if (targetPane) targetPane.classList.add('active');
+      });
+    });
+
     const updateDisplacementDisplay = () => {
       const bore = this.config.boreMm || 84.0;
       const stroke = this.config.strokeMm || 90.0;
@@ -87,6 +116,7 @@ export function setupDevPanel() {
       if (dispEl) {
         dispEl.innerText = `${dispRounded} cm³ (${dispL}L)`;
       }
+      this.updateEngineStats();
     };
 
     setupButtonGroup('dev_layout', (val) => {
@@ -149,6 +179,7 @@ export function setupDevPanel() {
         const valEl = document.getElementById('dev_angle_val');
         if (valEl) valEl.innerText = e.target.value;
         this.config.vAngle = parseInt(e.target.value);
+        this.updateEngineStats();
         this.rebuildFullCar();
       });
     }
@@ -156,6 +187,7 @@ export function setupDevPanel() {
     // ═══ WYBÓR UKŁADU WYDECHOWEGO (1 vs 2 rury) ═══
     setupButtonGroup('dev_exhaust_pipes', (val) => {
       this.config.exhaustPipes = val;
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
@@ -210,33 +242,97 @@ export function setupDevPanel() {
       });
     }
 
+    const updateValveButtonsState = () => {
+      const btn4V = document.querySelector('#dev_valves button[data-val="4"]');
+      if (btn4V) {
+        if (this.config.valvetrain === 'OHV') {
+          btn4V.disabled = true;
+          btn4V.style.opacity = '0.5';
+          btn4V.style.cursor = 'not-allowed';
+          btn4V.title = "Układ OHV jest kompatybilny tylko z 2 zaworami na cylinder w tym symulatorze.";
+        } else {
+          btn4V.disabled = false;
+          btn4V.style.opacity = '1';
+          btn4V.style.cursor = 'pointer';
+          btn4V.title = "";
+        }
+      }
+    };
+
     setupButtonGroup('dev_valves', (val) => {
+      if (this.config.valvetrain === 'OHV' && val === '4') return; // Prevent if OHV
       this.config.valves = parseInt(val);
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
     setupButtonGroup('dev_valvetrain', (val) => {
       this.config.valvetrain = val;
+      
+      // Force 2 valves if switching to OHV and currently on 4 valves
+      if (val === 'OHV' && this.config.valves === 4) {
+        this.config.valves = 2;
+        const btns = document.querySelectorAll('#dev_valves button');
+        btns.forEach(b => b.classList.remove('active'));
+        const btn2V = document.querySelector('#dev_valves button[data-val="2"]');
+        if (btn2V) btn2V.classList.add('active');
+      }
+      
+      updateValveButtonsState();
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
+    const updateAspirationPill = () => {
+      const pill = document.getElementById('status_aspiration');
+      if (pill) {
+        if (this.config.intakeType === 'sport') {
+          pill.innerText = "Sport (Stożek)";
+          pill.style.background = "rgba(239, 68, 68, 0.2)";
+          pill.style.color = "#f87171";
+        } else {
+          pill.innerText = "Cywilny (Airbox)";
+          pill.style.background = "rgba(59, 130, 246, 0.2)";
+          pill.style.color = "#60a5fa";
+        }
+      }
+    };
+
+    setupButtonGroup('dev_intake', (val) => {
+      this.config.intakeType = val;
+      updateAspirationPill();
+      this.updateEngineStats();
+      this.rebuildFullCar();
+    });
+    
+    // Initialize defaults from DOM (Sport by default)
+    this.config.intakeType = document.querySelector('#dev_intake .active')?.dataset.val || 'sport';
+    updateAspirationPill();
+
+    // Initialize button state on load
+    updateValveButtonsState();
+
     setupButtonGroup('dev_stroke', (val) => {
       this.config.stroke = parseInt(val);
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
     setupButtonGroup('dev_placement', (val) => {
       this.config.placement = val;
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
     setupButtonGroup('dev_orientation', (val) => {
       this.config.orientation = val;
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
     setupButtonGroup('dev_drivetrain_layout', (val) => {
       this.config.drivetrainLayout = val;
+      this.updateEngineStats();
       this.rebuildFullCar();
     });
 
@@ -289,6 +385,7 @@ export function setupDevPanel() {
         const valEl = document.getElementById('dev_rpm_val');
         if (valEl) valEl.innerText = e.target.value;
         this.config.rpm = parseInt(e.target.value);
+        this.updateEngineStats();
       });
     }
     
@@ -296,6 +393,7 @@ export function setupDevPanel() {
     if (devClutchEngaged) {
       devClutchEngaged.addEventListener('change', (e) => {
         this.config.clutchEngaged = e.target.checked;
+        this.updateEngineStats();
       });
     }
 
@@ -305,6 +403,7 @@ export function setupDevPanel() {
         const valEl = document.getElementById('dev_final_drive_val');
         if (valEl) valEl.innerText = parseFloat(e.target.value).toFixed(2);
         this.config.finalDrive = parseFloat(e.target.value);
+        this.updateEngineStats();
       });
     }
 
@@ -339,6 +438,7 @@ export function setupDevPanel() {
         if (finalDriveSlider) finalDriveSlider.value = preset.finalDrive;
         if (finalDriveVal) finalDriveVal.innerText = preset.finalDrive.toFixed(2);
       }
+      this.updateEngineStats();
     });
 
     // ═══ SUWAKI WŁASNYCH PRZEŁOŻEŃ (Custom Gearbox) ═══
@@ -352,6 +452,7 @@ export function setupDevPanel() {
           const finalVal = gKey === 'r' ? -ratioVal : ratioVal;
           this.config.gearboxCustomRatios[actualKey] = finalVal;
           if (valEl) valEl.innerText = (gKey === 'r' ? '-' : '') + ratioVal.toFixed(2);
+          this.updateEngineStats();
         });
       }
     });
@@ -359,6 +460,7 @@ export function setupDevPanel() {
     // ═══ WYBÓR AKTUALNEGO BIEGU (R, N, 1..6) ═══
     setupButtonGroup('dev_gearbox', (val) => {
       this.config.currentGear = val;
+      this.updateEngineStats();
     });
 
     setupButtonGroup('dev_clutch', (val) => {
@@ -413,6 +515,7 @@ export function updateCrankshaftUI() {
     this.updatePresetCard();
     this.updateBalanceUI();
     this.updateStatusPills();
+    this.updateEngineStats();
 
     if (this.radialUI && !this.config.customOverride && this.movingCylinders && this.movingCylinders.length > 0) {
       const angles = this.movingCylinders.map(c => Math.round(((c.crankPinAngle * 180 / Math.PI) % 360 + 360) % 360));
@@ -529,6 +632,29 @@ export function updateBalanceUI() {
     if (title) title.innerText = reportTitle;
     if (msg) msg.innerText = reportMsg;
     if (rec) rec.innerText = reportRec;
+
+    const qsCrankF1 = document.getElementById('qs_crank_f1');
+    const qsCrankStatus = document.getElementById('qs_crank_status');
+    if (qsCrankF1 && report.metrics) {
+      const f1Pct = Math.max(0, Math.min(100, Math.round((1.0 - (report.metrics.f1Score || 0)) * 100)));
+      qsCrankF1.innerText = `${f1Pct}%`;
+      qsCrankF1.style.color = f1Pct > 90 ? 'var(--accent-green)' : (f1Pct > 60 ? 'var(--accent-amber)' : 'var(--accent-red)');
+    }
+    if (qsCrankStatus) {
+      if (report.status === 'perfect') {
+        qsCrankStatus.innerText = lang === 'pl' ? 'Perfekcyjna' : 'Perfect';
+        qsCrankStatus.style.color = 'var(--accent-cyan)';
+      } else if (report.status === 'warning-secondary') {
+        qsCrankStatus.innerText = lang === 'pl' ? 'Siły II rzędu' : '2nd Order';
+        qsCrankStatus.style.color = 'var(--accent-amber)';
+      } else if (report.status === 'warning-moment') {
+        qsCrankStatus.innerText = lang === 'pl' ? 'Momenty' : 'Moments';
+        qsCrankStatus.style.color = 'var(--accent-amber)';
+      } else {
+        qsCrankStatus.innerText = lang === 'pl' ? 'Niewyważony' : 'Unbalanced';
+        qsCrankStatus.style.color = 'var(--accent-red)';
+      }
+    }
   }
 
 export function updateStatusPills() {
@@ -725,3 +851,289 @@ export function updateTooltip() {
     });
   }
 
+/**
+ * Kompleksowe obliczanie statystyk, osiągów i parametrów inżynieryjnych w czasie rzeczywistym
+ */
+export function updateEngineStats() {
+  const lang = this.lang || 'pl';
+  const t = i18n[lang] || i18n.pl;
+
+  const bore = this.config.boreMm || 84.0;
+  const stroke = this.config.strokeMm || 90.0;
+  const cyls = this.config.cylinders || 4;
+  const layout = this.config.layout || 'Inline';
+  const cycle = this.config.stroke || 4;
+  const valves = this.config.valves || 4;
+  const valvetrain = this.config.valvetrain || 'OHC';
+  const intake = this.config.intakeType || 'sport';
+  const aspiration = this.config.aspiration || 'na';
+  const rpm = this.config.rpm || 1000;
+  const exhaustPipes = this.config.exhaustPipes || 'single';
+  const drivetrain = this.config.drivetrainLayout || 'RWD';
+
+  // 1. Geometria i pojemność
+  const dispCm3 = cyls * Math.PI * Math.pow(bore / 20, 2) * (stroke / 10);
+  const dispL = (dispCm3 / 1000).toFixed(1);
+  const dispRounded = Math.round(dispCm3);
+  const unitDispCm3 = (dispCm3 / cyls).toFixed(1);
+  const bsRatio = (bore / stroke);
+
+  // 2. Redline (Maksymalne obroty)
+  let baseRedline = 6800;
+  baseRedline += (bsRatio - 1.0) * 1200; // Krótkoskokowe silniki kręcą się wyżej
+  if (valvetrain === 'OHC') baseRedline += 500;
+  else baseRedline -= 700; // OHV
+  if (valves === 4) baseRedline += 300;
+  if (cycle === 2) baseRedline += 600;
+  const redline = Math.min(9500, Math.max(5000, Math.round(baseRedline / 100) * 100));
+
+  // 3. Średnia prędkość tłoka v_mean (m/s)
+  const strokeM = stroke / 1000;
+  const vMeanRpm = (2 * strokeM * rpm) / 60;
+  const vMeanRedline = (2 * strokeM * redline) / 60;
+
+  // Status prędkości tłoka
+  let speedStatusText = t.ui.speedSafe;
+  let speedColor = "var(--accent-green)";
+  if (vMeanRpm >= 20.0) {
+    speedStatusText = t.ui.speedExtreme;
+    speedColor = "var(--accent-red)";
+  } else if (vMeanRpm >= 15.0) {
+    speedStatusText = t.ui.speedModerate;
+    speedColor = "var(--accent-amber)";
+  }
+  const speedBarPct = Math.min(100, Math.max(2, (vMeanRpm / 25) * 100));
+
+  // 4. Przyspieszenie tłoka a_max (m/s^2 i g)
+  const omega = (2 * Math.PI * rpm) / 60;
+  const crankRadiusM = strokeM / 2;
+  const lambda = 1 / 3.2; // Stosunek r do długości korbowodu L (~1.6x stroke)
+  const aMax = crankRadiusM * Math.pow(omega, 2) * (1 + lambda);
+  const aMaxG = (aMax / 9.81).toFixed(1);
+
+  // 5. Ciśnienie użyteczne (BMEP) i Moc / Moment
+  let bmepBar = 11.2;
+  if (intake === 'sport') bmepBar += 0.4;
+  if (valves === 4) bmepBar += 1.2;
+  if (valvetrain === 'OHC') bmepBar += 0.6;
+  if (cycle === 2) bmepBar *= 0.85; // 2-suwy mają nieco niższy BMEP przez płukanie
+
+  // Moment obrotowy Nm (realistyczny standard wolnossący OEM: 92 - 100 Nm / litr)
+  let baseTorquePerL = 96; // Nm na litr dla seryjnego silnika
+  if (intake === 'sport') baseTorquePerL *= 1.02;
+  if (valves === 4) baseTorquePerL *= 1.06;
+  if (valvetrain === 'OHV') baseTorquePerL *= 1.03;
+  if (cycle === 2) baseTorquePerL *= 1.30;
+  const maxTorque = Math.round((dispCm3 / 1000) * baseTorquePerL);
+
+  // Obroty momentu i mocy
+  const powerRpm = Math.round(redline * (valvetrain === 'OHC' ? 0.85 : 0.78) / 100) * 100;
+  const torqueRpm = Math.round(powerRpm * 0.65 / 100) * 100;
+
+  // Moc szacunkowa KM (Realistyczne OEM: ~72-78 KM / litr dla 4V OHC, ~58-62 KM / litr dla 2V)
+  let flowEfficiency = (valves === 4 ? 1.0 : 0.84) * (valvetrain === 'OHC' ? 1.0 : 0.90) * (intake === 'sport' ? 1.02 : 1.0);
+  if (cycle === 2) flowEfficiency *= 1.25;
+  const maxPowerHp = Math.round(((maxTorque * powerRpm) / 7120) * flowEfficiency);
+  const maxPowerKw = Math.round(maxPowerHp * 0.7355);
+  const powerPerLiter = ((maxPowerHp / (dispCm3 / 1000))).toFixed(1);
+
+  // 6. Masa zespołu (kg)
+  let baseWeight = 22 + cyls * 16;
+  if (valvetrain === 'OHC') baseWeight += 10;
+  if (valves === 4) baseWeight += 6;
+  if (exhaustPipes === 'dual') baseWeight += 8;
+  if (drivetrain === 'RWD') baseWeight += 45;
+  else if (drivetrain === 'FWD') baseWeight += 25;
+  else if (drivetrain === 'AWD') baseWeight += 75;
+  else if (drivetrain === '4x4') baseWeight += 90;
+  const totalWeight = Math.round(baseWeight);
+  const ptwRatio = (maxPowerHp / totalWeight).toFixed(2);
+  const ptwTon = Math.round((maxPowerHp / totalWeight) * 1000);
+
+  // 7. Aktualizacja DOM w trybie Statystyki
+  const elPowerVal = document.getElementById('stat_power_val');
+  if (elPowerVal) elPowerVal.innerText = `${maxPowerHp} KM`;
+  const elPowerKw = document.getElementById('stat_power_kw');
+  if (elPowerKw) elPowerKw.innerText = `${maxPowerKw} kW @ ${powerRpm} RPM`;
+
+  const elTorqueVal = document.getElementById('stat_torque_val');
+  if (elTorqueVal) elTorqueVal.innerText = `${maxTorque} Nm`;
+  const elTorqueRpm = document.getElementById('stat_torque_rpm');
+  if (elTorqueRpm) elTorqueRpm.innerText = `@ ${torqueRpm} RPM`;
+
+  const elPpl = document.getElementById('stat_power_per_liter');
+  if (elPpl) elPpl.innerText = `${powerPerLiter} KM/L`;
+
+  const elRedline = document.getElementById('stat_redline_val');
+  if (elRedline) elRedline.innerText = `${redline} RPM`;
+  const elCycleLabel = document.getElementById('stat_cycle_label');
+  if (elCycleLabel) elCycleLabel.innerText = cycle === 2 ? (lang === 'pl' ? 'Cykl 2-suwowy' : '2-Stroke Cycle') : (lang === 'pl' ? 'Cykl 4-suwowy (Otto)' : '4-Stroke (Otto)');
+
+  const elWeightVal = document.getElementById('stat_weight_val');
+  if (elWeightVal) elWeightVal.innerText = `${totalWeight} kg`;
+
+  const elPtwVal = document.getElementById('stat_ptw_val');
+  if (elPtwVal) elPtwVal.innerText = `${ptwRatio} KM/kg`;
+  const elPtwTon = document.getElementById('stat_ptw_ton');
+  if (elPtwTon) elPtwTon.innerText = `${ptwTon} KM / tonę`;
+
+  // Baner w nagłówku statystyk
+  const elEnginePill = document.getElementById('stats_engine_pill');
+  if (elEnginePill) {
+    const layoutShort = (layout === 'Inline') ? (lang === 'pl' ? 'R' : 'I') : (layout === 'Boxer' ? 'B' : layout);
+    elEnginePill.innerText = `${layoutShort}${cyls} • ${dispL}L ${valvetrain} (${valves}V)`;
+  }
+  const elAspPill = document.getElementById('stats_aspiration_pill');
+  if (elAspPill) {
+    const aspName = aspiration === 'na' ? 'N/A' : aspiration.toUpperCase();
+    const intName = intake === 'sport' ? 'Sport Cone' : 'Airbox';
+    elAspPill.innerText = `${aspName} • ${intName}`;
+  }
+
+  // Geometria
+  const elDispFull = document.getElementById('stat_disp_full');
+  if (elDispFull) elDispFull.innerText = `${dispRounded} cm³ (${dispL}L)`;
+  const elUnitDisp = document.getElementById('stat_unit_disp');
+  if (elUnitDisp) elUnitDisp.innerText = `${unitDispCm3} cm³ / cyl`;
+  const elBoreStroke = document.getElementById('stat_bore_stroke');
+  if (elBoreStroke) elBoreStroke.innerText = `${bore.toFixed(1)} × ${stroke.toFixed(1)} mm`;
+
+  const elBsVal = document.getElementById('stat_bs_val');
+  if (elBsVal) elBsVal.innerText = bsRatio.toFixed(2);
+  const elBsDesc = document.getElementById('stat_bs_desc');
+  if (elBsDesc) {
+    if (bsRatio > 1.05) elBsDesc.innerText = t.ui.bsOversquare;
+    else if (bsRatio < 0.95) elBsDesc.innerText = t.ui.bsUndersquare;
+    else elBsDesc.innerText = t.ui.bsSquare;
+  }
+
+  // Piston speed
+  const elPistonSpeedVal = document.getElementById('stat_piston_speed_val');
+  if (elPistonSpeedVal) elPistonSpeedVal.innerText = `${vMeanRpm.toFixed(1)} m/s`;
+  const elPistonSpeedBar = document.getElementById('stat_piston_speed_bar');
+  if (elPistonSpeedBar) elPistonSpeedBar.style.width = `${speedBarPct}%`;
+  const elPistonSpeedStatus = document.getElementById('stat_piston_speed_status');
+  if (elPistonSpeedStatus) {
+    elPistonSpeedStatus.innerText = speedStatusText;
+    elPistonSpeedStatus.style.color = speedColor;
+  }
+  const elRedlineSpeed = document.getElementById('stat_piston_speed_redline_label');
+  if (elRedlineSpeed) elRedlineSpeed.innerText = `@ Redline: ${vMeanRedline.toFixed(1)} m/s`;
+
+  // Szybkie statystyki podzakładek (Quick Stats Strips)
+  const qsEngDisp = document.getElementById('qs_engine_disp');
+  if (qsEngDisp) qsEngDisp.innerText = `${dispL}L (${dispRounded} cm³)`;
+  const qsEngBoreStroke = document.getElementById('qs_engine_bore_stroke');
+  if (qsEngBoreStroke) qsEngBoreStroke.innerText = `${bore.toFixed(1)} × ${stroke.toFixed(1)} mm`;
+  const qsEngBs = document.getElementById('qs_engine_bs');
+  if (qsEngBs) qsEngBs.innerText = `${bsRatio.toFixed(2)}`;
+  const qsEngPspeed = document.getElementById('qs_engine_pspeed');
+  if (qsEngPspeed) qsEngPspeed.innerText = `${vMeanRpm.toFixed(1)} m/s`;
+
+  const qsAspIntake = document.getElementById('qs_asp_intake');
+  if (qsAspIntake) qsAspIntake.innerText = intake === 'sport' ? (lang === 'pl' ? 'Sport Stożek' : 'Sport Cone') : (lang === 'pl' ? 'Cywilny Airbox' : 'Civil Airbox');
+  const qsAspValves = document.getElementById('qs_asp_valves');
+  if (qsAspValves) qsAspValves.innerText = `${valves}V ${valvetrain}`;
+  const qsAspWeight = document.getElementById('qs_asp_weight');
+  if (qsAspWeight) qsAspWeight.innerText = `${totalWeight} kg`;
+
+  // Wał korbowy quick stats
+  const qsCrankOrder = document.getElementById('qs_crank_order');
+  const qsCrankF1 = document.getElementById('qs_crank_f1');
+  const qsCrankStatus = document.getElementById('qs_crank_status');
+  if (qsCrankOrder) {
+    const key = (layout === 'V' && cyls === 8) ? `V_8_${this.config.v8CrankType || 'crossplane'}` : `${layout}_${cyls}`;
+    const preset = CRANK_PRESETS[key];
+    qsCrankOrder.innerText = preset ? (preset.firingOrder ? preset.firingOrder.join('-') : `${cyls} cyl`) : `${cyls} cyl`;
+  }
+  if (qsCrankF1) {
+    qsCrankF1.innerText = "100% OK";
+  }
+  if (qsCrankStatus) {
+    const diagBox = document.getElementById('crank_diagnostics_box');
+    if (diagBox && diagBox.classList.contains('warning')) {
+      qsCrankStatus.innerText = lang === 'pl' ? 'Wibracje II' : 'Vibrations';
+      qsCrankStatus.style.color = 'var(--accent-amber)';
+    } else {
+      qsCrankStatus.innerText = lang === 'pl' ? 'Perfekcyjna' : 'Balanced';
+      qsCrankStatus.style.color = 'var(--accent-cyan)';
+    }
+  }
+
+  // Napęd quick stats
+  const qsDriveSpeed = document.getElementById('qs_drive_speed');
+  const qsDriveRed = document.getElementById('qs_drive_reduction');
+  const qsDriveRedlineSpd = document.getElementById('qs_drive_redline_spd');
+  const currentRatio = this.getCurrentGearRatio();
+  const absRatio = Math.abs(currentRatio);
+  const totalReduction = absRatio > 0 ? (absRatio * (this.config.finalDrive || 3.94)) : 0;
+  const tireCircumferenceM = 2 * Math.PI * 0.32;
+  const currentSpeed = (totalReduction > 0 && this.config.clutchEngaged) ? Math.round((rpm * tireCircumferenceM * 60) / (totalReduction * 1000)) : 0;
+  const redlineSpeed = (totalReduction > 0) ? Math.round((redline * tireCircumferenceM * 60) / (totalReduction * 1000)) : 0;
+
+  if (qsDriveSpeed) qsDriveSpeed.innerText = `${currentSpeed} km/h`;
+  if (qsDriveRed) qsDriveRed.innerText = totalReduction > 0 ? `${totalReduction.toFixed(2)}:1` : 'Luz (N)';
+  if (qsDriveRedlineSpd) qsDriveRedlineSpd.innerText = totalReduction > 0 ? `${redlineSpeed} km/h` : '---';
+
+  // 8. Tabela Prędkości Biegów
+  this.updateGearSpeedTable(redline);
+}
+
+/**
+ * Tabela prędkości teoretycznych na poszczególnych biegach
+ */
+export function updateGearSpeedTable(redline) {
+  const tableBody = document.getElementById('gear_matrix_body');
+  if (!tableBody) return;
+
+  const currentGear = this.config.currentGear || '1';
+  const rpm = this.config.rpm || 1000;
+  const red = redline || 6800;
+  const finalDrive = this.config.finalDrive || 3.94;
+  const tireCircumferenceM = 2 * Math.PI * 0.32; // ~2.011m (promień koła 32cm)
+
+  const thRpm = document.getElementById('th_speed_rpm');
+  if (thRpm) thRpm.innerText = `@ ${rpm} RPM`;
+  const thRed = document.getElementById('th_speed_redline');
+  if (thRed) thRed.innerText = `@ ${red} RPM`;
+
+  // Pobierz przełożenia biegów
+  let ratios = {};
+  if (this.config.gearboxPreset === 'custom') {
+    ratios = this.config.gearboxCustomRatios || {};
+  } else {
+    const preset = GEARBOX_PRESETS[this.config.gearboxPreset] || GEARBOX_PRESETS.opel_f17;
+    ratios = preset.ratios || {};
+  }
+
+  const gearKeys = Object.keys(ratios).filter(k => k !== 'N');
+  // Sort gears 1..6, then R
+  gearKeys.sort((a, b) => {
+    if (a === 'R') return 1;
+    if (b === 'R') return -1;
+    return parseInt(a, 10) - parseInt(b, 10);
+  });
+
+  const rowsHtml = gearKeys.map(gKey => {
+    const ratio = ratios[gKey];
+    if (ratio === 0 || ratio === undefined) return '';
+    const absRatio = Math.abs(ratio);
+    const totalReduction = absRatio * finalDrive;
+    
+    // Prędkość km/h = (RPM * C * 60) / (totalReduction * 1000)
+    const speedAtRpm = Math.round((rpm * tireCircumferenceM * 60) / (totalReduction * 1000));
+    const speedAtRedline = Math.round((red * tireCircumferenceM * 60) / (totalReduction * 1000));
+    const isActive = (gKey === currentGear);
+
+    return `
+      <tr class="${isActive ? 'active-gear' : ''}">
+        <td><b>${gKey}</b></td>
+        <td>${ratio.toFixed(2)}</td>
+        <td>${speedAtRpm} km/h</td>
+        <td>${speedAtRedline} km/h</td>
+      </tr>
+    `;
+  }).join('');
+
+  tableBody.innerHTML = rowsHtml;
+}

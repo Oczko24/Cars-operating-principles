@@ -239,14 +239,14 @@ input[type="text"]:focus {
   top: 16px;
   left: 16px;
   bottom: 16px;
-  width: 320px;
+  width: 335px;
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  padding: 14px;
+  padding: 12px;
   overflow-y: auto;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   gap: 10px;
@@ -257,7 +257,7 @@ input[type="text"]:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 2px 10px 2px;
+  padding: 2px 2px 8px 2px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -336,6 +336,361 @@ input[type="text"]:focus {
 .lang-pill .lang-divider {
   opacity: 0.3;
   margin: 0 1px;
+}
+
+/* ═══ 3b. GŁÓWNY PRZEŁĄCZNIK TRYBÓW (Main Mode Switcher) ═══ */
+.main-mode-switcher {
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.mode-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-spring);
+  white-space: nowrap;
+}
+
+.mode-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-tab-btn.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.mode-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ═══ 3c. PODZAKŁADKI KONFIGURATORA (Subtab Navigation) ═══ */
+.subtab-nav {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 3px;
+  overflow-x: auto;
+}
+
+.subtab-btn {
+  flex: 1;
+  min-width: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  padding: 5px 3px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-smooth);
+  white-space: nowrap;
+}
+
+.subtab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.subtab-btn.active {
+  background: rgba(41, 151, 255, 0.18);
+  border: 1px solid rgba(41, 151, 255, 0.4);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.subtab-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.subtab-text {
+  font-size: 9.5px;
+  line-height: 1.1;
+}
+
+/* Widoki i zakładki */
+.mode-view {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-view.active {
+  display: flex;
+}
+
+.subtab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  animation: subtabFadeIn 0.2s var(--ease-smooth);
+}
+
+.subtab-pane.active {
+  display: flex;
+}
+
+@keyframes subtabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ SZYBKA BELKA STATYSTYK PODZAKŁADKI (Quick Stats Strip) ═══ */
+.quick-stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.quick-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.quick-stat-label {
+  font-size: 8.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.quick-stat-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* ═══ STATYSTYKI & OSIĄGI (LIVE SPECS DASHBOARD) ═══ */
+.stats-hero-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(41, 151, 255, 0.08);
+  border: 1px solid rgba(41, 151, 255, 0.25);
+  border-radius: 9px;
+  padding: 7px 10px;
+}
+
+.stats-hero-badge {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11.5px;
+  color: var(--accent-blue);
+}
+
+.stats-hero-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.15s ease;
+}
+
+.stat-card.hero-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.stat-card-title {
+  font-size: 9.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.stat-card-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-card.hero-card:nth-child(1) .stat-card-value {
+  color: var(--accent-green);
+}
+
+.stat-card.hero-card:nth-child(2) .stat-card-value {
+  color: var(--accent-amber);
+}
+
+.stat-card-sub {
+  font-size: 9.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.section-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.section-icon {
+  font-size: 12px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-row-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.stat-row-val {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+}
+
+.stat-sub-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 6px 0;
+}
+
+.stat-note-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+/* Wskaźnik prędkości tłoka */
+.piston-speed-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+.piston-speed-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-amber) 65%, var(--accent-red) 100%);
+  border-radius: 9999px;
+  transition: width 0.2s ease;
+}
+
+/* Tabela Prędkości Biegów */
+.gear-matrix-table-wrap {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gear-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.gear-matrix-table th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 5px 7px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.gear-matrix-table th:first-child,
+.gear-matrix-table td:first-child {
+  text-align: left;
+}
+
+.gear-matrix-table td {
+  padding: 5px 7px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+}
+
+.gear-matrix-table tr.active-gear {
+  background: rgba(41, 151, 255, 0.15);
+}
+
+.gear-matrix-table tr.active-gear td {
+  color: var(--accent-blue);
+  font-weight: 700;
 }
 
 /* ═══ 4. SEKCJE AKORDEONU (COLLAPSIBLE SECTIONS) ═══ */

@@ -356,10 +356,24 @@ export function checkOverlap() {
       // 2b. SPRAWDZENIE MIĘDZYCYLINDROWE:
       // Tłoki, korbowody, sworznie, pierścienie i tuleje różnych cylindrów (a.cylId !== b.cylId)
       // NIGDY nie są ignorowane - ich kolizja w 3D to błąd konstrukcyjny!
-      const isCylPartA = nA.includes("tłok") || nA.includes("tlok") || nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("tuleja");
-      const isCylPartB = nB.includes("tłok") || nB.includes("tlok") || nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("tuleja");
+      const isCylPartA = nA.includes("tłok") || nA.includes("tlok") || nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("tuleja") || nA.includes("półka") || nA.includes("polka") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("panewka");
+      const isCylPartB = nB.includes("tłok") || nB.includes("tlok") || nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("tuleja") || nB.includes("półka") || nB.includes("polka") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("panewka");
       if (a.cylId !== null && b.cylId !== null && a.cylId !== b.cylId && isCylPartA && isCylPartB) {
         return false;
+      }
+
+      // 2c. IGNOROWANIE ZAKRZYWIONYCH RUR (Fałszywe kolizje przez ogromny OBB dla TubeGeometry)
+      const isCurvedTubeA = nA.includes("wąż chłodnicy") || nA.includes("waz chlodnicy") || nA.includes("kolektor wydechowy") || nA.includes("rura");
+      const isCurvedTubeB = nB.includes("wąż chłodnicy") || nB.includes("waz chlodnicy") || nB.includes("kolektor wydechowy") || nB.includes("rura");
+      const isInternalEngineA = isCylPartA || nA.includes("zawór") || nA.includes("zawor") || nA.includes("świeca") || nA.includes("swieca") || nA.includes("wtryskiwacz") || nA.includes("izolator");
+      const isInternalEngineB = isCylPartB || nB.includes("zawór") || nB.includes("zawor") || nB.includes("świeca") || nB.includes("swieca") || nB.includes("wtryskiwacz") || nB.includes("izolator");
+      if ((isCurvedTubeA && isInternalEngineB) || (isCurvedTubeB && isInternalEngineA)) {
+        return true;
+      }
+      
+      // Dodatkowo ignoruj rury między sobą, bo OBB na to nie pozwala (np. 4 rury kolektora wchodzą na siebie z powodu luźnych bounding boxów)
+      if (isCurvedTubeA && isCurvedTubeB) {
+        return true;
       }
 
       // 3. Rama nośna podwozia i belki (Chassis frame, subframes, crossmembers, side sills)

@@ -10,6 +10,7 @@ import * as EngineBuilder from './scene/EngineBuilder.js';
 import * as DrivetrainBuilder from './scene/DrivetrainBuilder.js';
 import * as DevUIController from './scene/DevUIController.js';
 import * as Telemetry from './scene/Telemetry.js';
+import { setupDebugClicker } from './scene/DebugTools.js';
 
 import {
   CRANK_PRESETS,
@@ -138,32 +139,7 @@ export class Scene3D {
     // --- Narzędzie do debugowania (Klikacz) ---
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    window.addEventListener('dblclick', (e) => {
-      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-      if (intersects.length > 0) {
-        const hit = intersects[0];
-        const mesh = hit.object;
-        const name = mesh.userData.name || mesh.name || "Nieznany obiekt";
-        const wPos = new THREE.Vector3();
-        mesh.getWorldPosition(wPos);
-        
-        let localEnginePos = "N/A";
-        if (this.engineMountGroup) {
-          const lPos = wPos.clone();
-          this.engineMountGroup.worldToLocal(lPos);
-          localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
-        }
-        
-        console.log(`%c[DEBUG KLIK] %c${name}`, 'color: #0ea5e9; font-weight: bold;', 'color: #facc15; font-weight: bold;');
-        console.log(`Współrzędne Świata (Vehicle Space): X: ${wPos.x.toFixed(3)}, Y: ${wPos.y.toFixed(3)}, Z: ${wPos.z.toFixed(3)}`);
-        console.log(`Współrzędne Lokalne (Engine Space): ${localEnginePos}`);
-        const debugText = `Obiekt: ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne (Silnik): ${localEnginePos}`;
-        prompt(`Współrzędne (Ctrl+C aby skopiować):`, debugText);
-      }
-    });
+    setupDebugClicker(this);
     this.movingCylinders = [];
     this.camshafts = [];
     this.valvesToDrive = [];
@@ -508,7 +484,7 @@ export class Scene3D {
     if (this.banksData) {
       this.banksData.forEach(bank => {
         if (isOHV) {
-            const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.14 * boreScale : 0;
+            const globalCamX = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? 0.16 * boreScale : 0;
             const globalCamY = (this.config.layout === 'Inline' || this.config.layout === 'VR') ? (rodLength * 0.5 + explodeDist * 0.5) : (rodLength * 0.35 + explodeDist * 0.5);
             const localX = globalCamX * Math.cos(bank.bankAngle) + globalCamY * Math.sin(bank.bankAngle);
             const localY = -globalCamX * Math.sin(bank.bankAngle) + globalCamY * Math.cos(bank.bankAngle);
@@ -790,34 +766,60 @@ export class Scene3D {
           if (v.camGroup && v.camGroup.parent && v.pushrod) {
             const prBottomYLocal = v.camGroup.parent.position.y + r;
             const prBottomXLocal = v.camGroup.parent.position.x;
-            const prTopYLocal = valveY + 0.08 * (boreScale || 1.0); 
-            const prLen = Math.max(0.05, prTopYLocal - prBottomYLocal - 0.02);
+            
+            // Valve base position when closed is valveBaseY
+            // vGeo is positioned at valveY, its tappet top is locally at +0.095
+            const pushrodSideSign = (v.localCamX >= 0) ? 1 : -1;
+            const prTopXLocal = pushrodSideSign * 0.13 * (boreScale || 1.0);
+            
+            // Pushrod top should match the valve top height
+            const vTopY = valveY + 0.095 * (boreScale || 1.0);
+            const prTopYLocal = v.baseY + 0.095 * (boreScale || 1.0) + pushDown;
+            
+            const dx = prTopXLocal - prBottomXLocal;
+            const dy = prTopYLocal - prBottomYLocal;
+            const dz = 0; // Pushrod stands vertically in Z plane of the cam lobe
+            const prLen = Math.sqrt(dx*dx + dy*dy + dz*dz);
             
             v.pushrod.scale.y = prLen;
-            v.pushrod.position.set(prBottomXLocal, prBottomYLocal + prLen / 2, v.prZ);
+            v.pushrod.position.set(prBottomXLocal + dx/2, prBottomYLocal + dy/2, v.prZ);
+            
+            const up = new THREE.Vector3(0, 1, 0);
+            const dir = new THREE.Vector3(dx, dy, dz).normalize();
+            v.pushrod.quaternion.setFromUnitVectors(up, dir);
             
             if (v.rocker && v.rocker.children && v.rocker.children.length > 0) {
                 const vTopX = v.offsetX;
-                const vTopY = valveY + 0.06 * (boreScale || 1.0);
-                const prTopX = prBottomXLocal;
-                const prTopY = prBottomYLocal + prLen;
+                const vTopZ = v.valveG.parent.position.z + v.offsetZ; // Absolute Z of valve in engine block
+                
+                const prTopX = prTopXLocal;
+                const prTopY = prTopYLocal;
+                const prTopZ = v.prZ; // Pushrod Z
                 
                 const midX = (vTopX + prTopX) / 2;
                 const midY = (vTopY + prTopY) / 2;
-                const midZ = (v.offsetZ + v.prZ) / 2;
+                const midZ = (vTopZ + prTopZ) / 2;
                 
                 v.rocker.position.set(midX, midY, midZ);
                 
-                const dx = vTopX - prTopX;
-                const dy = vTopY - prTopY;
-                const dz = v.offsetZ - v.prZ;
-                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                const rdx = vTopX - prTopX;
+                const rdy = vTopY - prTopY;
+                const rdz = vTopZ - prTopZ;
                 
-                v.rocker.children[0].scale.x = dist / 0.12; 
+                const rdist = Math.sqrt(rdx*rdx + rdy*rdy + rdz*rdz);
                 
-                v.rocker.rotation.order = 'ZYX';
-                v.rocker.rotation.z = Math.atan2(dy, dx);
-                v.rocker.rotation.y = Math.atan2(-dz, Math.sqrt(dx*dx + dy*dy));
+                // The rocker arm is BoxGeometry in createRockerArm, not a cylinder.
+                // It was 0.12 length along X. 
+                v.rocker.children[0].scale.x = rdist / 0.12; 
+                
+                // Align the +X axis of the rocker arm to the vector (rdx, rdy, rdz)
+                // Keep the Y axis (up) pointing generally upwards to avoid twisting
+                const xVec = new THREE.Vector3(rdx, rdy, rdz).normalize();
+                const yVec = new THREE.Vector3(0, 1, 0);
+                const zVec = new THREE.Vector3().crossVectors(xVec, yVec).normalize();
+                yVec.crossVectors(zVec, xVec).normalize();
+                const rotMat = new THREE.Matrix4().makeBasis(xVec, yVec, zVec);
+                v.rocker.quaternion.setFromRotationMatrix(rotMat);
             }
           }
       }

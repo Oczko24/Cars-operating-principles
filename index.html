@@ -108,17 +108,69 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
     </div>
 
-    <!-- 1. ARCHITEKTURA SILNIKA -->
-    <div class="panel-section collapsible collapsed" id="section_engine">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h3 class="section-title" data-i18n="ui.engineArch">Architektura Silnika</h3>
-        </div>
-        <span class="section-status-pill" id="status_engine">R4 • 2.0L</span>
-        <span class="collapse-icon">▾</span>
+    <!-- GŁÓWNY PRZEŁĄCZNIK TRYBÓW (Apple Segmented Tab Switcher) -->
+    <div class="main-mode-switcher">
+      <button class="mode-tab-btn active" data-mode="config">
+        <span class="mode-icon">🛠️</span>
+        <span data-i18n="ui.modeConfig">Konfigurator</span>
+      </button>
+      <button class="mode-tab-btn" data-mode="stats">
+        <span class="mode-icon">📊</span>
+        <span data-i18n="ui.modeStats">Statystyki & Osiągi</span>
+      </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+         WIDOK 1: KONFIGURATOR (MODYFIKACJE PODZESPOŁÓW)
+         ═══════════════════════════════════════════════════ -->
+    <div id="mode_config_view" class="mode-view active">
+      <!-- PODZAKŁADKI KONFIGURATORA -->
+      <div class="subtab-nav">
+        <button class="subtab-btn active" data-subtab="engine" data-i18n-title="ui.subtabEngineTitle" title="Architektura, cylindry i rozrząd">
+          <span class="subtab-icon">🏎️</span>
+          <span class="subtab-text" data-i18n="ui.subtabEngine">Silnik</span>
+        </button>
+        <button class="subtab-btn" data-subtab="aspiration" data-i18n-title="ui.subtabAspirationTitle" title="Dolot, doładowanie, wydech i montaż">
+          <span class="subtab-icon">🌪️</span>
+          <span class="subtab-text" data-i18n="ui.subtabAspiration">Dolot/Wydech</span>
+        </button>
+        <button class="subtab-btn" data-subtab="crank" data-i18n-title="ui.subtabCrankTitle" title="Geometria wału korbowego i zapłon">
+          <span class="subtab-icon">🗜️</span>
+          <span class="subtab-text" data-i18n="ui.subtabCrank">Wał</span>
+        </button>
+        <button class="subtab-btn" data-subtab="drivetrain" data-i18n-title="ui.subtabDrivetrainTitle" title="Układ napędowy, RPM i skrzynia biegów">
+          <span class="subtab-icon">⚙️</span>
+          <span class="subtab-text" data-i18n="ui.subtabDrivetrain">Napęd</span>
+        </button>
+        <button class="subtab-btn" data-subtab="view" data-i18n-title="ui.subtabViewTitle" title="Narzędzia widoku, przekrój i kamera">
+          <span class="subtab-icon">👁️</span>
+          <span class="subtab-text" data-i18n="ui.subtabView">Widok</span>
+        </button>
       </div>
-      <div class="section-body-wrapper">
-        <div class="section-body">
+
+      <!-- 1. PODZAKŁADKA: SILNIK (ENGINE CORE) -->
+      <div id="subtab_engine" class="subtab-pane active">
+        <!-- Pasek szybkich parametrów fizycznych silnika (Bez wróżenia mocy z fusów) -->
+        <div class="quick-stats-strip">
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Pojemność</span>
+            <b class="quick-stat-val" id="qs_engine_disp">2.0L (1995 cm³)</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Średnica × Skok</span>
+            <b class="quick-stat-val" id="qs_engine_bore_stroke" style="color: var(--accent-amber);">84.0 × 90.0 mm</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Geometria B/S</span>
+            <b class="quick-stat-val" id="qs_engine_bs" style="color: var(--accent-cyan);">0.93</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">v_mean (Tłok)</span>
+            <b class="quick-stat-val" id="qs_engine_pspeed" style="color: var(--accent-green);">6.0 m/s</b>
+          </div>
+        </div>
+
+        <div class="panel-section">
           <label class="control-label" data-i18n="ui.cylinderLayout">Układ cylindrów:</label>
           <div class="focus-group" id="dev_layout" style="flex-wrap: wrap;">
             <button class="config-btn active" data-val="Inline" data-i18n="ui.layoutInline" data-i18n-title="ui.layoutInlineTitle" title="Rzędowy (Inline) - najpopularniejszy układ.">Rzędowy</button>
@@ -129,7 +181,7 @@ window.addEventListener('unhandledrejection', function(e) {
           </div>
           
           <label class="control-label"><span data-i18n="ui.cylinderCount">Liczba cylindrów:</span> <b id="dev_cyl_val" class="highlight-val">4</b></label>
-          <input type="range" id="dev_cyl" class="styled-slider" min="2" max="16" step="1" value="4">
+          <input type="range" id="dev_cyl" class="styled-slider" min="1" max="16" step="1" value="4">
 
           <label class="control-label"><span data-i18n="ui.bore">Średnica tłoka (Bore):</span> <b id="dev_bore_val" class="highlight-val">84.0 mm</b></label>
           <input type="range" id="dev_bore" class="styled-slider" min="50" max="120" step="0.5" value="84">
@@ -147,18 +199,6 @@ window.addEventListener('unhandledrejection', function(e) {
             <input type="range" id="dev_angle" class="styled-slider" min="15" max="180" step="5" value="60">
           </div>
 
-          <!-- WYBÓR WAŁU DLA V8 (Crossplane vs Flat-plane) -->
-          <div id="dev_v8_crank_container" style="display: none; margin-bottom: 8px;">
-            <label class="control-label" data-i18n="ui.v8Crank">Geometria wału V8:</label>
-            <div class="focus-group" id="dev_v8_crank">
-              <button class="config-btn active" data-val="crossplane" data-i18n="ui.v8CrossplaneBtn">Crossplane (90°)</button>
-              <button class="config-btn" data-val="flatplane" data-i18n="ui.v8FlatplaneBtn">Flat-plane (180°)</button>
-            </div>
-            <div id="v8_crank_note" class="crank-edu-note">
-              <b>Crossplane (90°):</b> Klasyczny bulgot V8, przeciwciężary niwelują siły bezwładności I i II rzędu.
-            </div>
-          </div>
-
           <label class="control-label" data-i18n="ui.cycle">Cykl pracy:</label>
           <div class="focus-group" id="dev_stroke">
             <button class="config-btn active" data-val="4" data-i18n="ui.cycle4Btn">4-suw (Otto)</button>
@@ -173,11 +213,51 @@ window.addEventListener('unhandledrejection', function(e) {
 
           <label class="control-label" data-i18n="ui.valvetrain">Układ rozrządu:</label>
           <div class="focus-group" id="dev_valvetrain">
-            <button class="config-btn active" data-val="OHC" data-i18n="ui.valvetrainOHCBtn">OHC (Wałek w głowicy)</button>
+            <button class="config-btn active" data-val="OHC" data-i18n="ui.valvetrainOHCBtn">OHC (Głowica)</button>
             <button class="config-btn" data-val="OHV" data-i18n="ui.valvetrainOHVBtn">OHV (Popychacze)</button>
           </div>
-          
-          <label class="control-label" data-i18n="ui.enginePlacement">Położenie silnika w podwoziu:</label>
+        </div>
+      </div>
+
+      <!-- 2. PODZAKŁADKA: DOLOT, WYDECH & MONTAŻ -->
+      <div id="subtab_aspiration" class="subtab-pane">
+        <!-- Pasek szybkich statystyk dolotu/wydechu -->
+        <div class="quick-stats-strip">
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Dolot</span>
+            <b class="quick-stat-val" id="qs_asp_intake">Sport Stożek</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Zawory / Rozrząd</span>
+            <b class="quick-stat-val" id="qs_asp_valves" style="color: var(--accent-cyan);">4V OHC</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Masa zespołu</span>
+            <b class="quick-stat-val" id="qs_asp_weight">168 kg</b>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <label class="control-label">Układ dolotowy powietrza:</label>
+          <div class="focus-group" id="dev_intake">
+            <button class="config-btn active" data-val="sport">Sportowy (Stożek)</button>
+            <button class="config-btn" data-val="normal">Cywilny (Airbox)</button>
+          </div>
+
+          <label class="control-label">Doładowanie (Forced Induction):</label>
+          <div class="focus-group" id="dev_aspiration">
+            <button class="config-btn active" data-val="na">N/A (Wolnossący)</button>
+            <button class="config-btn" data-val="turbo" disabled style="opacity: 0.45; cursor: not-allowed;" title="Turbosprężarka - wkrótce!">Turbo (Wkrótce)</button>
+            <button class="config-btn" data-val="supercharger" disabled style="opacity: 0.45; cursor: not-allowed;" title="Kompresor - wkrótce!">Kompresor (Wkrótce)</button>
+          </div>
+
+          <label class="control-label" data-i18n="ui.exhaustPipes">Układ Wydechowy:</label>
+          <div class="focus-group" id="dev_exhaust_pipes">
+            <button class="config-btn active" data-val="single" data-i18n="ui.exhaustSingleBtn">Pojedynczy (1 rura)</button>
+            <button class="config-btn" data-val="dual" data-i18n="ui.exhaustDualBtn">Podwójny (2 rury)</button>
+          </div>
+
+          <label class="control-label" data-i18n="ui.enginePlacement">Położenie silnika w ramie:</label>
           <div class="focus-group" id="dev_placement">
             <button class="config-btn active" data-val="front" data-i18n="ui.placementFrontBtn">Z przodu</button>
             <button class="config-btn" data-val="mid" data-i18n="ui.placementMidBtn">Centralnie</button>
@@ -190,28 +270,43 @@ window.addEventListener('unhandledrejection', function(e) {
             <button class="config-btn" data-val="transverse" data-i18n="ui.orientationTransBtn">Poprzeczny</button>
           </div>
 
-          <label class="control-label" data-i18n="ui.drivetrainLayout">Rodzaj napędu:</label>
-          <div class="focus-group" id="dev_drivetrain_layout">
-            <button class="config-btn active" data-val="RWD">RWD</button>
-            <button class="config-btn" data-val="FWD">FWD</button>
-            <button class="config-btn" data-val="AWD">AWD</button>
-            <button class="config-btn" data-val="4x4">4x4</button>
+          <div class="crank-edu-note" style="margin-top: 6px;">
+            <b>Układ:</b> Szeroki chwytak zimnego powietrza (Ram-Air) zoptymalizowany nad chłodnicą.
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 2. WAŁ KORBOWY & ZAPŁON -->
-    <div class="panel-section collapsible collapsed" id="crank_tuning_section">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h3 class="section-title" data-i18n="ui.crankAndIgnition">Wał Korbowy & Zapłon</h3>
+      <!-- 3. PODZAKŁADKA: WAŁ KORBOWY & ZAPŁON -->
+      <div id="subtab_crank" class="subtab-pane">
+        <!-- Pasek szybkich statystyk wału i wyważenia -->
+        <div class="quick-stats-strip">
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Kolejność</span>
+            <b class="quick-stat-val" id="qs_crank_order">1-3-4-2</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Balans I</span>
+            <b class="quick-stat-val" id="qs_crank_f1" style="color: var(--accent-green);">100% OK</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Kultura</span>
+            <b class="quick-stat-val" id="qs_crank_status" style="color: var(--accent-cyan);">Perfekcyjna</b>
+          </div>
         </div>
-        <span class="section-status-pill" id="status_crank">180° Flat-plane</span>
-        <span class="collapse-icon">▾</span>
-      </div>
-      <div class="section-body-wrapper">
-        <div class="section-body">
+
+        <div class="panel-section">
+          <!-- WYBÓR WAŁU DLA V8 (Crossplane vs Flat-plane) -->
+          <div id="dev_v8_crank_container" style="display: none; margin-bottom: 8px;">
+            <label class="control-label" data-i18n="ui.v8Crank">Geometria wału V8:</label>
+            <div class="focus-group" id="dev_v8_crank">
+              <button class="config-btn active" data-val="crossplane" data-i18n="ui.v8CrossplaneBtn">Crossplane (90°)</button>
+              <button class="config-btn" data-val="flatplane" data-i18n="ui.v8FlatplaneBtn">Flat-plane (180°)</button>
+            </div>
+            <div id="v8_crank_note" class="crank-edu-note">
+              <b>Crossplane (90°):</b> Klasyczny bulgot V8, przeciwciężary niwelują siły bezwładności I i II rzędu.
+            </div>
+          </div>
+
           <label class="control-label" data-i18n="ui.crankConfigMode">Tryb konfiguracji wału:</label>
           <div class="focus-group" id="dev_crank_mode">
             <button class="config-btn active" data-val="preset" data-i18n="ui.presetModeBtn">Wzorce Inżynieryjne</button>
@@ -231,7 +326,7 @@ window.addEventListener('unhandledrejection', function(e) {
           <!-- INTERAKTYWNA TARCZA BIEGUNOWA W TRYBIE WŁASNYM -->
           <div id="radial_tuning_container" style="display: none; margin-top: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span class="control-label" style="margin-top: 0; margin-bottom: 0;" data-i18n="ui.radialTuningLabel">Tarcza wykorbień (Przeciągnij czopy):</span>
+              <span class="control-label" style="margin: 0;" data-i18n="ui.radialTuningLabel">Tarcza wykorbień (360°):</span>
               <button id="btn_reset_crank" class="dev-btn-small" data-i18n="ui.resetCrankBtn" data-i18n-title="ui.resetCrankTitle" title="Przywróć domyślne kąty wzorca">Reset</button>
             </div>
             <div class="radial-canvas-wrap">
@@ -244,25 +339,65 @@ window.addEventListener('unhandledrejection', function(e) {
               </label>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- 3. UKŁAD NAPĘDOWY & PRZEŁOŻENIA -->
-    <div class="panel-section collapsible collapsed" id="section_drivetrain">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h3 class="section-title" data-i18n="ui.drivetrainAndGearbox">Układ Napędowy & Skrzynia</h3>
+          <!-- DIAGNOSTYKA I WIZUALIZACJA BALANSU SILNIKA (W CZASIE RZECZYWISTYM) -->
+          <div style="margin-top: 10px;">
+            <label class="control-label" data-i18n="ui.physicsAndBalance">Wyważenie & Kultura pracy (Na żywo):</label>
+            <div id="crank_diagnostics_box" class="crank-diag-box perfect">
+              <div class="diag-header">
+                <span id="diag_status_icon">✓</span>
+                <strong id="diag_title">Perfekcyjny Balans</strong>
+              </div>
+              <p id="diag_message" class="diag-text">Siły I i II rzędu oraz momenty znoszą się do zera.</p>
+              <div id="diag_rec" class="diag-rec">Złoty standard kultury pracy silnika spalinowego.</div>
+            </div>
+
+            <!-- Radar / Orbita Wibracji Masowych na Żywo -->
+            <div style="margin-top: 8px; display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px;">
+              <div style="display: flex; justify-content: space-between; width: 100%; font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">
+                <span>Orbita sił i momentów (Lissajous)</span>
+                <span style="display: flex; gap: 8px;">
+                  <span style="color: #ef4444;">● Siły</span>
+                  <span style="color: #f59e0b;">● Momenty</span>
+                </span>
+              </div>
+              <canvas id="dev_vibration_canvas" width="180" height="130" class="physics-canvas"></canvas>
+            </div>
+          </div>
         </div>
-        <span class="section-status-pill" id="status_drivetrain">5b • 1000 RPM</span>
-        <span class="collapse-icon">▾</span>
       </div>
-      <div class="section-body-wrapper">
-        <div class="section-body">
+
+      <!-- 4. PODZAKŁADKA: UKŁAD NAPĘDOWY & SKRZYNIA -->
+      <div id="subtab_drivetrain" class="subtab-pane">
+        <!-- Pasek szybkich statystyk napędu -->
+        <div class="quick-stats-strip">
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Prędkość</span>
+            <b class="quick-stat-val" id="qs_drive_speed">0 km/h</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">Redukcja</span>
+            <b class="quick-stat-val" id="qs_drive_reduction">14.68:1</b>
+          </div>
+          <div class="quick-stat-item">
+            <span class="quick-stat-label">V_max biegu</span>
+            <b class="quick-stat-val" id="qs_drive_redline_spd" style="color: var(--accent-blue);">58 km/h</b>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <label class="control-label" data-i18n="ui.drivetrainLayout">Rodzaj napędu:</label>
+          <div class="focus-group" id="dev_drivetrain_layout">
+            <button class="config-btn active" data-val="RWD">RWD</button>
+            <button class="config-btn" data-val="FWD">FWD</button>
+            <button class="config-btn" data-val="AWD">AWD</button>
+            <button class="config-btn" data-val="4x4">4x4</button>
+          </div>
+
           <label class="control-label"><span data-i18n="ui.engineRpm">Obroty silnika:</span> <b id="dev_rpm_val" class="highlight-val">1000</b> RPM</label>
           <input type="range" id="dev_rpm" class="styled-slider" min="0" max="8000" step="100" value="1000">
 
-          <div style="display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px 0;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin: 4px 0 8px 0;">
             <label class="control-label" style="margin: 0;" data-i18n="ui.clutchEngaged">Sprzęgło załączone:</label>
             <input type="checkbox" id="dev_clutch_engaged" checked>
           </div>
@@ -336,12 +471,6 @@ window.addEventListener('unhandledrejection', function(e) {
             <button class="config-btn" data-val="dual" data-i18n="ui.clutchDualBtn">DCT (Dwusprzęgłowe)</button>
           </div>
 
-          <label class="control-label" data-i18n="ui.exhaustPipes">Układ Wydechowy:</label>
-          <div class="focus-group" id="dev_exhaust_pipes">
-            <button class="config-btn active" data-val="single" data-i18n="ui.exhaustSingleBtn">Pojedynczy (1 rura)</button>
-            <button class="config-btn" data-val="dual" data-i18n="ui.exhaustDualBtn">Podwójny (2 rury)</button>
-          </div>
-
           <label class="control-label" data-i18n="ui.diffType">Mechanizm Różnicowy (Tył):</label>
           <div class="focus-group" id="dev_diff">
             <button class="config-btn active" data-val="open" data-i18n="ui.diffOpenBtn">Otwarty</button>
@@ -366,43 +495,10 @@ window.addEventListener('unhandledrejection', function(e) {
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 4. FIZYKA & WIBRACJE -->
-    <div class="panel-section collapsible collapsed" id="section_physics">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h3 class="section-title" data-i18n="ui.physicsAndBalance">Fizyka & Wyważenie</h3>
-        </div>
-        <span class="section-status-pill" id="status_physics">Balans OK</span>
-        <span class="collapse-icon">▾</span>
-      </div>
-      <div class="section-body-wrapper">
-        <div class="section-body">
-          <canvas id="dev_vibration_canvas" width="180" height="180" class="physics-canvas"></canvas>
-          <div id="crank_diagnostics_box" class="crank-diag-box perfect">
-            <div class="diag-header">
-              <span id="diag_status_icon">✓</span>
-              <strong id="diag_title">Perfekcyjny Balans</strong>
-            </div>
-            <p id="diag_message" class="diag-text">Siły I i II rzędu oraz momenty znoszą się do zera.</p>
-            <div id="diag_rec" class="diag-rec">Złoty standard kultury pracy silnika spalinowego.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 5. WIDOK & KAMERA -->
-    <div class="panel-section collapsible collapsed" id="section_view">
-      <div class="section-header">
-        <div class="section-header-left">
-          <h3 class="section-title" data-i18n="ui.viewAndCamera">Widok & Kamera</h3>
-        </div>
-        <span class="section-status-pill" id="status_view">Studio</span>
-        <span class="collapse-icon">▾</span>
-      </div>
-      <div class="section-body-wrapper">
-        <div class="section-body">
+      <!-- 5. PODZAKŁADKA: WIDOK & KAMERA -->
+      <div id="subtab_view" class="subtab-pane">
+        <div class="panel-section">
           <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
             <label style="display: flex; align-items: center; justify-content: space-between; color: var(--text-secondary); cursor: pointer; font-size: 11.5px;">
               <span data-i18n="ui.toggleWireframes">Zarys (Cylindry / Głowice)</span>
@@ -440,8 +536,127 @@ window.addEventListener('unhandledrejection', function(e) {
         </div>
       </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════
+         WIDOK 2: STATYSTYKI & OSIĄGI (LIVE SPECS DASHBOARD)
+         ═══════════════════════════════════════════════════ -->
+    <div id="mode_stats_view" class="mode-view">
+      <!-- HEADER PODSUMOWANIA ARCHITEKTURY -->
+      <div class="stats-hero-banner">
+        <span class="stats-hero-badge" id="stats_engine_pill">R4 2.0L DOHC</span>
+        <span class="stats-hero-sub" id="stats_aspiration_pill">N/A • Sport Cone</span>
+      </div>
+
+      <!-- GŁÓWNE OSIĄGI (HERO KPI GRID) -->
+      <div class="stats-kpi-grid">
+        <div class="stat-card hero-card">
+          <span class="stat-card-title" data-i18n="ui.statsPowerTitle">Moc szacunkowa</span>
+          <div class="stat-card-value" id="stat_power_val">210 KM</div>
+          <div class="stat-card-sub" id="stat_power_kw">154 kW @ 6400 RPM</div>
+        </div>
+
+        <div class="stat-card hero-card">
+          <span class="stat-card-title" data-i18n="ui.statsTorqueTitle">Maks. Moment</span>
+          <div class="stat-card-value" id="stat_torque_val">265 Nm</div>
+          <div class="stat-card-sub" id="stat_torque_rpm">@ 4200 RPM</div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-card-title" data-i18n="ui.statsPowerPerLiter">Moc z 1 litra</span>
+          <div class="stat-card-value" id="stat_power_per_liter">105.3 KM/L</div>
+          <div class="stat-card-sub" id="stat_specific_output">Wysilona wolnossąca</div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-card-title" data-i18n="ui.statsRedlineTitle">Max RPM (Redline)</span>
+          <div class="stat-card-value" id="stat_redline_val">7400 RPM</div>
+          <div class="stat-card-sub" id="stat_cycle_label">Cykl 4-suwowy</div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-card-title" data-i18n="ui.statsWeightTitle">Masa zespołu</span>
+          <div class="stat-card-value" id="stat_weight_val">168 kg</div>
+          <div class="stat-card-sub" id="stat_weight_sub">Silnik + Skrzynia</div>
+        </div>
+
+        <div class="stat-card">
+          <span class="stat-card-title" data-i18n="ui.statsPowerToWeight">Stosunek moc/masa</span>
+          <div class="stat-card-value" id="stat_ptw_val">1.25 KM/kg</div>
+          <div class="stat-card-sub" id="stat_ptw_ton">1250 KM / tonę silnika</div>
+        </div>
+      </div>
+
+      <!-- GEOMETRIA & KINEMATYKA TŁOKA -->
+      <div class="panel-section" style="margin-top: 10px;">
+        <div class="section-title-bar">
+          <span class="section-icon">📐</span>
+          <h4 class="section-title" data-i18n="ui.statsGeomSection">Geometria & Kinematyka Tłoka</h4>
+        </div>
+
+        <div class="stat-row">
+          <span class="stat-row-label" data-i18n="ui.statsDisplacement">Pojemność całkowita:</span>
+          <b class="stat-row-val" id="stat_disp_full">1995 cm³ (2.0L)</b>
+        </div>
+        <div class="stat-row">
+          <span class="stat-row-label" data-i18n="ui.statsUnitDisp">Pojemność 1 cylindra:</span>
+          <b class="stat-row-val" id="stat_unit_disp">498.8 cm³ / cyl</b>
+        </div>
+        <div class="stat-row">
+          <span class="stat-row-label" data-i18n="ui.statsBoreStroke">Średnica × Skok:</span>
+          <b class="stat-row-val" id="stat_bore_stroke">84.0 × 90.0 mm</b>
+        </div>
+        
+        <div class="stat-sub-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <span style="font-size: 10.5px; color: var(--text-secondary);" data-i18n="ui.statsBsRatio">Proporcja B/S:</span>
+            <b id="stat_bs_val" style="font-family: var(--font-mono); color: var(--accent-cyan); font-size: 12px;">0.93</b>
+          </div>
+          <div class="stat-note-text" id="stat_bs_desc">Długoskokowy (Podkwadratowy) • wysoki moment obrotowy na dole</div>
+        </div>
+
+        <!-- ŚREDNIA PRĘDKOŚĆ TŁOKA Z WSKAŹNIKIEM GRAFICZNYM -->
+        <div style="margin-top: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10.5px; color: var(--text-secondary);" data-i18n="ui.statsMeanPistonSpeed">Średnia prędkość tłoka (v_mean):</span>
+            <b id="stat_piston_speed_val" class="highlight-val">6.0 m/s</b>
+          </div>
+          <div class="piston-speed-track">
+            <div id="stat_piston_speed_bar" class="piston-speed-bar" style="width: 25%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-tertiary); margin-top: 2px;">
+            <span>0 m/s</span>
+            <span id="stat_piston_speed_status" style="color: var(--accent-green);">Bezpieczna (< 15 m/s)</span>
+            <span id="stat_piston_speed_redline_label">@ Redline: 21.6 m/s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRĘDKOŚCI TEORETYCZNE NA BIEGACH -->
+      <div class="panel-section" style="margin-top: 10px;">
+        <div class="section-title-bar">
+          <span class="section-icon">🏁</span>
+          <h4 class="section-title" data-i18n="ui.statsGearsSection">Prędkości Teoretyczne na Biegach</h4>
+        </div>
+
+        <div class="gear-matrix-table-wrap">
+          <table class="gear-matrix-table">
+            <thead>
+              <tr>
+                <th data-i18n="ui.statsColGear">Bieg</th>
+                <th data-i18n="ui.statsColRatio">Przeł.</th>
+                <th id="th_speed_rpm">@ 1000 RPM</th>
+                <th id="th_speed_redline">@ Redline</th>
+              </tr>
+            </thead>
+            <tbody id="gear_matrix_body">
+              <!-- Wypełniane dynamicznie przez JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     
-    <!-- CZĘŚCI I MODUŁY (Dla kompatybilności) -->
+    <!-- CZĘŚCI I MODUŁY (Dla kompatybilności wstecznej) -->
     <div class="panel-section" style="display:none;">
       <nav class="category-pills" id="category-nav"></nav>
       <div class="parts-chips-container" id="parts-selector"></div>
