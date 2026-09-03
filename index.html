@@ -78,14 +78,6 @@ window.addEventListener('unhandledrejection', function(e) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cars: Operating Principles | Edukacyjny Silnik & Samochód 3D</title>
   <link rel="stylesheet" href="style.css">
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "./src/vendor/three.module.js",
-      "three/addons/": "./src/vendor/"
-    }
-  }
-  </script>
 </head>
 <body>
   <div id="canvas-container"></div>
@@ -631,7 +623,7 @@ window.addEventListener('unhandledrejection', function(e) {
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-tertiary); margin-top: 2px;">
             <span>0 m/s</span>
-            <span id="stat_piston_speed_status" style="color: var(--accent-green);">Bezpieczna (< 15 m/s)</span>
+            <span id="stat_piston_speed_status" style="color: var(--accent-green);">Bezpieczna (&lt; 15 m/s)</span>
             <span id="stat_piston_speed_redline_label">@ Redline: 21.6 m/s</span>
           </div>
         </div>
@@ -795,6 +787,6 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
     </div>
   </aside>
 
-  <script type="module" src="src/app.js"></script>
+  <script type="module" src="src/app.ts"></script>
 </body>
 </html>

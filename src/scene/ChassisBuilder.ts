@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { VehicleDimensions } from './VehicleConfig.js';
 
 export class ChassisBuilder {
+  [key: string]: any;
+
   constructor(scene) {
     this.scene = scene;
   }
@@ -25,7 +27,7 @@ buildChassisFrame() {
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, sillY, -0.20), new THREE.Vector3(x, railYRear, rearZ + 0.40)));
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYRear, rearZ + 0.40), new THREE.Vector3(x, railYRear, rearZ - 0.60)));
 
-      const rail = new THREE.Mesh(new THREE.TubeGeometry(railCurve, 16, 0.045, 12, false), this.scene.matChassis);
+      const rail = new THREE.Mesh(new THREE.TubeGeometry(railCurve as any, 16, 0.045, 12, false), this.scene.matChassis);
       rail.userData.name = "Podłużnica ramy nośnej";
       frame.add(rail);
     });

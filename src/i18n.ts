@@ -18,7 +18,7 @@ export function detectBrowserLanguage() {
 
   const browserLangs = (navigator.languages && navigator.languages.length)
     ? navigator.languages
-    : [navigator.language || navigator.userLanguage || "en"];
+    : [navigator.language || (navigator as any).userLanguage || "en"];
 
   for (const lang of browserLangs) {
     if (typeof lang === "string") {

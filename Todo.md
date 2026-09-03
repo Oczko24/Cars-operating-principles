@@ -91,7 +91,7 @@
 * [ ] Wnętrze: fotele, pedały gazu/hamulca/sprzęgła, zegary telemetrii.
 
 ### VI. KOD, WYDAJNOŚĆ I DEV TOOLS
-* [ ] Dekompozycja `EngineBuilder.js` na `src/scene/engine/` (`Block`, `Crank`, `Valvetrain`, `Manifolds`, `Accessories`).
-* [ ] Bundler Vite (HMR) i migracja na TypeScript.
-* [ ] `THREE.InstancedMesh` dla elementów powtarzalnych (śruby, zawory, sprężyny, ogniwa).
-* [ ] Inspector Pro: wbudowana konsola logów, `TransformControls` (gizmo 3D).
+* [x] Dekompozycja `EngineBuilder.js` na `src/scene/engine/` (`Block`, `Crank`, `Valvetrain`, `Manifolds`, `Accessories`).
+* [x] Bundler Vite (HMR) i migracja na TypeScript.
+* [x] `THREE.InstancedMesh` dla elementów powtarzalnych (śruby, zawory, sprężyny, ogniwa).
+* [x] Inspector Pro: wbudowana konsola logów, `TransformControls` (gizmo 3D).

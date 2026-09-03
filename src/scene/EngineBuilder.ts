@@ -1,240 +1,34 @@
 import * as THREE from 'three';
+
+import { createCylConfig, computeEngineDatum, buildDatumVisuals, createDatumLabel } from './engine/Block';
+import { createConnectingRod, createPiston, createSparkPlug } from './engine/Crank';
+import { createValve, createSpringMesh, createRockerArm, createCamLobe, getCamRadius } from './engine/Valvetrain';
+
 import { resolveFiringSequence, resolveCrankPinAngles, analyzeEngineBalance } from '../crankshaft_solver.js';
 import { VehicleDimensions } from './VehicleConfig.js';
 
 export class EngineBuilder {
+  [key: string]: any;
+
   constructor(scene) {
     this.scene = scene;
   }
 
 
 createCylConfig(id, z, bank, firingAngleDeg, crankPinAngle) {
-    const firingAngle = (firingAngleDeg * Math.PI) / 180;
-    const is2Stroke = this.scene.config.stroke === 2;
-    const cyclePi = is2Stroke ? 2 : 4;
-    const phaseOffset = (2 * Math.PI - firingAngle + cyclePi * Math.PI) % (cyclePi * Math.PI);
-    return { id, z, bank, crankPinAngle, phaseOffset, firingAngle };
+    return createCylConfig(this.scene.config, id, z, bank, firingAngleDeg, crankPinAngle);
   }
 
 computeEngineDatum() {
-    const layout = this.scene.config.layout;
-    const cylCount = this.scene.config.cylinders;
-    const vAngle = this.scene.config.vAngle * Math.PI / 180;
-    
-    // Skalowanie fizyczne (Bore mm -> Three units, Stroke mm -> Three units)
-    const boreMm = this.scene.config.boreMm || 84.0;
-    const strokeMm = this.scene.config.strokeMm || 90.0;
-    const boreScale = boreMm / 84.0;
-    const strokeScale = strokeMm / 90.0;
-    const boreRadius = 0.105 * boreScale;
-    const sleeveRadius = boreRadius + 0.008 * boreScale;
-    const crankRadius = 0.16 * strokeScale;
-    const rodLength = 0.48 * strokeScale;
-    const pistonLength = Math.max(0.12, boreRadius * 1.4);
-    const pistonCrownH = 0.035 + pistonLength / 2.0;
-    const sleeveCenter = rodLength + pistonCrownH * 0.5;
-    const deckHeight = rodLength + crankRadius + pistonCrownH;
-    const sleeveLength = Math.max(0.35, (crankRadius * 2) + pistonCrownH + 0.08 * boreScale);
-
-    // Odstęp między cylindrami (zSpacing / Bore Pitch)
-    // Zapewnia stałą, bezpieczną grubość ścianki bloku i płaszcza chłodzenia
-    const minWallClearance = 0.024 * boreScale;
-    const minRequiredDist = 2 * sleeveRadius + minWallClearance;
-    let zSpacing = Math.max(0.18, minRequiredDist);
-
-    // Dynamiczny Stagger dla VR, V i W
-    let vrStaggerZ = zSpacing * 0.50;
-    let vStaggerZ = zSpacing * 0.45;
-    let wVRStaggerZ = zSpacing * 0.50;
-    let wBankOffsetZ = Math.max(0.065, zSpacing * 0.28);
-
-    if (layout === "VR") {
-      // W silnikach VR (kąt rozwarcia 15° w jednej głowicy) przesunięcie poprzeczne wynosi dx
-      const vrAngleRad = 15 * Math.PI / 180;
-      const dx = 2 * sleeveCenter * Math.sin(vrAngleRad / 2);
-      const minRequiredDz = Math.sqrt(Math.max(0.012, minRequiredDist * minRequiredDist - dx * dx));
-      vrStaggerZ = Math.max(zSpacing * 0.50, minRequiredDz);
-      zSpacing = vrStaggerZ * 2.0;
-    } else if (layout === "V") {
-      // W silnikach V przy dowolnym kącie rozwarcia (np. 15° do 180°)
-      const dx = 2 * sleeveCenter * Math.sin(vAngle / 2);
-      if (dx < minRequiredDist) {
-        const minRequiredDz = Math.sqrt(Math.max(0.012, minRequiredDist * minRequiredDist - dx * dx));
-        vStaggerZ = Math.max(zSpacing * 0.45, minRequiredDz);
-        zSpacing = Math.max(zSpacing, vStaggerZ * 2.0);
-      }
-    } else if (layout === "W") {
-      // W silnikach W (dwie głowice VR pod kątem 72°, wewnątrz każdej VR kąt 15°)
-      const vrAngleRad = 15 * Math.PI / 180;
-      const dxVR = 2 * sleeveCenter * Math.sin(vrAngleRad / 2);
-      const minRequiredDzVR = Math.sqrt(Math.max(0.012, minRequiredDist * minRequiredDist - dxVR * dxVR));
-      wVRStaggerZ = Math.max(zSpacing * 0.50, minRequiredDzVR);
-      wBankOffsetZ = Math.max(0.065, zSpacing * 0.30);
-      zSpacing = Math.max(zSpacing * 1.4, (wVRStaggerZ + wBankOffsetZ) * 1.8);
-    }
-
-    const startZ = -(cylCount - 1) * zSpacing / 2;
-
-    const bankAngles = [];
-    for (let i = 0; i < cylCount; i++) {
-      let bank = 0;
-      if (layout === "V" || layout === "VR") {
-        const actualAngle = layout === "VR" ? 15 * Math.PI / 180 : vAngle;
-        bank = (i % 2 === 0) ? -actualAngle / 2 : actualAngle / 2;
-      } else if (layout === "W") {
-        const vAngleW = 72 * Math.PI / 180;
-        const vrAngle = 15 * Math.PI / 180;
-        if (i % 4 === 0) bank = -vAngleW/2 - vrAngle/2;
-        else if (i % 4 === 1) bank = -vAngleW/2 + vrAngle/2;
-        else if (i % 4 === 2) bank = vAngleW/2 - vrAngle/2;
-        else if (i % 4 === 3) bank = vAngleW/2 + vrAngle/2;
-      } else if (layout === "Boxer") {
-        bank = (i % 2 === 0) ? -Math.PI / 2 : Math.PI / 2;
-      }
-      bankAngles.push(bank);
-    }
-
-    const firingAnglesDeg = resolveFiringSequence(this.scene.config);
-    const crankPinAngles = resolveCrankPinAngles(this.scene.config, bankAngles);
-
-    let cylinderConfigs = [];
-    for (let i = 0; i < cylCount; i++) {
-      const bank = bankAngles[i];
-      let z = startZ + i * zSpacing;
-
-      if (layout === "V" || layout === "VR" || layout === "Boxer") {
-        const pairIdx = Math.floor(i / 2);
-        const baseZ = -(Math.ceil(cylCount / 2) - 1) * zSpacing / 2 + pairIdx * zSpacing;
-        const offsetZ = layout === "VR" ? vrStaggerZ : layout === "V" ? vStaggerZ : zSpacing * 0.45;
-        z = (i % 2 === 0) ? baseZ : baseZ + offsetZ;
-      } else if (layout === "W") {
-        const bayIdx = Math.floor(i / 4);
-        const baseZ = -(Math.ceil(cylCount / 4) - 1) * zSpacing / 2 + bayIdx * zSpacing;
-        const mod4 = i % 4;
-        if (mod4 === 0) z = baseZ;
-        else if (mod4 === 1) z = baseZ + wVRStaggerZ;
-        else if (mod4 === 2) z = baseZ + wBankOffsetZ;
-        else if (mod4 === 3) z = baseZ + wVRStaggerZ + wBankOffsetZ;
-      }
-
-      const firing = firingAnglesDeg[i];
-      const crankPin = crankPinAngles[i];
-      const cfg = this.createCylConfig(i + 1, z, bank, firing, crankPin);
-
-      // Calculate datum vectors
-      cfg.u = new THREE.Vector3(-Math.sin(bank), Math.cos(bank), 0);
-      cfg.n = new THREE.Vector3(Math.cos(bank), Math.sin(bank), 0);
-      cfg.a0 = new THREE.Vector3(0, 0, z);
-      cfg.m = cfg.a0.clone().add(cfg.u.clone().multiplyScalar(sleeveCenter));
-
-      cylinderConfigs.push(cfg);
-    }
-
-    const cx = cylinderConfigs.reduce((sum, c) => sum + c.m.x, 0) / cylCount;
-    const cy = cylinderConfigs.reduce((sum, c) => sum + c.m.y, 0) / cylCount;
-    const cz = cylinderConfigs.reduce((sum, c) => sum + c.m.z, 0) / cylCount;
-    const centroid = new THREE.Vector3(cx, cy, cz);
-
-    const maxZ = Math.max(...cylinderConfigs.map(c => c.z)) + 0.15;
-    const minZ = Math.min(...cylinderConfigs.map(c => c.z)) - 0.15;
-    const engineLength = maxZ - minZ;
-
-    this.scene.currentBalanceReport = analyzeEngineBalance(cylinderConfigs, this.scene.config);
-
-    return { 
-      cylinderConfigs, centroid, maxZ, minZ, engineLength, zSpacing, 
-      boreScale, strokeScale, boreRadius, sleeveRadius, crankRadius, 
-      rodLength, pistonCrownH, sleeveCenter, deckHeight, sleeveLength 
-    };
+    return computeEngineDatum(this.scene);
   }
 
 createDatumLabel(text, color = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)') {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.roundRect(4, 4, 248, 56, 12);
-    ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(4, 4, 248, 56, 12);
-    ctx.stroke();
-
-    ctx.font = 'bold 24px monospace';
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 32);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(0.28, 0.07, 1);
-    sprite.userData.isDatumLabel = true;
-    return sprite;
+    return createDatumLabel(text, color, bgColor);
   }
 
 buildDatumVisuals(engineGroup, datum) {
-    this.scene.datumGroup = new THREE.Group();
-    this.scene.datumGroup.visible = this.scene.config.showDatum;
-
-    datum.cylinderConfigs.forEach(cfg => {
-      // Bore Centerline
-      const topPt = cfg.a0.clone().add(cfg.u.clone().multiplyScalar(1.2));
-      const pts = [cfg.a0, topPt];
-      const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const line = new THREE.Line(geo, this.scene.matDatumLine);
-      this.scene.datumGroup.add(line);
-
-      // Bore Midpoint Node
-      const node = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 16), this.scene.matDatumNode);
-      node.position.copy(cfg.m);
-      node.userData.name = `Punkt środka Cyl #${cfg.id}`;
-      this.scene.datumGroup.add(node);
-
-      // Etykieta wektora cylindra
-      const cylLabel = this.createDatumLabel(`Oś Cyl #${cfg.id}`, '#f59e0b');
-      cylLabel.position.copy(topPt).add(new THREE.Vector3(0, 0.04, 0));
-      this.scene.datumGroup.add(cylLabel);
-    });
-
-    // Engine Centroid Marker
-    const oMarker = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), this.scene.matDatumOrigin);
-    oMarker.position.copy(datum.centroid);
-    oMarker.userData.name = "Centrum geometryczne silnika (Centroid)";
-    this.scene.datumGroup.add(oMarker);
-
-    const centroidLabel = this.createDatumLabel(`📍 CENTRUM SILNIKA`, '#ff007f');
-    centroidLabel.position.copy(datum.centroid).add(new THREE.Vector3(0, 0.08, 0));
-    this.scene.datumGroup.add(centroidLabel);
-
-    // Tripod axes from Centroid
-    const size = 0.45;
-    const endX = datum.centroid.clone().add(new THREE.Vector3(size, 0, 0));
-    const endY = datum.centroid.clone().add(new THREE.Vector3(0, size, 0));
-    const endZ = datum.centroid.clone().add(new THREE.Vector3(0, 0, size));
-
-    const xLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endX]), this.scene.matDatumAxisX);
-    const yLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endY]), this.scene.matDatumAxisY);
-    const zLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([datum.centroid, endZ]), this.scene.matDatumAxisZ);
-    this.scene.datumGroup.add(xLine, yLine, zLine);
-
-    // Etykiety osi X, Y, Z
-    const lblX = this.createDatumLabel(`+X (Poprzeczna)`, '#ef4444');
-    lblX.position.copy(endX).add(new THREE.Vector3(0.08, 0, 0));
-
-    const lblY = this.createDatumLabel(`+Y (Pionowa)`, '#10b981');
-    lblY.position.copy(endY).add(new THREE.Vector3(0, 0.05, 0));
-
-    const lblZ = this.createDatumLabel(`+Z (Wzdłużna / Wał)`, '#3b82f6');
-    lblZ.position.copy(endZ).add(new THREE.Vector3(0, 0, 0.08));
-
-    this.scene.datumGroup.add(lblX, lblY, lblZ);
-
-    engineGroup.add(this.scene.datumGroup);
+    return buildDatumVisuals(this.scene, engineGroup, datum);
   }
 
 buildEngineAssembly() {
@@ -1759,307 +1553,34 @@ buildEngineAssembly() {
   }
 
 createConnectingRod(length) {
-    const g = new THREE.Group();
-    const rodMat = this.scene.matSteel;
-    const darkMat = this.scene.matDarkSteel;
-    const bronzeMat = this.scene.matBronze;
-
-    // ═══ PARAMETRY STOPY (Big End) ═══
-    const pinR = 0.026;         // promień czopa korbowodowego
-    const bigEndWidth = 0.032;  // szerokość wzdłuż osi Z
-
-    // 1. GÓRNY KORPUS STOPY KORBOWODU (Y >= 0)
-    const upperBigEndShape = new THREE.Shape();
-    upperBigEndShape.moveTo(0.038, 0);
-    upperBigEndShape.lineTo(0.038, 0.016);
-    upperBigEndShape.quadraticCurveTo(0.034, 0.038, 0.016, 0.046);
-    upperBigEndShape.lineTo(-0.016, 0.046);
-    upperBigEndShape.quadraticCurveTo(-0.034, 0.038, -0.038, 0.016);
-    upperBigEndShape.lineTo(-0.038, 0);
-    const upperHole = new THREE.Path();
-    upperHole.absarc(0, 0, pinR, Math.PI, 0, true);
-    upperBigEndShape.holes.push(upperHole);
-
-    const upperBigEndGeo = new THREE.ExtrudeGeometry(upperBigEndShape, {
-      depth: bigEndWidth,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      bevelSize: 0.0015,
-      bevelThickness: 0.0015
-    });
-    upperBigEndGeo.translate(0, 0, -bigEndWidth / 2);
-    const upperBigEndMesh = new THREE.Mesh(upperBigEndGeo, rodMat);
-    upperBigEndMesh.userData.name = "Stopa korbowodu (korpus)";
-    g.add(upperBigEndMesh);
-
-    // 2. POKRYWA STOPY KORBOWODU (ROD CAP - Y < 0)
-    const capShape = new THREE.Shape();
-    capShape.moveTo(-0.038, -0.0008);
-    capShape.lineTo(-0.038, -0.018);
-    capShape.quadraticCurveTo(-0.035, -0.042, 0, -0.044);
-    capShape.quadraticCurveTo(0.035, -0.042, 0.038, -0.018);
-    capShape.lineTo(0.038, -0.0008);
-    const capHole = new THREE.Path();
-    capHole.absarc(0, 0, pinR, 0, Math.PI, true);
-    capShape.holes.push(capHole);
-
-    const capGeo = new THREE.ExtrudeGeometry(capShape, {
-      depth: bigEndWidth,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      bevelSize: 0.0015,
-      bevelThickness: 0.0015
-    });
-    capGeo.translate(0, 0, -bigEndWidth / 2);
-    const capMesh = new THREE.Mesh(capGeo, rodMat);
-    capMesh.userData.name = "Pokrywa stopy korbowodu";
-    g.add(capMesh);
-
-    // 3. PANEWKI KORBOWODOWE (Bearing Shells)
-    const bearingGeo = new THREE.CylinderGeometry(pinR + 0.0004, pinR + 0.0004, bigEndWidth - 0.002, 24, 1, true);
-    const bearingMesh = new THREE.Mesh(bearingGeo, bronzeMat);
-    bearingMesh.rotation.x = Math.PI / 2;
-    bearingMesh.userData.name = "Panewka korbowodowa";
-    g.add(bearingMesh);
-
-    // 4. ŚRUBY KORBOWODOWE (Rod Bolts)
-    [-0.031, 0.031].forEach(bx => {
-      const boltStud = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0035, 0.0035, 0.048, 12),
-        darkMat
-      );
-      boltStud.position.set(bx, -0.006, 0);
-      boltStud.userData.name = "Śruba korbowodowa";
-      g.add(boltStud);
-
-      const boltHead = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.0055, 0.0055, 0.008, 6),
-        darkMat
-      );
-      boltHead.position.set(bx, -0.026, 0);
-      boltHead.userData.name = "Łeb śruby korbowodowej (12-kątny)";
-      g.add(boltHead);
-    });
-
-    // ═══ 5. TRZON KORBOWODU (H-Beam Shank) ═══
-    const shankBottomY = 0.046;
-    const shankTopY = length - 0.025;
-    const shankLen = shankTopY - shankBottomY;
-    const shankMidY = (shankBottomY + shankTopY) / 2;
-    const flangeThickness = 0.0036;
-    const flangeZOffset = 0.0065;
-
-    // Środnik trzonu (Web):
-    const webMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(0.018, shankLen, 0.0036),
-      rodMat
-    );
-    webMesh.position.set(0, shankMidY, 0);
-    webMesh.userData.name = "Trzon korbowodu (profil H-Beam)";
-    g.add(webMesh);
-
-    // Półka przednia (+Z):
-    const frontFlange = new THREE.Mesh(
-      new THREE.BoxGeometry(0.026, shankLen, flangeThickness),
-      rodMat
-    );
-    frontFlange.position.set(0, shankMidY, flangeZOffset);
-    frontFlange.userData.name = "Półka trzonu (profil H-Beam)";
-    g.add(frontFlange);
-
-    // Półka tylna (-Z):
-    const rearFlange = new THREE.Mesh(
-      new THREE.BoxGeometry(0.026, shankLen, flangeThickness),
-      rodMat
-    );
-    rearFlange.position.set(0, shankMidY, -flangeZOffset);
-    rearFlange.userData.name = "Półka trzonu (profil H-Beam)";
-    g.add(rearFlange);
-
-    // Żeberka wzmacniające przejścia w główkę i stopę
-    const gussetBottom = new THREE.Mesh(
-      new THREE.BoxGeometry(0.032, 0.015, 0.016),
-      rodMat
-    );
-    gussetBottom.position.set(0, shankBottomY + 0.004, 0);
-    g.add(gussetBottom);
-
-    const gussetTop = new THREE.Mesh(
-      new THREE.BoxGeometry(0.024, 0.014, 0.014),
-      rodMat
-    );
-    gussetTop.position.set(0, shankTopY - 0.003, 0);
-    g.add(gussetTop);
-
-    // ═══ 6. GŁÓWKA KORBOWODU (Small End) ═══
-    const smallEndPinR = 0.013;
-    const smallEndOuterR = 0.021;
-    const smallEndWidth = 0.026;
-
-    const smallEndShape = new THREE.Shape();
-    smallEndShape.absarc(0, length, smallEndOuterR, 0, Math.PI * 2, false);
-    const smallEndHole = new THREE.Path();
-    smallEndHole.absarc(0, length, smallEndPinR, 0, Math.PI * 2, true);
-    smallEndShape.holes.push(smallEndHole);
-
-    const smallEndGeo = new THREE.ExtrudeGeometry(smallEndShape, {
-      depth: smallEndWidth,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      bevelSize: 0.0015,
-      bevelThickness: 0.0015
-    });
-    smallEndGeo.translate(0, 0, -smallEndWidth / 2);
-    const smallEndMesh = new THREE.Mesh(smallEndGeo, rodMat);
-    smallEndMesh.userData.name = "Główka korbowodu";
-    g.add(smallEndMesh);
-
-    // Tulejka brązowa główki (Small End Bushing)
-    const bushingGeo = new THREE.CylinderGeometry(smallEndPinR + 0.0003, smallEndPinR + 0.0003, smallEndWidth - 0.001, 20, 1, true);
-    const bushingMesh = new THREE.Mesh(bushingGeo, bronzeMat);
-    bushingMesh.rotation.x = Math.PI / 2;
-    bushingMesh.position.set(0, length, 0);
-    bushingMesh.userData.name = "Tulejka brązowa główki korbowodu";
-    g.add(bushingMesh);
-
-    g.userData.name = "Korbowód (profil H-Beam)";
-    return g;
+    return createConnectingRod(this.scene, length);
   }
 
-createPiston(radius, length) {
-    const g = new THREE.Group();
-    // Korpus tłoka (denko i płaszcz) - sworzeń znajduje się w Y = 0
-    const piston = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 32), this.scene.matPiston);
-    piston.position.y = 0.035;
-    piston.userData.name = "Tłok";
-    g.add(piston);
-
-    // Pierścienie tłokowe (2 kompresyjne + 1 zgarniający olejowy)
-    for (let i = 0; i < 3; i++) {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.001, 0.002, 8, 32), this.scene.matDarkSteel);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.035 + length / 2 - 0.015 - i * 0.012;
-      ring.userData.name = (i < 2) ? `Pierścień uszczelniający #${i+1}` : "Pierścień zgarniający olejowy";
-      g.add(ring);
-    }
-
-    // Sworzeń tłokowy (dokładnie w Y = 0, spasowany z główką korbowodu)
-    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, radius * 1.82, 20), this.scene.matSteel);
-    pin.rotation.x = Math.PI / 2;
-    pin.position.set(0, 0, 0);
-    pin.userData.name = "Sworzeń tłokowy";
-    g.add(pin);
-
-    // Pierścienie osadcze sworznia (Segera)
-    [-radius * 0.91, radius * 0.91].forEach(sz => {
-      const circlip = new THREE.Mesh(new THREE.TorusGeometry(0.0135, 0.0012, 6, 16), this.scene.matDarkSteel);
-      circlip.position.set(0, 0, sz);
-      circlip.userData.name = "Pierścień osadczy sworznia (Seger)";
-      g.add(circlip);
-    });
-
-    g.userData.name = "Tłok kompletny ze sworzniem";
-    return g;
+  createPiston(radius, length) {
+    return createPiston(this.scene, radius, length);
   }
 
-createSparkPlug() {
-    const g = new THREE.Group();
-    const ceramic = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 16), this.scene.matCeramic);
-    ceramic.position.y = 0.02;
-    ceramic.userData.name = "Izolator świecy";
-    g.add(ceramic);
-    const hex = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.015, 6), this.scene.matDarkSteel);
-    hex.position.y = 0.0075;
-    hex.userData.name = "Świeca zapłonowa";
-    g.add(hex);
-    g.userData.name = "Świeca zapłonowa";
-    return g;
+  createSparkPlug() {
+    return createSparkPlug(this.scene);
   }
 
-createValve(material, name) {
-    const vg = new THREE.Group();
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.16, 12), material);
-    stem.userData.name = "Trzonek zaworu " + name;
-    vg.add(stem);
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.008, 24), material);
-    disc.position.y = -0.08;
-    disc.userData.name = "Grzybek zaworu " + name;
-    vg.add(disc);
-    const retainer = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 16), this.scene.matDarkSteel);
-    retainer.position.y = 0.065;
-    retainer.userData.name = "Talerzyk oporowy";
-    vg.add(retainer);
-    const tappet = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 24), this.scene.matSteel);
-    tappet.position.y = 0.08 + 0.0075; 
-    tappet.userData.name = "Szklanka popychacza";
-    vg.add(tappet);
-    vg.userData.name = "Zawór " + name;
-    return vg;
+  createValve(material, name, vDiscR) {
+    return createValve(this.scene, material, name, vDiscR);
   }
 
-createSpringMesh() {
-    class CoilCurve extends THREE.Curve {
-      getPoint(t) {
-        const turns = 6;
-        const r = 0.011;
-        const h = 0.085;
-        return new THREE.Vector3(r * Math.cos(t * Math.PI * 2 * turns), t * h, r * Math.sin(t * Math.PI * 2 * turns));
-      }
-    }
-    const geo = new THREE.TubeGeometry(new CoilCurve(), 64, 0.0025, 8, false);
-    const mesh = new THREE.Mesh(geo, this.scene.matGold);
-    mesh.userData.name = "Sprężyna zaworowa";
-    return mesh;
+  createSpringMesh() {
+    return createSpringMesh(this.scene);
   }
 
-createRockerArm() {
-    const ra = new THREE.Group();
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.016), this.scene.matGold);
-    arm.userData.name = "Dźwigienka zaworowa (Rocker Arm)";
-    const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.024, 16), this.scene.matSteel);
-    pivot.rotation.x = Math.PI / 2;
-    pivot.userData.name = "Oś dźwigienki zaworowej";
-    ra.add(arm, pivot);
-    ra.userData.name = "Dźwigienka zaworowa kompletna";
-    return ra;
+  createRockerArm() {
+    return createRockerArm(this.scene);
   }
 
-createCamLobe() {
-    const shape = new THREE.Shape();
-    const R_base = 0.025;
-    const R_max = 0.045;
-    const segments = 40;
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      let r = R_base;
-      let alpha = angle;
-      if (alpha > Math.PI) alpha -= Math.PI * 2;
-      if (Math.abs(alpha) < Math.PI / 4) {
-        r = R_base + (R_max - R_base) * Math.pow(Math.cos(alpha * 2), 2);
-      }
-      const x = Math.sin(angle) * r;
-      const y = Math.cos(angle) * r;
-      if (i === 0) shape.moveTo(x, y);
-      else shape.lineTo(x, y);
-    }
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.02, bevelEnabled: false });
-    geo.translate(0, 0, -0.01);
-    const mesh = new THREE.Mesh(geo, this.scene.matSteel);
-    mesh.userData.name = "Krzywka rozrządu";
-    return mesh;
+  createCamLobe() {
+    return createCamLobe(this.scene);
   }
 
-getCamRadius(angle) {
-    const R_base = 0.025;
-    const R_max = 0.045;
-    let alpha = angle % (Math.PI * 2);
-    if (alpha > Math.PI) alpha -= Math.PI * 2;
-    if (alpha < -Math.PI) alpha += Math.PI * 2;
-    if (Math.abs(alpha) < Math.PI / 4) {
-      return R_base + (R_max - R_base) * Math.pow(Math.cos(alpha * 2), 2);
-    }
-    return R_base;
+  getCamRadius(angle) {
+    return getCamRadius(angle);
   }
-
-
 }

@@ -1,38 +1,113 @@
 import * as THREE from 'three';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
+export let transformControl = null;
 export function setupDebugClicker(scene3d) {
+    if (!transformControl) {
+        transformControl = new TransformControls(scene3d.camera, scene3d.renderer.domElement);
+        transformControl.addEventListener('dragging-changed', function (event) {
+            scene3d.controls.enabled = !(event as any).value;
+        });
+        
+        transformControl.addEventListener('change', function () {
+            if (!transformControl.object || scene3d.controls.enabled) return;
+            // Only log if dragging (OrbitControls disabled)
+            const targetObj = transformControl.object;
+            const name = targetObj.userData?.name || targetObj.name || "Nieznany obiekt";
+            const wPos = new THREE.Vector3();
+            targetObj.getWorldPosition(wPos);
+            let localEnginePos = "N/A";
+            if (scene3d.engineMountGroup) {
+                const lPos = wPos.clone();
+                scene3d.engineMountGroup.worldToLocal(lPos);
+                localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
+            }
+            
+            // throttle console logging to not freeze UI
+            if (!transformControl.userData) transformControl.userData = {};
+            const now = Date.now();
+            if (now - (transformControl.userData.lastLogTime || 0) > 100) {
+                transformControl.userData.lastLogTime = now;
+                const logMsg = `[PRZESUNIĘTO] ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne: ${localEnginePos}`;
+                // update latest log instead of appending if we are dragging continuously?
+                window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+            }
+        });
+        scene3d.scene.add(transformControl);
+    }
+
     window.addEventListener('dblclick', (e) => {
       scene3d.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       scene3d.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       scene3d.raycaster.setFromCamera(scene3d.mouse, scene3d.camera);
       const intersects = scene3d.raycaster.intersectObjects(scene3d.scene.children, true);
       if (intersects.length > 0) {
-        const hit = intersects[0];
-        let curr = hit.object;
-        let foundName = null;
-        while (curr) {
-          if (curr.userData && curr.userData.name) {
-            foundName = curr.userData.name;
-            break;
-          }
-          curr = curr.parent;
+        // Skip TransformControl parts
+        const filtered = intersects.filter(hit => !hit.object.isTransformControls);
+        if (filtered.length > 0) {
+            const hit = filtered[0];
+            let curr = hit.object;
+            let foundName = null;
+            while (curr) {
+              if (curr.userData && curr.userData.name) {
+                foundName = curr.userData.name;
+                break;
+              }
+              curr = curr.parent;
+            }
+            const name = foundName || hit.object.name || "Nieznany obiekt";
+            
+            // Attach transform controls
+            let targetObj = hit.object;
+            if (foundName) {
+                // attach to group if group has the name
+                let p = targetObj;
+                while (p) {
+                    if (p.userData && p.userData.name === foundName) {
+                        targetObj = p;
+                        break;
+                    }
+                    p = p.parent;
+                }
+            }
+            transformControl.attach(targetObj);
+            
+            // Disable dragging for animated parts
+            const animKeywords = ["Tłok", "Korbowód", "Wał", "Zawór", "Wałek", "Popychacz", "Sprężyna", "Koło", "Pasek", "Krzywka", "Sworzeń"];
+            const isAnimated = animKeywords.some(kw => name.includes(kw));
+            if (isAnimated) {
+                transformControl.showX = false;
+                transformControl.showY = false;
+                transformControl.showZ = false;
+                // Also warn in log
+                const logMsg = `[INFO] Obiekt animowany (${name}) - przeciąganie wyłączone.`;
+                window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+            } else {
+                transformControl.showX = true;
+                transformControl.showY = true;
+                transformControl.showZ = true;
+            }
+            
+            const wPos = new THREE.Vector3();
+            hit.object.getWorldPosition(wPos);
+            
+            let localEnginePos = "N/A";
+            if (scene3d.engineMountGroup) {
+              const lPos = wPos.clone();
+              scene3d.engineMountGroup.worldToLocal(lPos);
+              localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
+            }
+            
+            const logMsg = `[DEBUG KLIK] ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne: ${localEnginePos}`;
+            console.log(logMsg);
+            
+            // Dispatch custom event for our log console
+            window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+        } else {
+            transformControl.detach();
         }
-        const name = foundName || hit.object.name || "Nieznany obiekt";
-        const wPos = new THREE.Vector3();
-        hit.object.getWorldPosition(wPos);
-        
-        let localEnginePos = "N/A";
-        if (scene3d.engineMountGroup) {
-          const lPos = wPos.clone();
-          scene3d.engineMountGroup.worldToLocal(lPos);
-          localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
-        }
-        
-        console.log(`%c[DEBUG KLIK] %c${name}`, 'color: #0ea5e9; font-weight: bold;', 'color: #facc15; font-weight: bold;');
-        console.log(`Współrzędne Świata (Vehicle Space): X: ${wPos.x.toFixed(3)}, Y: ${wPos.y.toFixed(3)}, Z: ${wPos.z.toFixed(3)}`);
-        console.log(`Współrzędne Lokalne (Engine Space): ${localEnginePos}`);
-        const debugText = `Obiekt: ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne (Silnik): ${localEnginePos}`;
-        prompt(`Współrzędne (Ctrl+C aby skopiować):`, debugText);
+      } else {
+          transformControl.detach();
       }
     });
 }
@@ -48,6 +123,41 @@ export function setupDevDrawer(app) {
     const devStatusBadge = document.getElementById("dev-status-badge");
     const resultsDiv = document.getElementById("dev-overlap-results");
     const infoDrawer = document.getElementById("info-drawer");
+
+    const logContainer = document.createElement('div');
+    logContainer.style.position = 'relative';
+    logContainer.style.marginBottom = '10px';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.innerText = 'Copy logs';
+    copyBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px;';
+    copyBtn.onclick = () => {
+        const text = Array.from(logConsole.children).map(c => c.textContent).join('\n');
+        navigator.clipboard.writeText(text);
+        copyBtn.innerText = 'Copied!';
+        setTimeout(() => copyBtn.innerText = 'Copy logs', 2000);
+    };
+
+    const logConsole = document.createElement('div');
+    logConsole.style.cssText = 'height: 150px; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px; overflow-y: auto; padding: 5px; padding-top: 25px; border: 1px solid #333;';
+    logConsole.id = 'inspector-log-console';
+    
+    logContainer.appendChild(copyBtn);
+    logContainer.appendChild(logConsole);
+    
+    // insert log console before catalog
+    const catalogSection = document.querySelector('.dev-catalog-section');
+    if (catalogSection) {
+        catalogSection.parentNode.insertBefore(logContainer, catalogSection);
+    }
+
+    window.addEventListener('inspector-log', (e) => {
+        const line = document.createElement('div');
+        // @ts-ignore
+        line.textContent = e.detail;
+        logConsole.appendChild(line);
+        logConsole.scrollTop = logConsole.scrollHeight;
+    });
 
     let lastCollisionReportText = "";
 
@@ -76,7 +186,7 @@ export function setupDevDrawer(app) {
     if (devBtn) {
       devBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        toggleDevDrawer();
+        toggleDevDrawer(undefined);
       });
     }
 
@@ -97,7 +207,7 @@ export function setupDevDrawer(app) {
     if (checkOverlapBtn) {
       checkOverlapBtn.addEventListener("click", () => {
         updateDevSummary();
-        const res = app.scene3d.checkOverlap();
+        const res = app.scene3d.telemetry.checkOverlap();
         const collisions = Array.isArray(res) ? res : (res.collisions || []);
         const totalChecked = res.totalChecked || 0;
         const cfg = app.scene3d.config;
@@ -122,7 +232,7 @@ ${collisions.join('<br>')}
 
           const rawList = Array.isArray(res.rawList) ? res.rawList : collisions.map(c => c.replace(/<[^>]*>/g, ''));
           lastCollisionReportText = `=== RAPORT OVERLAPINGU MODUŁÓW (DEV MODE) ===\nData: ${new Date().toLocaleString('pl-PL')}\nKonfiguracja: ${configStr}\nKąt wału korbowego: ${crankAngleDeg}° (0-720°)\nZbadano obiektów: ${totalChecked}\nStatus: Wykryto ${collisions.length} kolizji\n\nWykryte kolizje:\n${rawList.join('\n')}\n`;
-          if (copyOverlapBtn) copyOverlapBtn.disabled = false;
+          if (copyOverlapBtn) (copyOverlapBtn as any).disabled = false;
         } else {
           if (devStatusBadge) {
             devStatusBadge.className = "dev-badge ok";
@@ -139,7 +249,7 @@ ${collisions.join('<br>')}
 </div>`;
           }
           lastCollisionReportText = `=== RAPORT OVERLAPINGU MODUŁÓW (DEV MODE) ===\nData: ${new Date().toLocaleString('pl-PL')}\nKonfiguracja: ${configStr}\nKąt wału korbowego: ${crankAngleDeg}° (0-720°)\nZbadano obiektów: ${totalChecked}\nStatus: BRAK KOLIZJI\n`;
-          if (copyOverlapBtn) copyOverlapBtn.disabled = false;
+          if (copyOverlapBtn) (copyOverlapBtn as any).disabled = false;
         }
       });
     }
@@ -152,7 +262,7 @@ ${collisions.join('<br>')}
             await navigator.clipboard.writeText(lastCollisionReportText);
           } else {
             const ta = document.createElement("textarea");
-            ta.value = lastCollisionReportText;
+            (ta as any).value = lastCollisionReportText;
             document.body.appendChild(ta);
             ta.select();
             document.execCommand("copy");
@@ -176,7 +286,7 @@ ${collisions.join('<br>')}
           devStatusBadge.className = "dev-badge info";
           devStatusBadge.textContent = "Gotowy";
         }
-        if (copyOverlapBtn) copyOverlapBtn.disabled = true;
+        if (copyOverlapBtn) (copyOverlapBtn as any).disabled = true;
         lastCollisionReportText = "";
       });
     }
@@ -189,8 +299,8 @@ ${collisions.join('<br>')}
     let lastPartsText = "";
 
     const renderPartsCatalog = (filterText = "") => {
-      if (!catalogListEl || !app.scene3d || !app.scene3d.getPartsCatalog) return;
-      const catalog = app.scene3d.getPartsCatalog();
+      if (!catalogListEl || !app.scene3d || !app.scene3d.telemetry || !app.scene3d.telemetry.getPartsCatalog) return;
+      const catalog = app.scene3d.telemetry.getPartsCatalog();
       if (totalPartsCountEl) totalPartsCountEl.textContent = `${catalog.totalCount} szt. (${catalog.uniqueCount} typów)`;
 
       const q = (filterText || "").toLowerCase().trim();
@@ -221,7 +331,7 @@ ${collisions.join('<br>')}
     };
 
     if (partsSearchInput) {
-      partsSearchInput.addEventListener("input", (e) => renderPartsCatalog(e.target.value));
+      partsSearchInput.addEventListener("input", (e) => renderPartsCatalog((e.target as any).value));
     }
 
     if (copyPartsBtn) {
@@ -232,7 +342,7 @@ ${collisions.join('<br>')}
             await navigator.clipboard.writeText(lastPartsText);
           } else {
             const ta = document.createElement("textarea");
-            ta.value = lastPartsText;
+            (ta as any).value = lastPartsText;
             document.body.appendChild(ta);
             ta.select();
             document.execCommand("copy");

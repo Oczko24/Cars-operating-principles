@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { VehicleDimensions } from './VehicleConfig.js';
 
 export class DrivetrainBuilder {
+  [key: string]: any;
+
   constructor(scene) {
     this.scene = scene;
   }

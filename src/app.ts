@@ -8,6 +8,8 @@ import { Scene3D } from "./scene3d.js";
 import { setupDevDrawer } from "./scene/DebugTools.js";
 
 class App {
+  [key: string]: any;
+
   constructor() {
     this.lang = detectBrowserLanguage();
     this.t = i18n[this.lang] || i18n.pl;
@@ -41,7 +43,7 @@ class App {
     this.lastPrimaryDesc = "";
 
     document.documentElement.lang = this.lang;
-    document.title = `${this.t.appTitle} | ${this.t.subtitle}`;
+    (document as any).title = `${this.t.appTitle} | ${this.t.subtitle}`;
 
     this.setupUI();
     this.translateUI();
@@ -60,11 +62,11 @@ class App {
       // ignore
     }
     document.documentElement.lang = this.lang;
-    document.title = `${this.t.appTitle} | ${this.t.subtitle}`;
+    (document as any).title = `${this.t.appTitle} | ${this.t.subtitle}`;
 
     // Zaktualizuj stan przełącznika
     document.querySelectorAll(".lang-pill .lang-opt").forEach(opt => {
-      opt.classList.toggle("active", opt.dataset.lang === this.lang);
+      opt.classList.toggle("active", (opt as any).dataset.lang === this.lang);
     });
 
     this.translateUI();
@@ -89,7 +91,7 @@ class App {
       scrubVal.textContent = `${stats.crankAngleDeg}°`;
       const scrubSlider = this.cachedUi.scrubSlider;
       if (scrubSlider && !this.isUserDraggingScrub) {
-        scrubSlider.value = stats.crankAngleDeg;
+        (scrubSlider as any).value = stats.crankAngleDeg;
       }
     }
 
@@ -143,7 +145,7 @@ class App {
       for (const k of keys) {
         if (val) val = val[k];
       }
-      if (val) el.title = val;
+      if (val) (el as any).title = val;
     });
 
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
@@ -153,7 +155,7 @@ class App {
       for (const k of keys) {
         if (val) val = val[k];
       }
-      if (val) el.placeholder = val;
+      if (val) (el as any).placeholder = val;
     });
   }
 
@@ -162,7 +164,7 @@ class App {
     const langToggleBtn = document.getElementById("lang-toggle-btn");
     if (langToggleBtn) {
       document.querySelectorAll(".lang-pill .lang-opt").forEach(opt => {
-        opt.classList.toggle("active", opt.dataset.lang === this.lang);
+        opt.classList.toggle("active", (opt as any).dataset.lang === this.lang);
       });
 
       langToggleBtn.addEventListener("click", () => {
@@ -177,7 +179,7 @@ class App {
       btn.addEventListener("click", () => {
         strokeSteps.forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        const strokeNum = parseInt(btn.dataset.stroke, 10);
+        const strokeNum = parseInt((btn as any).dataset.stroke, 10);
         this.scene3d.jumpToStroke(strokeNum);
         
         // Zaktualizuj przyciski prędkości na pauzę
@@ -192,7 +194,7 @@ class App {
       btn.addEventListener("click", () => {
         focusButtons.forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        this.scene3d.setFocus(btn.dataset.focus);
+        this.scene3d.setFocus((btn as any).dataset.focus);
       });
     });
 
@@ -203,7 +205,7 @@ class App {
         speedButtons.forEach(b => b.classList.remove("active"));
         document.querySelectorAll(".stroke-step-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        const speed = parseFloat(btn.dataset.speed);
+        const speed = parseFloat((btn as any).dataset.speed);
         if (speed === 0) {
           this.scene3d.isPlaying = false;
         } else {
@@ -224,7 +226,7 @@ class App {
     window.addEventListener("touchend", () => { this.isUserDraggingScrub = false; });
 
     scrubSlider.addEventListener("input", (e) => {
-      const deg = parseInt(e.target.value, 10);
+      const deg = parseInt((e.target as any).value, 10);
       scrubVal.textContent = `${deg}°`;
       this.scene3d.setManualCrankAngle(deg);
     });
@@ -232,7 +234,7 @@ class App {
     // 5. Widok eksplodowany
     const explodeSlider = document.getElementById("explode-slider");
     explodeSlider.addEventListener("input", (e) => {
-      const val = parseFloat(e.target.value);
+      const val = parseFloat((e.target as any).value);
       this.scene3d.setExploded(val);
     });
 
@@ -331,5 +333,5 @@ class App {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  window.app = new App();
+  (window as any).app = new App();
 });

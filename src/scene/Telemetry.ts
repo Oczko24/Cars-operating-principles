@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { i18n } from '../i18n.js';
 
 export class Telemetry {
+  [key: string]: any;
+
   constructor(scene) {
     this.scene = scene;
   }
@@ -153,14 +155,14 @@ getPartsCatalog() {
         const def = categoryDefs.find(d => d.id === cat.id);
         if (def && def.match(lower)) {
           cat.items.push({ name, count });
-          cat.count += count;
+          cat.count = (cat.count as number || 0) + (count as number);
           matched = true;
           break;
         }
       }
       if (!matched) {
         otherCategory.items.push({ name, count });
-        otherCategory.count += count;
+        otherCategory.count = (otherCategory.count as number || 0) + (count as number);
       }
     });
 

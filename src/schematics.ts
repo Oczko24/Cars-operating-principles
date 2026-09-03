@@ -4,6 +4,8 @@
  */
 
 export class SchematicRenderer {
+  [key: string]: any;
+
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
@@ -316,10 +318,10 @@ export class SchematicRenderer {
     ctx.fillRect(cx - 20, cy - 80, 40, 45);
 
     // Koła
-    this.drawChassisWheel(cx - 65, cy - 60, false);
-    this.drawChassisWheel(cx + 55, cy - 60, false);
-    this.drawChassisWheel(cx - 65, cy + 50, false);
-    this.drawChassisWheel(cx + 55, cy + 50, false);
+    this.drawChassisWheel(cx - 65, cy - 60);
+    this.drawChassisWheel(cx + 55, cy - 60);
+    this.drawChassisWheel(cx - 65, cy + 50);
+    this.drawChassisWheel(cx + 55, cy + 50);
 
     // Wały napędowe w zależności od wybranego napędu
     ctx.strokeStyle = "#ef4444";

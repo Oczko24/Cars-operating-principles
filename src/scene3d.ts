@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ChassisBuilder } from './scene/ChassisBuilder.js';
 import { EngineBuilder } from './scene/EngineBuilder.js';
 import { DrivetrainBuilder } from './scene/DrivetrainBuilder.js';
@@ -53,6 +53,8 @@ export const GEARBOX_PRESETS = {
 };
 
 export class Scene3D {
+  [key: string]: any;
+
   constructor(container, onFrameStats) {
     this.container = container;
     this.onFrameStats = onFrameStats || (() => {});
@@ -278,7 +280,35 @@ export class Scene3D {
   }
 
   setConfig(config, category) {
-    // legacy support for app.js
+    if (category === 'block' || !category) {
+      if (config.block === 'block_i4') { this.config.layout = 'Inline'; this.config.cylinders = 4; this.config.vAngle = 0; }
+      else if (config.block === 'block_v6') { this.config.layout = 'V'; this.config.cylinders = 6; this.config.vAngle = 60; }
+      else if (config.block === 'block_v8') { this.config.layout = 'V'; this.config.cylinders = 8; this.config.vAngle = 90; }
+      else if (config.block === 'block_boxer4') { this.config.layout = 'Boxer'; this.config.cylinders = 4; this.config.vAngle = 180; }
+    }
+    if (category === 'valvetrain' || !category) {
+      if (config.valvetrain === 'valve_ohv') { this.config.valvetrain = 'OHV'; this.config.valves = 2; }
+      else if (config.valvetrain === 'valve_dohc') { this.config.valvetrain = 'DOHC'; this.config.valves = 4; }
+      else if (config.valvetrain === 'valve_vtec') { this.config.valvetrain = 'DOHC'; this.config.valves = 4; }
+    }
+    if (category === 'drivetrain' || !category) {
+      if (config.drivetrain === 'drive_rwd') { this.config.drivetrainLayout = 'RWD'; this.config.placement = 'front'; this.config.orientation = 'longitudinal'; }
+      else if (config.drivetrain === 'drive_fwd') { this.config.drivetrainLayout = 'FWD'; this.config.placement = 'front'; this.config.orientation = 'transverse'; }
+      else if (config.drivetrain === 'drive_awd') { this.config.drivetrainLayout = 'AWD'; this.config.placement = 'front'; this.config.orientation = 'longitudinal'; }
+    }
+    if (category === 'aspiration' || !category) {
+      if (config.aspiration === 'asp_na') { this.config.intakeType = 'standard'; }
+      else { this.config.intakeType = 'sport'; }
+    }
+    if (category === 'suspension' || !category) {
+       // Only visual impact on handling in stats right now
+    }
+    
+    // Notify Dev UI if it exists to sync sliders
+    const evt = new CustomEvent('sync_dev_ui', { detail: this.config });
+    document.dispatchEvent(evt);
+    
+    this.rebuildFullCar();
   }
 
   setFocus(target) {
@@ -828,7 +858,7 @@ export class Scene3D {
     if (devGearboxDesc && this.config.gearboxPreset) {
       const gDict = (i18n[this.lang] && i18n[this.lang].gearboxPresets) ? i18n[this.lang].gearboxPresets : null;
       if (this.config.gearboxPreset === 'custom') {
-        devGearboxDesc.innerHTML = (i18n[this.lang] && i18n[this.lang].ui) ? i18n[this.lang].ui.customGearboxDesc : i18n.pl.ui.customGearboxDesc;
+        devGearboxDesc.innerHTML = (i18n[this.lang] && i18n[this.lang].ui) ? (i18n[this.lang].ui as any).customGearboxDesc : (i18n.pl.ui as any).customGearboxDesc;
       } else if (gDict && gDict[this.config.gearboxPreset]) {
         devGearboxDesc.innerText = gDict[this.config.gearboxPreset].desc;
       }

@@ -259,6 +259,8 @@ export function analyzeEngineBalance(cylinderConfigs, config) {
  * Klasa interaktywnej tarczy biegunowej (Radial UI 360°) do manualnego strojenia czopów.
  */
 export class RadialCrankUI {
+  [key: string]: any;
+
   constructor(canvasElement, onUpdateCallback) {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');

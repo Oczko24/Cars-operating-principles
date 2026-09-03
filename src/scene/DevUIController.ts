@@ -4,6 +4,8 @@ import { CRANK_PRESETS, RadialCrankUI } from '../crankshaft_solver.js';
 import { i18n } from '../i18n.js';
 
 export class DevUIController {
+  [key: string]: any;
+
   constructor(scene) {
     this.scene = scene;
   }
@@ -15,7 +17,7 @@ showGearboxInfo() {
     const gb = t.gearboxDrawer || i18n.pl.gearboxDrawer;
     const currentG = this.scene.config.currentGear || '1';
 
-    let title = gb.title;
+    let title = (gb as any).title;
     let principle = gb.principle;
     let why = gb.why;
     let history = gb.history;
@@ -42,7 +44,7 @@ showDiffInfo() {
     const diffType = this.scene.config.diffType || 'open';
     const dInfo = (t.diffs && t.diffs[diffType]) ? t.diffs[diffType] : (i18n.pl.diffs[diffType] || i18n.pl.diffs.open);
 
-    let title = dInfo.title;
+    let title = (dInfo as any).title;
     let principle = dInfo.principle;
     let why = dInfo.why;
     let history = dInfo.history;
@@ -76,8 +78,8 @@ setupDevPanel() {
       btns.forEach(btn => {
         btn.addEventListener('click', (e) => {
           btns.forEach(b => b.classList.remove('active'));
-          e.target.classList.add('active');
-          callback(e.target.getAttribute('data-val') || e.target.getAttribute('data-gear'));
+          (e.target as any).classList.add('active');
+          callback((e.target as any).getAttribute('data-val') || (e.target as any).getAttribute('data-gear'));
         });
       });
     };
@@ -87,7 +89,7 @@ setupDevPanel() {
     const modeViews = document.querySelectorAll('.mode-view');
     modeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const mode = btn.dataset.mode;
+        const mode = (btn as any).dataset.mode;
         modeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         modeViews.forEach(v => v.classList.remove('active'));
@@ -102,7 +104,7 @@ setupDevPanel() {
     const subtabPanes = document.querySelectorAll('.subtab-pane');
     subtabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const subtab = btn.dataset.subtab;
+        const subtab = (btn as any).dataset.subtab;
         subtabBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         subtabPanes.forEach(p => p.classList.remove('active'));
@@ -133,9 +135,9 @@ setupDevPanel() {
       }
       if (val === 'VR') {
         const devAngle = document.getElementById('dev_angle');
-        if (devAngle) devAngle.value = 15;
+        if (devAngle) (devAngle as any).value = 15;
         const devAngleVal = document.getElementById('dev_angle_val');
-        if (devAngleVal) devAngleVal.innerText = 15;
+        if (devAngleVal) devAngleVal.innerText = "15";
         this.scene.config.vAngle = 15;
       }
       this.updateV8UI();
@@ -147,8 +149,8 @@ setupDevPanel() {
     if (devCyl) {
       devCyl.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_cyl_val');
-        if (valEl) valEl.innerText = e.target.value;
-        this.scene.config.cylinders = parseInt(e.target.value);
+        if (valEl) valEl.innerText = (e.target as any).value;
+        this.scene.config.cylinders = parseInt((e.target as any).value);
         this.updateV8UI();
         updateDisplacementDisplay();
         this.scene.rebuildFullCar();
@@ -158,7 +160,7 @@ setupDevPanel() {
     const devBore = document.getElementById('dev_bore');
     if (devBore) {
       devBore.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
+        const val = parseFloat((e.target as any).value);
         const valEl = document.getElementById('dev_bore_val');
         if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
         this.scene.config.boreMm = val;
@@ -170,7 +172,7 @@ setupDevPanel() {
     const devStrokeLen = document.getElementById('dev_stroke_len');
     if (devStrokeLen) {
       devStrokeLen.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
+        const val = parseFloat((e.target as any).value);
         const valEl = document.getElementById('dev_stroke_len_val');
         if (valEl) valEl.innerText = `${val.toFixed(1)} mm`;
         this.scene.config.strokeMm = val;
@@ -183,8 +185,8 @@ setupDevPanel() {
     if (devAngle) {
       devAngle.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_angle_val');
-        if (valEl) valEl.innerText = e.target.value;
-        this.scene.config.vAngle = parseInt(e.target.value);
+        if (valEl) valEl.innerText = (e.target as any).value;
+        this.scene.config.vAngle = parseInt((e.target as any).value);
         this.updateEngineStats();
         this.scene.rebuildFullCar();
       });
@@ -244,7 +246,7 @@ setupDevPanel() {
     const chkSnap15 = document.getElementById('radial_snap_15');
     if (chkSnap15) {
       chkSnap15.addEventListener('change', (e) => {
-        if (this.scene.radialUI) this.scene.radialUI.snapToGrid = e.target.checked;
+        if (this.scene.radialUI) this.scene.radialUI.snapToGrid = (e.target as any).checked;
       });
     }
 
@@ -252,15 +254,15 @@ setupDevPanel() {
       const btn4V = document.querySelector('#dev_valves button[data-val="4"]');
       if (btn4V) {
         if (this.scene.config.valvetrain === 'OHV') {
-          btn4V.disabled = true;
-          btn4V.style.opacity = '0.5';
-          btn4V.style.cursor = 'not-allowed';
-          btn4V.title = "Układ OHV jest kompatybilny tylko z 2 zaworami na cylinder w tym symulatorze.";
+          (btn4V as any).disabled = true;
+          (btn4V as any).style.opacity = '0.5';
+          (btn4V as any).style.cursor = 'not-allowed';
+          (btn4V as any).title = "Układ OHV jest kompatybilny tylko z 2 zaworami na cylinder w tym symulatorze.";
         } else {
-          btn4V.disabled = false;
-          btn4V.style.opacity = '1';
-          btn4V.style.cursor = 'pointer';
-          btn4V.title = "";
+          (btn4V as any).disabled = false;
+          (btn4V as any).style.opacity = '1';
+          (btn4V as any).style.cursor = 'pointer';
+          (btn4V as any).title = "";
         }
       }
     };
@@ -285,6 +287,21 @@ setupDevPanel() {
       }
       
       updateValveButtonsState();
+    document.addEventListener('sync_dev_ui', (e: any) => {
+      const c = e.detail;
+      // Sync sliders if elements exist
+      const devBore = document.getElementById('dev_bore');
+      if (devBore) { (devBore as any).value = c.boreMm; const v = document.getElementById('dev_bore_val'); if(v) v.innerText = c.boreMm.toFixed(1) + " mm"; }
+      
+      const devStroke = document.getElementById('dev_stroke_len');
+      if (devStroke) { (devStroke as any).value = c.strokeMm; const v = document.getElementById('dev_stroke_len_val'); if(v) v.innerText = c.strokeMm.toFixed(1) + " mm"; }
+      
+      const devAngle = document.getElementById('dev_angle');
+      if (devAngle) { (devAngle as any).value = c.vAngle; const v = document.getElementById('dev_angle_val'); if(v) v.innerText = c.vAngle; }
+      
+      this.updateEngineStats();
+    });
+
       this.updateEngineStats();
       this.scene.rebuildFullCar();
     });
@@ -312,7 +329,7 @@ setupDevPanel() {
     });
     
     // Initialize defaults from DOM (Sport by default)
-    this.scene.config.intakeType = document.querySelector('#dev_intake .active')?.dataset.val || 'sport';
+    this.scene.config.intakeType = (document.querySelector("#dev_intake .active") as any)?.dataset.val || 'sport';
     updateAspirationPill();
 
     // Initialize button state on load
@@ -346,8 +363,8 @@ setupDevPanel() {
     if (devTilt) {
       devTilt.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_tilt_val');
-        if (valEl) valEl.innerText = e.target.value;
-        this.scene.config.tiltAngle = parseInt(e.target.value);
+        if (valEl) valEl.innerText = (e.target as any).value;
+        this.scene.config.tiltAngle = parseInt((e.target as any).value);
         this.scene.rebuildFullCar();
       });
     }
@@ -357,23 +374,23 @@ setupDevPanel() {
       if (this.scene.datumGroup) this.scene.datumGroup.visible = this.scene.config.showDatum;
       const chk1 = document.getElementById('toggle_datum');
       const chk2 = document.getElementById('dev-toggle-datum');
-      if (chk1) chk1.checked = isChecked;
-      if (chk2) chk2.checked = isChecked;
+      if (chk1) (chk1 as any).checked = isChecked;
+      if (chk2) (chk2 as any).checked = isChecked;
     };
 
     const toggleDatum = document.getElementById('toggle_datum');
     if (toggleDatum) {
-      toggleDatum.checked = false;
+      (toggleDatum as any).checked = false;
       toggleDatum.addEventListener('change', (e) => {
-        updateDatumVisibility(e.target.checked);
+        updateDatumVisibility((e.target as any).checked);
       });
     }
 
     const devToggleDatum = document.getElementById('dev-toggle-datum');
     if (devToggleDatum) {
-      devToggleDatum.checked = false;
+      (devToggleDatum as any).checked = false;
       devToggleDatum.addEventListener('change', (e) => {
-        updateDatumVisibility(e.target.checked);
+        updateDatumVisibility((e.target as any).checked);
       });
     }
 
@@ -389,8 +406,8 @@ setupDevPanel() {
     if (devRpm) {
       devRpm.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_rpm_val');
-        if (valEl) valEl.innerText = e.target.value;
-        this.scene.config.rpm = parseInt(e.target.value);
+        if (valEl) valEl.innerText = (e.target as any).value;
+        this.scene.config.rpm = parseInt((e.target as any).value);
         this.updateEngineStats();
       });
     }
@@ -398,7 +415,7 @@ setupDevPanel() {
     const devClutchEngaged = document.getElementById('dev_clutch_engaged');
     if (devClutchEngaged) {
       devClutchEngaged.addEventListener('change', (e) => {
-        this.scene.config.clutchEngaged = e.target.checked;
+        this.scene.config.clutchEngaged = (e.target as any).checked;
         this.updateEngineStats();
       });
     }
@@ -407,8 +424,8 @@ setupDevPanel() {
     if (devFinalDrive) {
       devFinalDrive.addEventListener('input', (e) => {
         const valEl = document.getElementById('dev_final_drive_val');
-        if (valEl) valEl.innerText = parseFloat(e.target.value).toFixed(2);
-        this.scene.config.finalDrive = parseFloat(e.target.value);
+        if (valEl) valEl.innerText = parseFloat((e.target as any).value).toFixed(2);
+        this.scene.config.finalDrive = parseFloat((e.target as any).value);
         this.updateEngineStats();
       });
     }
@@ -441,7 +458,7 @@ setupDevPanel() {
           document.querySelector('#dev_gearbox button[data-gear="5"]')?.classList.add('active');
         }
         this.scene.config.finalDrive = preset.finalDrive;
-        if (finalDriveSlider) finalDriveSlider.value = preset.finalDrive;
+        if (finalDriveSlider) (finalDriveSlider as any).value = preset.finalDrive;
         if (finalDriveVal) finalDriveVal.innerText = preset.finalDrive.toFixed(2);
       }
       this.updateEngineStats();
@@ -453,7 +470,7 @@ setupDevPanel() {
       const valEl = document.getElementById(`val_g${gKey}`);
       if (slider) {
         slider.addEventListener('input', (e) => {
-          const ratioVal = parseFloat(e.target.value);
+          const ratioVal = parseFloat((e.target as any).value);
           const actualKey = gKey === 'r' ? 'R' : gKey;
           const finalVal = gKey === 'r' ? -ratioVal : ratioVal;
           this.scene.config.gearboxCustomRatios[actualKey] = finalVal;
@@ -480,7 +497,7 @@ setupDevPanel() {
     const chkWireframes = document.getElementById('toggle_wireframes');
     if (chkWireframes) {
       chkWireframes.addEventListener('change', (e) => {
-        this.scene.config.showWireframes = e.target.checked;
+        this.scene.config.showWireframes = (e.target as any).checked;
         this.updateWireframeVisibility();
       });
     }
@@ -488,7 +505,7 @@ setupDevPanel() {
     const chkHover = document.getElementById('toggle_hover');
     if (chkHover) {
       chkHover.addEventListener('change', (e) => {
-        this.scene.config.enableHover = e.target.checked;
+        this.scene.config.enableHover = (e.target as any).checked;
         if (!this.scene.config.enableHover && this.scene.hoveredPart) {
            this.scene.hoveredPart.material.emissive.setHex(0x000000);
            this.scene.hoveredPart = null;
@@ -498,9 +515,9 @@ setupDevPanel() {
 
     const chkChassis = document.getElementById('toggle_chassis');
     if (chkChassis) {
-      chkChassis.checked = this.scene.config.showChassis || false;
+      (chkChassis as any).checked = this.scene.config.showChassis || false;
       chkChassis.addEventListener('change', (e) => {
-        this.scene.config.showChassis = e.target.checked;
+        this.scene.config.showChassis = (e.target as any).checked;
         this.scene.rebuildFullCar();
       });
     }
@@ -607,30 +624,30 @@ updateBalanceUI() {
       else icon.innerText = '✕';
     }
 
-    let reportTitle = report.title;
+    let reportTitle = (report as any).title;
     let reportMsg = report.message;
     let reportRec = report.recommendation;
 
     if (report.status === 'perfect' && br.perfect) {
-      reportTitle = br.perfect.title;
+      reportTitle = (br.perfect as any).title;
       reportMsg = br.perfect.message;
       reportRec = br.perfect.recommendation;
     } else if (report.status === 'warning-secondary' && br.warningSecondary) {
-      reportTitle = br.warningSecondary.title;
+      reportTitle = (br.warningSecondary as any).title;
       const pct = (report.metrics?.f2Score ? report.metrics.f2Score * 100 : 0).toFixed(1);
       reportMsg = br.warningSecondary.messageTemplate.replace('{percent}', pct);
       reportRec = br.warningSecondary.recommendation;
     } else if (report.status === 'warning-moment' && br.warningMoment) {
-      reportTitle = br.warningMoment.title;
+      reportTitle = (br.warningMoment as any).title;
       reportMsg = br.warningMoment.message;
       reportRec = br.warningMoment.recommendation;
     } else if (report.status === 'error-primary' && br.errorPrimary) {
-      reportTitle = br.errorPrimary.title;
+      reportTitle = (br.errorPrimary as any).title;
       const pct = (report.metrics?.f1Score ? report.metrics.f1Score * 100 : 0).toFixed(1);
       reportMsg = br.errorPrimary.messageTemplate.replace('{percent}', pct);
       reportRec = br.errorPrimary.recommendation;
     } else if (br.balanced) {
-      reportTitle = br.balanced.title;
+      reportTitle = (br.balanced as any).title;
       reportMsg = br.balanced.message;
       reportRec = br.balanced.recommendation;
     }
@@ -764,8 +781,8 @@ setupTooltip() {
       const target = e.target;
       if (
         target &&
-        target.closest &&
-        target.closest('.sidebar-left, .bottom-hud, .info-drawer, .dev-drawer, .dev-mode-toggle, button, input, select, textarea')
+        (target as any).closest &&
+        (target as any).closest('.sidebar-left, .bottom-hud, .info-drawer, .dev-drawer, .dev-mode-toggle, button, input, select, textarea')
       ) {
         this.scene.mouse.set(-9999, -9999);
         this.scene.tooltip.style.display = 'none';
