@@ -40,10 +40,23 @@ export function setupDebugClicker(scene3d) {
       scene3d.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       scene3d.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       scene3d.raycaster.setFromCamera(scene3d.mouse, scene3d.camera);
-      const intersects = scene3d.raycaster.intersectObjects(scene3d.scene.children, true);
+      const objectsToIntersect = scene3d.carGroup ? [scene3d.carGroup] : scene3d.scene.children;
+      const intersects = scene3d.raycaster.intersectObjects(objectsToIntersect, true);
+      
       if (intersects.length > 0) {
-        // Skip TransformControl parts
-        const filtered = intersects.filter(hit => !hit.object.isTransformControls);
+        // Skip TransformControl parts, GridHelper, and logically hidden objects
+        const filtered = intersects.filter((hit: any) => {
+            if (hit.object.isTransformControls || hit.object.type === 'GridHelper') return false;
+            // Sprawdź widoczność rodziców – Raycaster w Three.js nie dziedziczy visible = false z grupy
+            let curr = hit.object;
+            while (curr) {
+                if (curr.visible === false) return false;
+                curr = curr.parent;
+            }
+            // Zablokowanie raycastingu dla obiektów, które mają to ustawione
+            if (hit.object.userData && hit.object.userData.noRaycast) return false;
+            return true;
+        });
         if (filtered.length > 0) {
             const hit = filtered[0];
             let curr = hit.object;
@@ -70,9 +83,39 @@ export function setupDebugClicker(scene3d) {
                     p = p.parent;
                 }
             }
-            transformControl.attach(targetObj);
             
-            // Disable dragging for animated parts
+            // --- MATEMATYCZNE WYLICZANIE ŚRODKA OBIEKTU ---
+            // Żeby obiekt obracał się wokół własnego środka, przesuwamy jego pivot
+            if (!targetObj.userData.centered) {
+                const worldBox = new THREE.Box3().setFromObject(targetObj);
+                const centerWorld = new THREE.Vector3();
+                worldBox.getCenter(centerWorld);
+                
+                // Konwersja na przestrzeń lokalną
+                const centerLocal = targetObj.worldToLocal(centerWorld.clone());
+                
+                // 1. Przesunięcie geometrii, jeśli obiekt ją posiada
+                const meshObj = targetObj as THREE.Mesh;
+                if (meshObj.isMesh && meshObj.geometry) {
+                    meshObj.geometry.translate(-centerLocal.x, -centerLocal.y, -centerLocal.z);
+                }
+                
+                // 2. Przesunięcie pozycji wszystkich dzieci
+                targetObj.children.forEach(child => {
+                    child.position.sub(centerLocal);
+                });
+                
+                // 3. Rekompensata pozycji samego obiektu w przestrzeni rodzica
+                const compensate = centerLocal.clone();
+                compensate.multiply(targetObj.scale);
+                compensate.applyQuaternion(targetObj.quaternion);
+                targetObj.position.add(compensate);
+                
+                targetObj.userData.centered = true;
+            }
+            // ----------------------------------------------
+
+            transformControl.attach(targetObj);
             const animKeywords = ["Tłok", "Korbowód", "Wał", "Zawór", "Wałek", "Popychacz", "Sprężyna", "Koło", "Pasek", "Krzywka", "Sworzeń"];
             const isAnimated = animKeywords.some(kw => name.includes(kw));
             if (isAnimated) {

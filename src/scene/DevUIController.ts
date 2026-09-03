@@ -431,15 +431,52 @@ setupDevPanel() {
     }
 
     // ═══ PRESETY SKRZYNI BIEGÓW ═══
-    setupButtonGroup('dev_gearbox_preset', (val) => {
+    const presetBtns = document.querySelectorAll('#dev_gearbox_preset_manual button, #dev_gearbox_preset_auto button');
+    presetBtns.forEach((btn: any) => {
+      btn.addEventListener('click', (e: any) => {
+        presetBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const val = btn.getAttribute('data-val');
       this.scene.config.gearboxPreset = val;
       const customContainer = document.getElementById('custom_gearbox_container');
       const descEl = document.getElementById('dev_gearbox_desc');
       const btnG6 = document.getElementById('btn_gear_6');
+      const btnGD = document.getElementById('btn_gear_d');
+      const cvtContainer = document.getElementById('dev_cvt_ratio_container');
       const finalDriveSlider = document.getElementById('dev_final_drive');
       const finalDriveVal = document.getElementById('dev_final_drive_val');
+      const isCvt = val === 'cvt_multitronic';
+      
       const lang = this.scene.lang || 'pl';
       const t = i18n[lang] || i18n.pl;
+
+      // Handle Gears UI
+      const gearButtons = document.querySelectorAll('#dev_gearbox button');
+      gearButtons.forEach((btn: any) => {
+        const gear = btn.getAttribute('data-gear');
+        if (isCvt) {
+          // CVT mode: Hide 1-6, Show D, N, R
+          if (['1','2','3','4','5','6'].includes(gear)) btn.style.display = 'none';
+          if (['D','N','R'].includes(gear)) btn.style.display = 'inline-block';
+        } else {
+          // Manual mode: Show 1-5, N, R, maybe 6
+          if (['D'].includes(gear)) btn.style.display = 'none';
+          if (['1','2','3','4','5','N','R'].includes(gear)) btn.style.display = 'inline-block';
+        }
+      });
+
+      if (cvtContainer) cvtContainer.style.display = isCvt ? 'block' : 'none';
+
+      // Switch to N if invalid gear is selected
+      if (isCvt && ['1','2','3','4','5','6'].includes(this.scene.config.currentGear)) {
+        this.scene.config.currentGear = 'N';
+        gearButtons.forEach(b => b.classList.remove('active'));
+        document.querySelector('#dev_gearbox button[data-gear="N"]')?.classList.add('active');
+      } else if (!isCvt && this.scene.config.currentGear === 'D') {
+        this.scene.config.currentGear = '1';
+        gearButtons.forEach(b => b.classList.remove('active'));
+        document.querySelector('#dev_gearbox button[data-gear="1"]')?.classList.add('active');
+      }
 
       if (val === 'custom') {
         if (customContainer) customContainer.style.display = 'block';
@@ -450,18 +487,20 @@ setupDevPanel() {
         const preset = GEARBOX_PRESETS[val] || GEARBOX_PRESETS.opel_f17;
         const gDict = (t.gearboxPresets && t.gearboxPresets[val]) ? t.gearboxPresets[val] : null;
         if (descEl) descEl.innerText = gDict ? gDict.desc : preset.desc;
-        if (btnG6) btnG6.style.display = (preset.speeds === 6) ? 'inline-block' : 'none';
+        if (!isCvt && btnG6) btnG6.style.display = (preset.speeds === 6) ? 'inline-block' : 'none';
         if (preset.speeds === 5 && this.scene.config.currentGear === '6') {
           this.scene.config.currentGear = '5';
-          const btns = document.querySelectorAll('#dev_gearbox button');
-          btns.forEach(b => b.classList.remove('active'));
+          gearButtons.forEach(b => b.classList.remove('active'));
           document.querySelector('#dev_gearbox button[data-gear="5"]')?.classList.add('active');
         }
         this.scene.config.finalDrive = preset.finalDrive;
         if (finalDriveSlider) (finalDriveSlider as any).value = preset.finalDrive;
         if (finalDriveVal) finalDriveVal.innerText = preset.finalDrive.toFixed(2);
       }
+      
       this.updateEngineStats();
+      this.scene.rebuildFullCar(); // <-- KEY FIX! Rebuilds 3D when switching presets!
+      });
     });
 
     // ═══ SUWAKI WŁASNYCH PRZEŁOŻEŃ (Custom Gearbox) ═══
@@ -479,6 +518,17 @@ setupDevPanel() {
         });
       }
     });
+
+    const cvtSlider = document.getElementById('slider_cvt_ratio');
+    const cvtVal = document.getElementById('val_cvt_ratio');
+    if (cvtSlider) {
+      cvtSlider.addEventListener('input', (e) => {
+        const ratio = parseFloat((e.target as any).value);
+        if (cvtVal) cvtVal.innerText = ratio.toFixed(2);
+        this.scene.config.cvtRatio = ratio; // Przechowujemy własną zmienną dla CVT
+        this.updateEngineStats();
+      });
+    }
 
     // ═══ WYBÓR AKTUALNEGO BIEGU (R, N, 1..6) ═══
     setupButtonGroup('dev_gearbox', (val) => {
@@ -526,6 +576,14 @@ setupDevPanel() {
 getCurrentGearRatio() {
     const currentG = this.scene.config.currentGear || '1';
     if (currentG === 'N') return 0;
+    
+    if (this.scene.config.gearboxPreset === 'cvt_multitronic') {
+      if (currentG === 'D') return this.scene.config.cvtRatio !== undefined ? this.scene.config.cvtRatio : 2.60;
+      if (currentG === 'R') return -2.40; // Stałe przełożenie wsteczne dla CVT
+      // Fallback jeśli przełączymy z manuala:
+      return this.scene.config.cvtRatio !== undefined ? this.scene.config.cvtRatio : 2.60;
+    }
+
     if (this.scene.config.gearboxPreset === 'custom') {
       return this.scene.config.gearboxCustomRatios[currentG] !== undefined ? this.scene.config.gearboxCustomRatios[currentG] : 1.0;
     }

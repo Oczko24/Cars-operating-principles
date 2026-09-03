@@ -192,9 +192,20 @@ class App {
     const focusButtons = document.querySelectorAll(".focus-btn");
     focusButtons.forEach(btn => {
       btn.addEventListener("click", () => {
-        focusButtons.forEach(b => b.classList.remove("active"));
+        focusButtons.forEach(b => {
+          b.classList.remove("active");
+          (b as HTMLElement).style.filter = 'grayscale(100%)';
+          (b as HTMLElement).style.opacity = '0.6';
+          (b as HTMLElement).style.transform = 'scale(1.0)';
+        });
         btn.classList.add("active");
-        this.scene3d.setFocus((btn as any).dataset.focus);
+        (btn as HTMLElement).style.filter = 'grayscale(0%)';
+        (btn as HTMLElement).style.opacity = '1';
+        (btn as HTMLElement).style.transform = 'scale(1.1)';
+        
+        if (this.scene3d) {
+          this.scene3d.setFocusMode((btn as any).dataset.focus);
+        }
       });
     });
 
@@ -332,6 +343,14 @@ class App {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  (window as any).app = new App();
-});
+function initApp() {
+  if (!(window as any).app) {
+    (window as any).app = new App();
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
+}

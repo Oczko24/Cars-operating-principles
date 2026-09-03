@@ -20,7 +20,6 @@
 The project employs **three hierarchical coordinate frames**:
 
 ### 1. Vehicle / World Space (`carGroup`)
-
 - **Origin**: Ground level ($Y = 0$).
 - **$Y$-axis (Up)**: Ground level is $Y=0$. Wheel axis is at $Y = \text{tireRadius} = 0.32\text{m}$. Engine crankshaft axis is mounted at $Y = 0.40\text{m}$.
 - **$Z$-axis (Longitudinal)**:
@@ -33,7 +32,6 @@ The project employs **three hierarchical coordinate frames**:
   - Total Track Width = $1.56\text{m}$.
 
 ### 2. Engine Space (`engineMountGroup`)
-
 - Container for the engine and direct-attached bellhousing/transmission.
 - Handles macro-placement within the vehicle chassis:
   - **Placement**: `front` ($Z \approx +1.10$), `mid` ($Z \approx -0.30$), `rear` ($Z \approx -1.65$).
@@ -41,9 +39,7 @@ The project employs **three hierarchical coordinate frames**:
   - **Tilt (Slant Angle)**: $0^\circ$ to $45^\circ$ rotation around $Z$.
 
 ### 3. Geometric Datum Frame (`computeEngineDatum()`)
-
 All internal engine geometry (sleeves, pistons, wrist pins, conrods, crankpins, valves, cams, manifolds) is calculated relative to the **Computed Geometric Datum**:
-
 - **Bore Column Centerline**: Vector $\vec{u} = (-\sin(\text{bank}), \cos(\text{bank}), 0)$.
 - **Bore Midpoint ($M_i$)**: Exact center of the stroke $M_i = A_0 + \text{sleeveCenter} \cdot \vec{u}$.
 - **Engine Centroid ($C_{engine}$)**: Calculated average of all $M_i$.
@@ -75,20 +71,17 @@ All internal engine geometry (sleeves, pistons, wrist pins, conrods, crankpins, 
 ## 🔬 Mechanical Implementation Guidelines
 
 ### 1. Valvetrain & Cam Timing
-
 - The camshaft rotates at **half the crankshaft speed** ($1:2$ drive ratio).
 - Cam lobes must physically contact the valve lifter/bucket.
 - When the cam lobe lobe crest presses down, the valve stem displaces downward and the spring coils compress procedurally using mathematical scaling.
 - **OHV (Overhead Valve / Pushrod)**: Camshaft is located in the engine block; lifters ride on cam lobes, transmitting motion through pushrods to rocker arms, which depress the valves.
 
 ### 2. Crankshaft Solver
-
 - Never hardcode crank angles for variable layouts.
 - Presets are defined in `CRANK_PRESETS` for standard configurations (L4 180°, L5 72°, L6 120°, V8 crossplane 90°, V8 flatplane 180°, Boxer).
 - When arbitrary cylinder numbers or custom bank angles are chosen, the fallback layer calculates even-fire intervals $\Delta\gamma = 720^\circ / N$ and generates split-pin offsets $\delta = \Delta\gamma - \alpha$.
 
 ### 3. Drivetrain Connection
-
 - The transmission tailhousing output connects dynamically to the differential pinion input via the prop shaft.
 - Use `Vector3.distanceTo` and `Object3D.lookAt` to dynamically scale and orient the prop shaft, supporting any engine placement (`front`, `mid`, `rear`).
 
@@ -101,3 +94,21 @@ All internal engine geometry (sleeves, pistons, wrist pins, conrods, crankpins, 
 3. **Zero Console Errors**: Always verify that running the scene produces zero WebGL or JavaScript runtime exceptions.
 4. **OBB Collision Detection**: Use the built-in **Sprawdź Kolizje OBB** tool in Inspector Pro (`#dev-check-overlap`) to ensure newly added components do not unnaturally intersect existing parts.
 5. **Double Click Raycaster**: Double-clicking any part in the 3D viewport logs its full part name, Vehicle Space coordinates, and Engine Local coordinates to the browser console.
+
+
+## 🔍 Focus Modes (Tryby Skupienia i Raycasting)
+- Silnik 3D `Scene3D` implementuje system **Focus Modes** (`setFocusMode()`).
+- Zarządzanie kamerą celuje w geometryczne środki układów, wykorzystując `THREE.Box3().setFromObject(group)` by dynamicznie obliczać wymiary z zaznaczeniem krawędzi modeli. 
+- Logika wygaszania/pokazywania opiera się o `visible = true/false` dla głównych grup: `engineGroup`, `transGroup`, `drivetrainGroup`.
+- **Ważne dla Raycastera**: Domyślny raycaster Three.js *nie iteruje* przez niewidoczność nadrzędnej grupy (jeśli dziecko jest nadal widoczne lokalnie, raycaster je znajdzie!). W `DebugTools.ts` jest odpowiedni filtr walidujący widoczność rodziców `while (curr.parent) { if(curr.visible===false) return false }`. Upewnij się, że ten mechanizm nie zostanie popsuty przy aktualizacjach zaznaczania!
+
+## 📂 Struktura Plików i Foldery
+Aplikacja została posprzątana i uproszczona.
+- `src/scene3d.ts` - Główne środowisko renderujące, menedżer grup, pętla animacyjna.
+- `src/scene/EngineBuilder.ts` - Proceduralne modelowanie bloku, tłoków i korbowodów (bardzo duże).
+- `src/scene/DrivetrainBuilder.ts` - Skrzynie biegów, dyferencjały i osie.
+- `src/scene/SandboxModeler.ts` - Tryb testowy `sandbox.html` dla agentów AI do eksperymentów 3D.
+- `src/app.ts` - Punkt wejściowy GUI i listenerów (spinacz Dev UI).
+
+Wszystkie skrypty pomocnicze (tymczasowe testy deweloperskie) umieszczaj wyłącznie w `/temp`. 
+Używaj systemu modułowego z poprawnymi importami rozszerzeń `.js` w środowisku Vite.

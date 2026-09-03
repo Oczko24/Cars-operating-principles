@@ -81,6 +81,12 @@ window.addEventListener('unhandledrejection', function(e) {
 </head>
 <body>
   <div id="canvas-container"></div>
+  <div id="focus_modes_bar" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px 25px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+    <button class="focus-btn active" data-focus="all" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(0%); transition: 0.3s; transform: scale(1.1);" title="Całe auto">🚗</button>
+    <button class="focus-btn" data-focus="engine" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" title="Silnik">⚙️</button>
+    <button class="focus-btn" data-focus="gearbox" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" title="Skrzynia Biegów">🕹️</button>
+    <button class="focus-btn" data-focus="drivetrain" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" title="Układ Napędowy">🏎️</button>
+  </div>
 
   <!-- LEWY PANEL GŁÓWNY (Apple Pro Minimal Sidebar) -->
   <aside class="sidebar-left">
@@ -400,12 +406,20 @@ window.addEventListener('unhandledrejection', function(e) {
             <input type="checkbox" id="dev_clutch_engaged" checked>
           </div>
 
-          <label class="control-label" data-i18n="ui.gearboxPreset">Skrzynia Biegów (Preset):</label>
-          <div class="focus-group" id="dev_gearbox_preset" style="flex-wrap: wrap;">
-            <button class="config-btn active" data-val="opel_f17">Saab 9-3 (5b)</button>
-            <button class="config-btn" data-val="bmw_zf_gs6">BMW ZF (6b)</button>
-            <button class="config-btn" data-val="tremec_t56">Tremec T56 (6b)</button>
-            <button class="config-btn" data-val="rally_dogbox">Rajdowa (6b)</button>
+          <label class="control-label" data-i18n="ui.gearboxPreset">Typ Skrzyni Biegów:</label>
+          
+          <div style="font-size: 11px; color: #888; margin: 8px 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Manualne</div>
+          <div class="focus-group" id="dev_gearbox_preset_manual" style="flex-wrap: wrap; margin-bottom: 8px;">
+            <button class="config-btn active" data-val="opel_f17">F17 (5b FWD)</button>
+            <button class="config-btn" data-val="bmw_zf_gs6">BMW (6b RWD)</button>
+            <button class="config-btn" data-val="tremec_t56">Tremec T56</button>
+            <button class="config-btn" data-val="rally_dogbox">Kłowa (6b)</button>
+          </div>
+          
+          <div style="font-size: 11px; color: #888; margin: 8px 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Automaty / Inne</div>
+          <div class="focus-group" id="dev_gearbox_preset_auto" style="flex-wrap: wrap;">
+            <button class="config-btn" data-val="zf_8hp">Automat (ZF)</button>
+            <button class="config-btn" data-val="cvt_multitronic">CVT (Wariator)</button>
             <button class="config-btn" data-val="custom" data-i18n="ui.gearboxCustomBtn">Własna</button>
           </div>
           <div id="dev_gearbox_desc" class="crank-edu-note" style="margin-bottom: 8px;">
@@ -423,6 +437,19 @@ window.addEventListener('unhandledrejection', function(e) {
             <button class="config-btn" data-gear="4">4</button>
             <button class="config-btn" data-gear="5">5</button>
             <button class="config-btn" data-gear="6" id="btn_gear_6" style="display: none;">6</button>
+            <button class="config-btn" data-gear="D" id="btn_gear_d" style="display: none;">D</button>
+          </div>
+
+          <div id="dev_cvt_ratio_container" style="display: none; margin-top: 10px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px;">
+            <label class="control-label" style="display: flex; justify-content: space-between;">
+              <span data-i18n="ui.cvtRatio">Wariator (Przełożenie):</span>
+              <span id="val_cvt_ratio" style="color: #64ffda; font-weight: bold;">2.60</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 10px; color: #888;">Low</span>
+              <input type="range" class="control-slider" id="slider_cvt_ratio" min="0.60" max="2.60" step="0.01" value="2.60" style="flex: 1; direction: rtl;">
+              <span style="font-size: 10px; color: #888;">High</span>
+            </div>
           </div>
 
           <!-- WŁASNE PRZEŁOŻENIA (Custom Gearbox Editor) -->
@@ -516,19 +543,13 @@ window.addEventListener('unhandledrejection', function(e) {
             </label>
           </div>
 
-          <label class="control-label" data-i18n="ui.cameraFocus">Skupienie kamery:</label>
-          <div class="focus-group">
-            <button class="focus-btn active" data-focus="engine" data-i18n="ui.focusEngineBtn">Silnik</button>
-            <button class="focus-btn" data-focus="drivetrain" data-i18n="ui.focusDrivetrainBtn">Napęd</button>
-            <button class="focus-btn" data-focus="car" data-i18n="ui.focusCarBtn">Auto</button>
-          </div>
+
 
           <div style="margin-top: 8px;">
             <button id="cutaway-btn" class="hud-btn active" style="width: 100%; justify-content: center;" data-i18n="ui.cutawayBtn">
               Przekrój bloku silnika
             </button>
           </div>
-
           <label class="control-label" style="margin-top: 10px;" data-i18n="ui.explodeSlider">Eksplozja podzespołów:</label>
           <input type="range" id="explode-slider" class="styled-slider" min="0" max="1" value="0" step="0.01">
         </div>
@@ -782,6 +803,9 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
         </label>
         <button id="dev-reload-page" class="dev-btn-secondary" style="width: 100%; padding: 8px; font-weight: 600;" data-i18n="ui.devReloadApp" data-i18n-title="ui.devReloadAppTitle" title="Przeładuj całą stronę i zresetuj stan">
           Przeładuj aplikację
+        </button>
+        <button id="sandbox-btn" class="dev-btn-secondary" style="width: 100%; padding: 8px; font-weight: 600; margin-top: 6px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6;" onclick="window.location.href='sandbox.html'">
+          🛠️ Otwórz AI Modeler Sandbox
         </button>
       </div>
     </div>

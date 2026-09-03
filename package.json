@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "inspect:3d": "node scripts/inspect_3d.js"
   },
   "keywords": [],
   "author": "",

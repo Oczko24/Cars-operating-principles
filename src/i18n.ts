@@ -273,6 +273,14 @@ export const i18n = {
         name: "Rajdowa (6b)",
         desc: "Wyczynowa krótka skrzynia ze sprzęgłami kłowymi do motorsportu. Ciasno zestopniowane biegi i wysokie przełożenie główne."
       },
+      cvt_multitronic: {
+        name: "CVT (Wariator)",
+        desc: "⚡ <b>Skrzynia Bezstopniowa CVT:</b> Dwie pary przesuwnych stożków i stalowy pas Van Doorne'a płynnie zmieniają przełożenie od 2.60:1 (ruszanie) do 0.60:1 (nadbieg) bez przerw w dostawie momentu."
+      },
+      zf_8hp: {
+        name: "Automat (6b)",
+        desc: "Klasyczna hydrokinetyczna skrzynia automatyczna z przekładniami planetarnymi. (Uproszczony model 3D)."
+      },
       custom: {
         name: "Własna",
         desc: "🛠 <b>Własne stopniowanie:</b> Dopasuj przełożenia poszczególnych biegów oraz dyferencjału do charakterystyki silnika."
@@ -846,9 +854,17 @@ export const i18n = {
         name: "Rally Dogbox (6-spd)",
         desc: "Competition dog-ring motorsport gearbox. Close-ratio gears with high final drive ratio."
       },
+      cvt_multitronic: {
+        name: "CVT (Variator)",
+        desc: "⚡ <b>Continuously Variable Transmission (CVT):</b> Two pairs of sliding cones and a Van Doorne steel push belt seamlessly vary ratios from 2.60:1 (launch) to 0.60:1 (overdrive) without power interruption."
+      },
+      zf_8hp: {
+        name: "Automatic (6-spd)",
+        desc: "Classic torque converter automatic transmission with planetary gearsets. (Simplified 3D model)."
+      },
       custom: {
         name: "Custom",
-        desc: "🛠 <b>Custom gearing:</b> Fine-tune individual gear ratios and final drive to match engine characteristics."
+        desc: "🛠 <b>Custom Gearing:</b> Adjust individual gear ratios and final drive."
       }
     },
 

@@ -1,11 +1,9 @@
 # 📋 Roadmap & Backlog (Todo.md)
-
 *Statyczne stanowisko edukacyjno-anatomiczne (Virtual Cutaway Workbench). Brak modelu jazdy.*
 
 [x] Done | [/] In Progress | [ ] Planned
 
 ### 0. INTERAKTYWNE DRZEWO CZĘŚCI I INSPEKCJA (PARTS EXPLORER)
-
 * [ ] **Hierarchiczne Drzewo Komponentów w UI (Treeview)**:
   * Pełna taksonomia: Pojazd → Układ → Podzespół → Część (np. Silnik → Głowica → Zawór).
   * [ ] **Dwukierunkowa interakcja (3D ↔ UI)**:
@@ -16,7 +14,6 @@
     * Opcja izolacji widoku (Solo / Isolate Part) oraz ukrywania sąsiadujących podzespołów.
 
 ### I. JEDNOSTKI NAPĘDOWE I OSPRZĘT
-
 * **Benzyna (ICE) & Inżynieria Bloku**:
   * [x] Bloki: L2-L6, L11, V2-V12, VR15°, Boxer, W.
   * [x] Solver wału 360°, presety, split-pin, wyważenie I/II rzędu.
@@ -54,7 +51,6 @@
   * [ ] Elektryki (BEV): silnik Hairpin PMSM, reduktor 1-biegowy, bateria podłogowa, BMS, falownik SiC.
 
 ### II. UKŁAD WYDECHOWY I AKUSTYKA
-
 * [x] Kolektory wydechowe, rura pojedyncza/podwójna.
 * [ ] Kolektory równoodległościowe (Equal-length / spaghetti headers).
 * [ ] Termoizolacja wydechu (bandaże bazaltowe / osłony z Inconelu).
@@ -66,7 +62,6 @@
 * [ ] Tłumik z boczną komorą rezonatora Helmholtza (redukcja dronienia).
 
 ### III. PRZENIESIENIE NAPĘDU (DRIVETRAIN)
-
 * [x] Sprzęgło 1-tarczowe i 2-tarczowe (DCT).
 * [x] Skrzynia manualna 5/6 biegów z kołami i wałkami.
 * [ ] Sprzęgło wielotarczowe wyczynowe (Twin/Triple-disc spiekowe lub węglowe).
@@ -83,7 +78,6 @@
 * [/] Układy: [x] RWD, [/] FWD Transaxle, [/] AWD/4x4 z reduktorem, [ ] RWD Transaxle z rurą reakcyjną (Torque Tube C5/944).
 
 ### IV. PODWOZIE, ZAWIESZENIE I KINEMATYKA (STATYKA)
-
 * [x] Rama przestrzenna, double wishbone przód, multi-link tył, coilovers, hamulce wentylowane.
 * [ ] Geometria skrętu Ackermanna (wewnętrzne koło skręca mocniej) + praca maglownicy i drążków.
 * [ ] Kolumna kierownicza z przegubami połączona z kierownicą w kabinie.
@@ -91,14 +85,12 @@
 * [ ] Przedni i tylny stabilizator poprzeczny (Anti-roll bars) z łącznikami.
 
 ### V. ANATOMIA, NADWOZIE I WNĘTRZE
-
 * [ ] Poszycie: Spaceframe vs Monocoque, panele blach (maska, drzwi, błotniki, dach, zderzaki).
 * [ ] Przełącznik trybów: Solid (lakier), Ghost/X-Ray (przezroczysty), Wireframe, Cutaway (przekrój).
 * [ ] Anatomiczne przepływy: obieg oleju, obieg płynu chłodzącego, wektory przepływu momentu.
 * [ ] Wnętrze: fotele, pedały gazu/hamulca/sprzęgła, zegary telemetrii.
 
 ### VI. KOD, WYDAJNOŚĆ I DEV TOOLS
-
 * [x] Dekompozycja `EngineBuilder.js` na `src/scene/engine/` (`Block`, `Crank`, `Valvetrain`, `Manifolds`, `Accessories`).
 * [x] Bundler Vite (HMR) i migracja na TypeScript.
 * [x] `THREE.InstancedMesh` dla elementów powtarzalnych (śruby, zawory, sprężyny, ogniwa).

@@ -49,6 +49,22 @@ export const GEARBOX_PRESETS = {
     ratios: { '1': 3.00, '2': 2.20, '3': 1.70, '4': 1.35, '5': 1.10, '6': 0.92, 'R': -3.00, 'N': 0 },
     finalDrive: 4.50,
     speeds: 6
+  },
+  cvt_multitronic: {
+    name: "Multitronic / Lineartronic (CVT)",
+    desc: "Bezstopniowa skrzynia automatyczna CVT. Dwie pary przesuwnych stożków i stalowy pas Van Doorne'a płynnie zmieniają przełożenie od 2.60:1 do 0.60:1.",
+    ratios: { '1': 2.60, '2': 1.95, '3': 1.45, '4': 1.05, '5': 0.78, '6': 0.60, 'R': -2.40, 'N': 0 },
+    finalDrive: 3.90,
+    speeds: 6,
+    type: 'cvt'
+  },
+  zf_8hp: {
+    name: "Klasyczny Automat (np. ZF 8HP)",
+    desc: "Klasyczna skrzynia automatyczna z przekładniami planetarnymi. Wyświetlane uproszczone przekładnie i sprzęgła hydrokinetyczne (Konwerter).",
+    ratios: { '1': 4.71, '2': 3.14, '3': 2.10, '4': 1.66, '5': 1.28, '6': 1.00, 'R': -3.30, 'N': 0 },
+    finalDrive: 3.15,
+    speeds: 6,
+    type: 'automatic'
   }
 };
 
@@ -126,9 +142,11 @@ export class Scene3D {
       orientation: "longitudinal",
       tiltAngle: 0,
       showDatum: false,
-      showChassis: false
+      showChassis: false,
+      cvtRatio: 2.60
     };
 
+    this.focusMode = 'all';
     this.frameCount = 0;
     this.lastFpsUpdate = performance.now();
     this.fps = 60;
@@ -311,14 +329,51 @@ export class Scene3D {
     this.rebuildFullCar();
   }
 
-  setFocus(target) {
-    if (target === 'engine') {
-      this.controls.target.set(0, 0.4, 0);
-      this.camera.position.set(2.5, 1.8, 3.5);
-    } else if (target === 'drivetrain') {
-      this.controls.target.set(0, 0.2, -1.0);
-      this.camera.position.set(2.0, 1.0, -2.5);
+  setFocusMode(target: string) {
+    this.focusMode = target;
+    
+    // Ustawienie widoczności głównych modułów
+    if (this.engineGroup) this.engineGroup.visible = (target === 'all' || target === 'engine');
+    if (this.transGroup) this.transGroup.visible = (target === 'all' || target === 'gearbox');
+    if (this.drivetrainGroup) this.drivetrainGroup.visible = (target === 'all' || target === 'drivetrain');
+    
+    // Pozostałe części auta (zawieszenie, koła, rama)
+    const isChassisVisible = (target === 'all');
+    this.carGroup.children.forEach(child => {
+        if (child !== this.drivetrainGroup && child !== this.engineMountGroup) {
+            child.visible = isChassisVisible;
+        }
+    });
+
+    // Funkcja pomocnicza do centrowania kamery na obiekcie
+    const focusOnGroup = (group: any, offset: any) => {
+      const box = new THREE.Box3().setFromObject(group);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      this.controls.target.copy(center);
+      
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+      
+      // Skalujemy dystans kamery na podstawie wielkości obiektu
+      const distMult = maxDim * 0.8;
+      this.camera.position.copy(center).add(offset.clone().multiplyScalar(distMult));
+    };
+
+    // Ustawienie kamery
+    if (target === 'engine' && this.engineGroup) {
+      focusOnGroup(this.engineGroup, new THREE.Vector3(1.5, 1.0, 1.5));
+    } else if (target === 'gearbox' && this.transGroup) {
+      focusOnGroup(this.transGroup, new THREE.Vector3(1.5, 1.0, -1.0));
+    } else if (target === 'drivetrain' && this.drivetrainGroup) {
+      focusOnGroup(this.drivetrainGroup, new THREE.Vector3(2.0, 1.5, -2.0));
+    } else {
+      this.controls.target.set(0, 0, -0.5);
+      this.camera.position.set(3, 2, 3);
     }
+    
+    this.controls.update();
   }
 
   rebuildFullCar() {
@@ -344,6 +399,9 @@ export class Scene3D {
       }
 
       this.devUIController.updateCrankshaftUI();
+      if (this.focusMode) {
+          this.setFocusMode(this.focusMode);
+      }
   }
 
   animate(time) {
@@ -465,15 +523,29 @@ export class Scene3D {
       this.gbOutGears[4].rotation.y = (-counterSpeed * (-0.04 / 0.10)) - outputSpeed; 
     }
     
+    // Animacja rozsuwania/zsuwania stożków CVT w zależności od przełożenia
+    if (this.cvtConePrimMovable && this.cvtConeSecMovable) {
+      const clampedRatio = Math.max(0.6, Math.min(2.6, Math.abs(realRatio || 1.5)));
+      const norm = (clampedRatio - 0.6) / (2.6 - 0.6); // 1.0 (krótki bieg 2.6:1), 0.0 (nadbieg 0.6:1)
+      const targetPrimZ = 0.035 + (norm - 0.5) * 0.024;
+      const targetSecZ = -0.035 + (0.5 - norm) * 0.024;
+      this.cvtConePrimMovable.position.z = THREE.MathUtils.lerp(this.cvtConePrimMovable.position.z, targetPrimZ, 0.1);
+      this.cvtConeSecMovable.position.z = THREE.MathUtils.lerp(this.cvtConeSecMovable.position.z, targetSecZ, 0.1);
+    }
+
     // Ruch synchronizatorów
     const isTransverse = this.config.orientation === 'transverse';
     if (this.gbSync12) {
-      const targetSync12Z = (currentG === '1') ? (isTransverse ? 0.08 : 0.20) : (currentG === '2') ? (isTransverse ? 0.04 : 0.14) : (isTransverse ? 0.06 : 0.17);
+      const targetSync12Z = (currentG === '1') ? (isTransverse ? 0.02 : 0.20) : (currentG === '2') ? (isTransverse ? -0.02 : 0.14) : (isTransverse ? 0.0 : 0.17);
       this.gbSync12.position.z = THREE.MathUtils.lerp(this.gbSync12.position.z, targetSync12Z, 0.1);
     }
     if (this.gbSync34) {
-      const targetSync34Z = (currentG === '3') ? (isTransverse ? 0.00 : 0.04) : (currentG === '4') ? (isTransverse ? -0.02 : 0.00) : (currentG === '5') ? (isTransverse ? -0.05 : -0.06) : (isTransverse ? 0.02 : 0.07);
+      const targetSync34Z = (currentG === '3') ? (isTransverse ? -0.06 : 0.04) : (currentG === '4') ? (isTransverse ? -0.10 : -0.00) : (isTransverse ? -0.08 : 0.02);
       this.gbSync34.position.z = THREE.MathUtils.lerp(this.gbSync34.position.z, targetSync34Z, 0.1);
+    }
+    if (this.gbSync56) {
+      const targetSync56Z = (currentG === '5') ? (isTransverse ? -0.14 : -0.06) : (currentG === '6') ? (isTransverse ? -0.18 : -0.12) : (isTransverse ? -0.14 : -0.09);
+      this.gbSync56.position.z = THREE.MathUtils.lerp(this.gbSync56.position.z, targetSync56Z, 0.1);
     }
     
     if (this.propShaftMesh) this.propShaftMesh.rotation.z = outputSpeed;
