@@ -5,6 +5,19 @@ export default defineConfig({
     port: 8000,
     host: true,
   },
+  plugins: [
+    {
+      name: 'clean-urls',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url && !req.url.includes('.') && req.url !== '/') {
+            req.url = req.url + '.html';
+          }
+          next();
+        });
+      }
+    }
+  ],
   build: {
     outDir: 'dist',
     rollupOptions: {
@@ -18,4 +31,3 @@ export default defineConfig({
     }
   }
 });
-

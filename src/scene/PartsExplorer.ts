@@ -251,14 +251,24 @@ export class PartsExplorer {
               this.scene.hoveredPart.material.emissive.setHex(0x000000);
           }
       }
-      if (object.isMesh && object.material && object.material.emissive) {
-          object.material.emissive.setHex(0x3b82f6);
-          this.scene.hoveredPart = object;
-      } else {
+
+      const applyHighlight = (mesh: any) => {
+          if (mesh.isMesh && mesh.material && mesh.material.emissive) {
+              if (!mesh.userData.materialCloned) {
+                  mesh.material = mesh.material.clone();
+                  mesh.userData.materialCloned = true;
+              }
+              mesh.material.emissive.setHex(0x3b82f6);
+              this.scene.hoveredPart = mesh;
+              return true;
+          }
+          return false;
+      };
+
+      if (!applyHighlight(object)) {
           object.traverse((child: any) => {
-              if (child.isMesh && child.material && child.material.emissive && !this.scene.hoveredPart) {
-                  child.material.emissive.setHex(0x3b82f6);
-                  this.scene.hoveredPart = child;
+              if (!this.scene.hoveredPart) {
+                  applyHighlight(child);
               }
           });
       }

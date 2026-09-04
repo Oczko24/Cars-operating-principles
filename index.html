@@ -772,9 +772,14 @@ window.addEventListener('unhandledrejection', function(e) {
   </aside>
 
   <!-- DEV / DEBUG DRAWER & TOGGLE -->
-  <button id="dev-mode-btn" class="dev-mode-toggle" data-i18n-title="ui.devModeBtnTitle" title="Włącz / Wyłącz Inspektor">
-    Inspector Pro
-  </button>
+  <div style="position: fixed; top: 16px; right: 16px; z-index: 50; display: flex; gap: 8px; align-items: center;">
+    <button id="settings-btn" class="settings-toggle" title="Ustawienia techniczne">
+      ⚙️
+    </button>
+    <button id="dev-mode-btn" class="dev-mode-toggle" style="position: static;" data-i18n-title="ui.devModeBtnTitle" title="Włącz / Wyłącz Inspektor">
+      Inspector Pro
+    </button>
+  </div>
 
   <aside id="dev-drawer" class="dev-drawer">
     <div class="drawer-header">
@@ -845,10 +850,27 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
     </div>
   </aside>
 
-  <footer style="position: fixed; bottom: 10px; right: 20px; z-index: 1000; font-size: 11px; opacity: 0.6; pointer-events: auto;">
-    <a href="privacy.html" style="color: #94a3b8; text-decoration: none; margin-right: 15px; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">Polityka Prywatności</a>
-    <a href="legal.html" style="color: #94a3b8; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">Noty Prawne</a>
-  </footer>
+  <!-- USTAWIENIA TECHNICZNE / MODAL -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Ustawienia Techniczne</h3>
+        <button id="close-settings-btn" class="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">
+           Opcje takie jak limit FPS, jakość renderowania czy antyaliasing (Wkrótce)
+         </p>
+
+         <hr style="border: 0; border-top: 1px solid var(--border-medium); margin: 20px 0;">
+         
+         <div style="display: flex; gap: 15px; justify-content: center;">
+           <a href="/privacy" style="color: #94a3b8; text-decoration: none; font-size: 13px; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">Polityka Prywatności</a>
+           <a href="/legal" style="color: #94a3b8; text-decoration: none; font-size: 13px; transition: opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">Noty Prawne</a>
+         </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="src/app.ts"></script>
 </body>

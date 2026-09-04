@@ -5,7 +5,7 @@
 import { i18n, detectBrowserLanguage } from "./i18n.js";
 import { PARTS_DATA, calculateSpecs } from "./parts.js";
 import { Scene3D } from "./scene3d.js";
-import { setupDevDrawer } from "./scene/DebugTools.js";
+import { setupDevDrawer, setupSettingsModal } from "./scene/DebugTools.js";
 
 class App {
   [key: string]: any;
@@ -269,6 +269,7 @@ class App {
     });
     // 8. Dev Drawer (Tryb Deweloperski) - przeniesiony do DebugTools.js
     setupDevDrawer(this);
+    setupSettingsModal();
 
     // 9. Car Presets (Presety pojazdów)
     const presetButtons = document.querySelectorAll(".car-preset-btn");

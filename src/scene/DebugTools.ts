@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { notifications } from '../ui/NotificationManager';
 
 export let transformControl = null;
 export function setupDebugClicker(scene3d) {
@@ -7,31 +8,46 @@ export function setupDebugClicker(scene3d) {
         transformControl = new TransformControls(scene3d.camera, scene3d.renderer.domElement);
         transformControl.addEventListener('dragging-changed', function (event) {
             scene3d.controls.enabled = !(event as any).value;
-        });
-        
-        transformControl.addEventListener('change', function () {
-            if (!transformControl.object || scene3d.controls.enabled) return;
-            // Only log if dragging (OrbitControls disabled)
+            
+            const isDragging = (event as any).value;
+            if (!transformControl.object) return;
+            
             const targetObj = transformControl.object;
             const name = targetObj.userData?.name || targetObj.name || "Nieznany obiekt";
             const wPos = new THREE.Vector3();
             targetObj.getWorldPosition(wPos);
-            let localEnginePos = "N/A";
+            
+            let localStr = "";
             if (scene3d.engineMountGroup) {
                 const lPos = wPos.clone();
                 scene3d.engineMountGroup.worldToLocal(lPos);
-                localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
+                localStr = `[${lPos.x.toFixed(3)}, ${lPos.y.toFixed(3)}, ${lPos.z.toFixed(3)}]`;
             }
+            const worldStr = `[${wPos.x.toFixed(3)}, ${wPos.y.toFixed(3)}, ${wPos.z.toFixed(3)}]`;
             
-            // throttle console logging to not freeze UI
-            if (!transformControl.userData) transformControl.userData = {};
-            const now = Date.now();
-            if (now - (transformControl.userData.lastLogTime || 0) > 100) {
-                transformControl.userData.lastLogTime = now;
-                const logMsg = `[PRZESUNIĘTO] ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne: ${localEnginePos}`;
-                // update latest log instead of appending if we are dragging continuously?
-                window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
-            }
+            const stateName = isDragging ? "Start przesunięcia" : "Koniec przesunięcia";
+            const logMsg = `[${stateName.toUpperCase()}] ${name} | Świat: ${worldStr} | Lokalne: ${localStr}`;
+            
+            window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+            
+            const allDragText = `Część: ${name}\nŚwiat: ${worldStr}\nLokalnie: ${localStr}`;
+            
+            notifications.show({
+                type: 'info',
+                title: `${stateName}: ${name}`,
+                message: `Świat: ${worldStr}\nLokalnie: ${localStr}`,
+                duration: 4000,
+                actions: [
+                    { label: '📋 Kopiuj wszystko', onClick: () => navigator.clipboard.writeText(allDragText) },
+                    { label: 'Kopiuj (Lok)', onClick: () => navigator.clipboard.writeText(localStr) },
+                    { label: 'Kopiuj (Świat)', onClick: () => navigator.clipboard.writeText(worldStr) }
+                ]
+            });
+        });
+        
+        transformControl.addEventListener('change', function () {
+            // Render on change, but no more spammy notifications
+            if (!transformControl.object || scene3d.controls.enabled) return;
         });
         scene3d.scene.add(transformControl);
     }
@@ -125,6 +141,12 @@ export function setupDebugClicker(scene3d) {
                 // Also warn in log
                 const logMsg = `[INFO] Obiekt animowany (${name}) - przeciąganie wyłączone.`;
                 window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+                notifications.show({
+                    type: 'error',
+                    title: 'Błąd przeciągania',
+                    message: logMsg,
+                    duration: 3000
+                });
             } else {
                 transformControl.showX = true;
                 transformControl.showY = true;
@@ -135,10 +157,19 @@ export function setupDebugClicker(scene3d) {
             hit.object.getWorldPosition(wPos);
             
             let localEnginePos = "N/A";
+            let localStr = "";
+            let clickWorldStr = `[${hit.point.x.toFixed(3)}, ${hit.point.y.toFixed(3)}, ${hit.point.z.toFixed(3)}]`;
+            let clickLocalStr = "";
+
             if (scene3d.engineMountGroup) {
               const lPos = wPos.clone();
               scene3d.engineMountGroup.worldToLocal(lPos);
               localEnginePos = `X: ${lPos.x.toFixed(3)}, Y: ${lPos.y.toFixed(3)}, Z: ${lPos.z.toFixed(3)}`;
+              localStr = `[${lPos.x.toFixed(3)}, ${lPos.y.toFixed(3)}, ${lPos.z.toFixed(3)}]`;
+
+              const lClick = hit.point.clone();
+              scene3d.engineMountGroup.worldToLocal(lClick);
+              clickLocalStr = `[${lClick.x.toFixed(3)}, ${lClick.y.toFixed(3)}, ${lClick.z.toFixed(3)}]`;
             }
             
             const logMsg = `[DEBUG KLIK] ${name} | Świat: X=${wPos.x.toFixed(3)}, Y=${wPos.y.toFixed(3)}, Z=${wPos.z.toFixed(3)} | Lokalne: ${localEnginePos}`;
@@ -147,6 +178,23 @@ export function setupDebugClicker(scene3d) {
             // Dispatch custom event for our log console
             window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
             window.dispatchEvent(new CustomEvent('part-selected', { detail: { object: targetObj, name: name } }));
+
+            const worldStr = `[${wPos.x.toFixed(3)}, ${wPos.y.toFixed(3)}, ${wPos.z.toFixed(3)}]`;
+            const allCoordsText = `Część: ${name}\nŚrodek (Lokalnie): ${localStr}\nŚrodek (Świat): ${worldStr}\nKlik (Lokalnie): ${clickLocalStr}\nKlik (Świat): ${clickWorldStr}`;
+
+            notifications.show({
+                type: 'success',
+                title: `Zaznaczono: ${name}`,
+                message: `Środek (Świat): ${worldStr}\nŚrodek (Lokalnie): ${localStr}\nKlik (Świat): ${clickWorldStr}\nKlik (Lokalnie): ${clickLocalStr}`,
+                duration: 6000,
+                actions: [
+                    { label: '📋 Kopiuj wszystko', onClick: () => navigator.clipboard.writeText(allCoordsText) },
+                    { label: 'Środek (Lok)', onClick: () => navigator.clipboard.writeText(localStr) },
+                    { label: 'Klik (Lok)', onClick: () => navigator.clipboard.writeText(clickLocalStr) },
+                    { label: 'Środek (Świat)', onClick: () => navigator.clipboard.writeText(worldStr) },
+                    { label: 'Klik (Świat)', onClick: () => navigator.clipboard.writeText(clickWorldStr) }
+                ]
+            });
         } else {
             transformControl.detach();
         }
@@ -407,4 +455,28 @@ ${collisions.join('<br>')}
     if (reloadPageBtn) {
       reloadPageBtn.addEventListener("click", () => window.location.reload());
     }
+}
+
+// Dodatek: Obsługa modala ustawień
+export function setupSettingsModal() {
+  const settingsBtn = document.getElementById("settings-btn");
+  const settingsModal = document.getElementById("settings-modal");
+  const closeBtn = document.getElementById("close-settings-btn");
+
+  if (settingsBtn && settingsModal && closeBtn) {
+    settingsBtn.addEventListener('click', () => {
+      settingsModal.classList.add('active');
+    });
+
+    closeBtn.addEventListener('click', () => {
+      settingsModal.classList.remove('active');
+    });
+
+    // Zamknięcie po kliknięciu w tło (overlay)
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) {
+        settingsModal.classList.remove('active');
+      }
+    });
+  }
 }
