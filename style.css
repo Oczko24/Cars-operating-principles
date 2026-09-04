@@ -45,8 +45,8 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  user-select: none;
-  -webkit-user-select: none;
+  
+  -webkit-
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -725,7 +725,7 @@ input[type="text"]:focus {
   align-items: center;
   padding: 10px 12px;
   cursor: pointer;
-  user-select: none;
+  
   background: transparent;
   transition: background 0.15s ease;
 }
@@ -1739,7 +1739,7 @@ input[type="text"]:focus {
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
-  user-select: none;
+  
 }
 
 .tree-item-label:hover {

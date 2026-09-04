@@ -269,6 +269,62 @@ class App {
     });
     // 8. Dev Drawer (Tryb Deweloperski) - przeniesiony do DebugTools.js
     setupDevDrawer(this);
+
+    // 9. Car Presets (Presety pojazdów)
+    const presetButtons = document.querySelectorAll(".car-preset-btn");
+    presetButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = (btn as any).dataset.preset;
+        if (preset === 'saab') {
+          this.scene3d.config.layout = 'Inline';
+          this.scene3d.config.cylinders = 4;
+          this.scene3d.config.boreMm = 80.5;
+          this.scene3d.config.strokeMm = 88.2;
+          this.scene3d.config.placement = 'front';
+          this.scene3d.config.orientation = 'transverse';
+          this.scene3d.config.drivetrainLayout = 'FWD';
+          this.scene3d.config.gearboxPreset = 'opel_f17';
+          this.scene3d.config.intakeType = 'standard'; // Zwykły Airbox
+        } else if (preset === 'bmw') {
+          this.scene3d.config.layout = 'Inline';
+          this.scene3d.config.cylinders = 4;
+          this.scene3d.config.boreMm = 82.0;
+          this.scene3d.config.strokeMm = 94.6;
+          this.scene3d.config.placement = 'front';
+          this.scene3d.config.orientation = 'longitudinal';
+          this.scene3d.config.drivetrainLayout = 'RWD';
+          this.scene3d.config.gearboxPreset = 'zf_8hp';
+        } else if (preset === 'corvette') {
+          this.scene3d.config.layout = 'V';
+          this.scene3d.config.cylinders = 8;
+          this.scene3d.config.vAngle = 90;
+          this.scene3d.config.v8CrankType = 'crossplane';
+          this.scene3d.config.exhaustPipes = 'dual';
+          this.scene3d.config.boreMm = 99.0;
+          this.scene3d.config.strokeMm = 92.0;
+          this.scene3d.config.placement = 'front';
+          this.scene3d.config.orientation = 'longitudinal';
+          this.scene3d.config.drivetrainLayout = 'RWD';
+          this.scene3d.config.gearboxPreset = 'tremec_t56';
+        } else if (preset === 'subaru') {
+          this.scene3d.config.layout = 'Boxer';
+          this.scene3d.config.cylinders = 4;
+          this.scene3d.config.boreMm = 92.0;
+          this.scene3d.config.strokeMm = 75.0;
+          this.scene3d.config.exhaustPipes = 'dual';
+          this.scene3d.config.placement = 'front';
+          this.scene3d.config.orientation = 'longitudinal';
+          this.scene3d.config.drivetrainLayout = 'AWD';
+          this.scene3d.config.gearboxPreset = 'cvt_multitronic';
+        }
+        
+        // Zaktualizuj widok
+        if (this.scene3d.devUIController) {
+            this.scene3d.devUIController.updateEngineStats();
+        }
+        this.scene3d.rebuildFullCar();
+      });
+    });
   }
 
   renderCategoryNav() {

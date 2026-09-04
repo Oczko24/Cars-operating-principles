@@ -106,6 +106,7 @@ export function computeEngineDatum(scene) {
 
       const firing = firingAnglesDeg[i];
       const crankPin = crankPinAngles[i];
+      z = -z; // Odwracamy oś Z, aby cylinder #1 był z przodu (maxZ - rozrząd), a ostatni z tyłu (minZ - koło zamachowe)
       const cfg = createCylConfig(config, i + 1, z, bank, firing, crankPin);
 
       (cfg as any).u = new THREE.Vector3(-Math.sin(bank), Math.cos(bank), 0);

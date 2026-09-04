@@ -64,6 +64,8 @@ buildDrivetrainAssembly() {
     this.buildCvtGearbox(gearbox);
   } else if (preset === 'zf_8hp') {
     this.buildAutomaticGearbox(gearbox);
+  } else if (preset === 'opel_f17') {
+    this.buildF17Gearbox(gearbox);
   } else if (isTransverse) {
     this.buildTransverseManualGearbox(gearbox);
   } else {
@@ -79,41 +81,46 @@ buildDrivetrainAssembly() {
     const diffGroup = new THREE.Group();
     diffGroup.position.set(xPos, VehicleDimensions.diffY, zPos);
 
-    const diffCasing = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.SphereGeometry(0.22, 16, 16)),
-      this.scene.crankcaseLineMat
-    );
-    diffCasing.userData.name = "Obudowa Dyferencjału (Zarys)";
-    diffGroup.add(diffCasing);
+    const isTransaxle = (layout === 'FWD' && isFront) || (layout === 'RWD' && !isFront && this.scene.config.gearboxPreset === 'transaxle');
+    const scale = isTransaxle ? 0.6 : 1.0;
 
-    const pinionGear = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.12, 16), this.scene.matGold);
+    if (!isTransaxle) {
+      const diffCasing = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.SphereGeometry(0.22, 16, 16)),
+        this.scene.crankcaseLineMat
+      );
+      diffCasing.userData.name = "Obudowa Dyferencjału (Zarys)";
+      diffGroup.add(diffCasing);
+    }
+
+    const pinionGear = new THREE.Mesh(new THREE.CylinderGeometry(0.04 * scale, 0.07 * scale, 0.12 * scale, 16), this.scene.matGold);
     pinionGear.rotation.x = Math.PI / 2;
-    pinionGear.position.z = isFront ? -0.14 : 0.14;
+    pinionGear.position.z = isFront ? -0.14 * scale : 0.14 * scale;
     pinionGear.userData.name = "Wałek Atakujący (Pinion)";
     diffGroup.add(pinionGear);
     if (!isFront || layout === "FWD") this.scene.pinionMesh = pinionGear;
 
-    const ringGear = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.03, 32), this.scene.matBronze);
+    const ringGear = new THREE.Mesh(new THREE.CylinderGeometry(0.18 * scale, 0.18 * scale, 0.03 * scale, 32), this.scene.matBronze);
     ringGear.rotation.z = Math.PI / 2;
-    ringGear.position.x = -0.06;
+    ringGear.position.x = -0.06 * scale;
     ringGear.userData.name = "Koło Talerzowe (Ring Gear)";
     diffGroup.add(ringGear);
     if (!isFront || layout === "FWD") this.scene.ringGearMesh = ringGear;
 
     const carrier = new THREE.Group();
-    carrier.position.x = -0.03;
+    carrier.position.x = -0.03 * scale;
 
-    const carrierBox = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.22), this.scene.matDarkSteel);
+    const carrierBox = new THREE.Mesh(new THREE.BoxGeometry(0.08 * scale, 0.22 * scale, 0.22 * scale), this.scene.matDarkSteel);
     carrier.add(carrierBox);
 
-    const spiderTop = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.04, 16), this.scene.matSteel);
-    spiderTop.position.y = 0.07;
+    const spiderTop = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * scale, 0.04 * scale, 0.04 * scale, 16), this.scene.matSteel);
+    spiderTop.position.y = 0.07 * scale;
     spiderTop.userData.name = "Satelita Górny (Krzyżak)";
     carrier.add(spiderTop);
 
-    const spiderBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.04, 16), this.scene.matSteel);
+    const spiderBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * scale, 0.04 * scale, 0.04 * scale, 16), this.scene.matSteel);
     spiderBottom.rotation.x = Math.PI;
-    spiderBottom.position.y = -0.07;
+    spiderBottom.position.y = -0.07 * scale;
     spiderBottom.userData.name = "Satelita Dolny (Krzyżak)";
     carrier.add(spiderBottom);
 
@@ -184,7 +191,51 @@ buildDrivetrainAssembly() {
   const gbOutWorld = gbOutLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
 
   if (layout === "FWD") {
-    createDiff(diffZFront, isTransverse ? 0.18 : 0.0, true);
+    // 1. Obrót i pozycjonowanie silnika
+    // Obrót o -90 stopni (standardowo w tym kodzie)
+    this.scene.engineMountGroup.rotation.y = -Math.PI / 2;
+    this.scene.engineMountGroup.position.set(0, VehicleDimensions.engineMountY, diffZFront); 
+    this.scene.engineMountGroup.updateMatrixWorld(true);
+
+    let diffX = isTransverse ? 0.18 : 0.0;
+    let diffZ = diffZFront;
+    let removeDiffPinion = false;
+
+    if (preset === 'opel_f17') {
+      // Skrzynia F17 (Transaxle) - wyliczamy pozycję zębnika na wałku wyjściowym
+      // Gearbox jest w: X=0, Y=0, Z=engineZMin - 0.15
+      // W skrzyni F17 pinion (zębnik) jest w: counterGroup (X=-0.32, Y=-0.09, Z=-0.05) -> outShaft (Z=-0.25)
+      const f17PinionLocal = new THREE.Vector3(-0.32, -0.09, this.scene.engineZMin - 0.45);
+      const f17PinionWorld = f17PinionLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
+      
+      // Dyferencjał znajduje się tam, gdzie zazębia się ring gear z pinonem F17
+      // Ring gear ma przesunięcie X=-0.06 względem środka dyferencjału.
+      diffX = f17PinionWorld.x + 0.06;
+      
+      // Obliczamy o ile przesunąć cały silnik w Z, aby dyferencjał znalazł się dokładnie w osi przednich kół (frontZ)
+      const diffTargetZ = diffZFront;
+      const currentDiffZ = f17PinionWorld.z + 0.215; 
+      const zOffset = diffTargetZ - currentDiffZ;
+      
+      // Przesuwamy cały zespół napędowy, żeby półosie trafiły w koła!
+      this.scene.engineMountGroup.position.z += zOffset;
+      this.scene.engineMountGroup.updateMatrixWorld(true);
+      
+      // Ponownie przeliczamy pozycję pinion'a po przesunięciu silnika
+      const newF17PinionWorld = f17PinionLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
+      
+      diffX = newF17PinionWorld.x + 0.06;
+      diffZ = newF17PinionWorld.z + 0.215;
+      removeDiffPinion = true;
+    }
+
+    const diffGroup = createDiff(diffZ, diffX, true);
+    
+    // W skrzyni transaxle nie ma prostopadłego zębnika (atakującego z wału), bo napęd idzie prosto z wałka skrzyni
+    if (removeDiffPinion && this.scene.pinionMesh) {
+      this.scene.pinionMesh.visible = false;
+    }
+    
     this.scene.propShaftMesh = null;
   } else if (layout === "RWD") {
     const rearDiff = createDiff(diffZRear, 0.0, false);
@@ -606,6 +657,8 @@ buildDrivetrainAssembly() {
       gMesh.rotation.x = Math.PI / 2;
       gMesh.position.z = g.z;
       gMesh.userData.name = `Koło zębate (Wyjście, Bieg ${g.gear})`;
+      gMesh.userData.ratio = (g.r / outR);
+      gMesh.userData.isTransaxle = true;
       counterGroup.add(gMesh);
       this.scene.gbOutGears.push(gMesh);
     });
@@ -642,6 +695,92 @@ buildDrivetrainAssembly() {
     const gbCasing = new THREE.LineSegments(new THREE.EdgesGeometry(gbCasingGeo), this.scene.crankcaseLineMat);
     gbCasing.position.set(-0.06, -0.04, 0.05);
     gbCasing.userData.name = "Obudowa Skrzyni Biegów (Transaxle)";
+    gearbox.add(gbCasing);
+  }
+
+  buildF17Gearbox(gearbox: THREE.Group) {
+    // Skrzynia Opel F17 (5-biegowa, poprzeczna)
+    // Posiada dwa wałki: pierwotny (wejściowy) i wtórny (wyjściowy).
+    // Wałek wtórny jest zakończony zębnikiem (pinion) napędzającym dyferencjał.
+    
+    const inputGroup = new THREE.Group();
+    inputGroup.position.z = -0.05; // Przesunięte w tył, żeby zębatki nie wchodziły w sprzęgło
+    
+    // Wałek wejściowy (połączony ze sprzęgłem)
+    const inShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.30, 16), this.scene.matSteel);
+    inShaft.rotation.x = Math.PI / 2;
+    inShaft.position.z = -0.05;
+    inShaft.userData.name = "Wałek wejściowy (Sprzęgłowy)";
+    inputGroup.add(inShaft);
+    
+    // Biegi 1-5 na wałku wejściowym
+    const iGears = [
+      { r: 0.025, z: 0.04, gear: '1' },
+      { r: 0.035, z: 0.0, gear: '2' },
+      { r: 0.045, z: -0.04, gear: '3' },
+      { r: 0.055, z: -0.08, gear: '4' },
+      { r: 0.065, z: -0.12, gear: '5' },
+      { r: 0.025, z: 0.07, gear: 'R' } // Bieg wsteczny (uproszczony)
+    ];
+    
+    this.scene.gbInGears = [];
+    iGears.forEach(g => {
+      const gMesh = new THREE.Mesh(new THREE.CylinderGeometry(g.r, g.r, 0.02, 24), this.scene.matGold);
+      gMesh.rotation.x = Math.PI / 2;
+      gMesh.position.z = g.z;
+      gMesh.userData.name = `Koło zębate wejściowe (Bieg ${g.gear})`;
+      inputGroup.add(gMesh);
+      this.scene.gbInGears.push(gMesh);
+    });
+    
+    gearbox.add(inputGroup);
+    this.scene.gbInputGroup = inputGroup;
+    
+    // Wałek wyjściowy (z zębnikiem)
+    const counterGroup = new THREE.Group();
+    // Przesunięcie wałka wtórnego w tył auta (X lokalnie na plus = tył auta po obrocie -90)
+    counterGroup.position.x = -0.32;
+    counterGroup.position.y = -0.09;
+    counterGroup.position.z = -0.05; // Dopasowane do przesunięcia inputGroup
+    
+    const outShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 16), this.scene.matDarkSteel);
+    outShaft.rotation.x = Math.PI / 2;
+    outShaft.position.z = -0.065;
+    outShaft.userData.name = "Wałek wyjściowy (Główny)";
+    counterGroup.add(outShaft);
+    
+    this.scene.gbOutGears = [];
+    iGears.forEach(g => {
+      const outR = 0.10 - g.r; // Stała odległość między osiami wałków
+      const gMesh = new THREE.Mesh(new THREE.CylinderGeometry(outR, outR, 0.02, 24), this.scene.matSteel);
+      gMesh.rotation.x = Math.PI / 2;
+      gMesh.position.z = g.z;
+      gMesh.userData.name = `Koło zębate wyjściowe (Bieg ${g.gear})`;
+      
+      // Obliczenie proporcji dla animacji (rIn / rOut)
+      // Wsteczny obraca się w przeciwnym kierunku ze względu na dodatkową zębatkę (idler), więc znak minus.
+      const ratio = g.gear === 'R' ? -(g.r / outR) : (g.r / outR);
+      gMesh.userData.ratio = ratio;
+      gMesh.userData.isTransaxle = true;
+      
+      counterGroup.add(gMesh);
+      this.scene.gbOutGears.push(gMesh);
+    });
+    
+    // Zębnik przekładni głównej (Final Drive Pinion) na końcu wałka wtórnego
+    const pinion = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16), this.scene.matGold);
+    pinion.rotation.x = Math.PI / 2;
+    pinion.position.z = -0.25;
+    pinion.userData.name = "Zębnik Przekładni Głównej (Pinion F17)";
+    counterGroup.add(pinion);
+    
+    gearbox.add(counterGroup);
+    this.scene.gbCounterGroup = counterGroup;
+    // Obudowa skrzyni F17
+    const gbCasingGeo = new THREE.BoxGeometry(0.48, 0.28, 0.32);
+    const gbCasing = new THREE.LineSegments(new THREE.EdgesGeometry(gbCasingGeo), this.scene.crankcaseLineMat);
+    gbCasing.position.set(-0.16, -0.04, -0.14);
+    gbCasing.userData.name = "Obudowa Skrzyni Biegów (F17)";
     gearbox.add(gbCasing);
   }
 }

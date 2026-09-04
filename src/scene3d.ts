@@ -564,11 +564,19 @@ export class Scene3D {
     
     // Animuj luźne zębatki (są podgrupą gbOutputGroup, więc ich rotacja Y musi być różnicą)
     if (this.gbOutGears) {
-      this.gbOutGears[0].rotation.y = (-counterSpeed * (0.04 / 0.10)) - outputSpeed; 
-      this.gbOutGears[1].rotation.y = (-counterSpeed * (0.06 / 0.08)) - outputSpeed;
-      this.gbOutGears[2].rotation.y = (-counterSpeed * (0.08 / 0.06)) - outputSpeed;
-      this.gbOutGears[3].rotation.y = (-counterSpeed * (0.10 / 0.04)) - outputSpeed;
-      this.gbOutGears[4].rotation.y = (-counterSpeed * (-0.04 / 0.10)) - outputSpeed; 
+      this.gbOutGears.forEach((g, i) => {
+        if (g.userData.ratio !== undefined) {
+          // Jeśli to transaxle, zazębiają się bezpośrednio z wałkiem wejściowym
+          const driveSpeed = g.userData.isTransaxle ? inputSpeed : counterSpeed;
+          g.rotation.y = (-driveSpeed * g.userData.ratio) - outputSpeed;
+        } else {
+          // Fallback dla klasycznej skrzyni wzdłużnej
+          const ratios = [0.04 / 0.10, 0.06 / 0.08, 0.08 / 0.06, 0.10 / 0.04, -0.04 / 0.10];
+          if (i < ratios.length) {
+            g.rotation.y = (-counterSpeed * ratios[i]) - outputSpeed;
+          }
+        }
+      });
     }
     
     // Animacja rozsuwania/zsuwania stożków CVT w zależności od przełożenia
@@ -583,16 +591,33 @@ export class Scene3D {
 
     // Ruch synchronizatorów
     const isTransverse = this.config.orientation === 'transverse';
+    const isF17 = this.config.gearboxPreset === 'opel_f17';
+    
     if (this.gbSync12) {
-      const targetSync12Z = (currentG === '1') ? (isTransverse ? 0.02 : 0.20) : (currentG === '2') ? (isTransverse ? -0.02 : 0.14) : (isTransverse ? 0.0 : 0.17);
+      let targetSync12Z = 0;
+      if (isF17) {
+        targetSync12Z = (currentG === '1') ? 0.04 : (currentG === '2') ? 0.00 : 0.02;
+      } else {
+        targetSync12Z = (currentG === '1') ? (isTransverse ? 0.02 : 0.20) : (currentG === '2') ? (isTransverse ? -0.02 : 0.14) : (isTransverse ? 0.0 : 0.17);
+      }
       this.gbSync12.position.z = THREE.MathUtils.lerp(this.gbSync12.position.z, targetSync12Z, 0.1);
     }
     if (this.gbSync34) {
-      const targetSync34Z = (currentG === '3') ? (isTransverse ? -0.06 : 0.04) : (currentG === '4') ? (isTransverse ? -0.10 : -0.00) : (isTransverse ? -0.08 : 0.02);
+      let targetSync34Z = 0;
+      if (isF17) {
+        targetSync34Z = (currentG === '3') ? -0.04 : (currentG === '4') ? -0.08 : -0.06;
+      } else {
+        targetSync34Z = (currentG === '3') ? (isTransverse ? -0.06 : 0.04) : (currentG === '4') ? (isTransverse ? -0.10 : -0.00) : (isTransverse ? -0.08 : 0.02);
+      }
       this.gbSync34.position.z = THREE.MathUtils.lerp(this.gbSync34.position.z, targetSync34Z, 0.1);
     }
     if (this.gbSync56) {
-      const targetSync56Z = (currentG === '5') ? (isTransverse ? -0.14 : -0.06) : (currentG === '6') ? (isTransverse ? -0.18 : -0.12) : (isTransverse ? -0.14 : -0.09);
+      let targetSync56Z = 0;
+      if (isF17) {
+        targetSync56Z = (currentG === '5') ? -0.12 : (currentG === 'R') ? 0.07 : -0.09; // Hack for R as it uses 5th sync visually if we wanted, but let's just make it jump to R gear
+      } else {
+        targetSync56Z = (currentG === '5') ? (isTransverse ? -0.14 : -0.06) : (currentG === '6') ? (isTransverse ? -0.18 : -0.12) : (isTransverse ? -0.14 : -0.09);
+      }
       this.gbSync56.position.z = THREE.MathUtils.lerp(this.gbSync56.position.z, targetSync56Z, 0.1);
     }
     

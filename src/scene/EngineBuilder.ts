@@ -782,24 +782,26 @@ buildEngineAssembly() {
     if (isTransverse) {
       // ══════════════════════════════════════════════════════════════════════
       // SILNIK POPRZECZNY (Transverse)
-      // Przepustnica patrzy w bok (+Z lokalne).
-      // Rura dolotowa zakręca do przodu auta (lokalne +X) do filtra w lewym przednim rogu.
+      // Przepustnica patrzy w bok (+Z lokalne, czyli na lewo w aucie).
+      // Rura dolotowa omija silnik i wydech, kierując się do prawego przedniego rogu komory.
       // ══════════════════════════════════════════════════════════════════════
-      const p1 = new THREE.Vector3(0.00, 0, 0.12);
-      const p2 = new THREE.Vector3(0.20, 0, 0.12);
-      const p3 = new THREE.Vector3(0.35, 0, 0.05);
-
-      intakePipeCurve = new THREE.CatmullRomCurve3([ptA, p1, p2, p3], false, 'centripetal', 0.2);
+      const p1 = new THREE.Vector3(0.00, 0.05, 0.20);
+      const p2 = new THREE.Vector3(0.15, 0.05, 0.30);
+      let p3;
 
       if (isSport) {
-        // Stożek celujący w przód auta (lokalne +X)
-        filterPos.set(0.48, 0, 0.05);
+        // Stożek w lewym przednim rogu, czubek patrzy w PRZÓD (World +Z)
+        filterPos.set(0.38, -0.08, 0.35);
         filterRot.set(0, 0, -Math.PI / 2);
+        p3 = new THREE.Vector3(0.26, -0.02, 0.35); // Baza stożka
       } else {
         // Puszka filtra (Airbox)
-        filterPos.set(0.46, -0.04, 0.05);
+        filterPos.set(0.46, -0.12, 0.35);
         filterRot.set(0, 0, 0);
+        p3 = new THREE.Vector3(0.35, -0.02, 0.35); // Baza puszki
       }
+      
+      intakePipeCurve = new THREE.CatmullRomCurve3([ptA, p1, p2, p3], false, 'centripetal', 0.2);
 
     } else {
       // ══════════════════════════════════════════════════════════════════════
@@ -846,21 +848,23 @@ buildEngineAssembly() {
       const shieldG = new THREE.Group();
       shieldG.userData.name = "Komora osłony termicznej filtra (Heat Shield)";
       const shThick = 0.003;
-
+      
       if (isTransverse) {
-        // Poprzeczny: Przód to +X, Tył to -X, Silnik to -X i -Z
-        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.28), this.scene.matSilver);
-        rearWall.position.set(filterPos.x - 0.13, filterPos.y, filterPos.z);
-        rearWall.userData.name = "Ściana tylna osłony termicznej (Od silnika)";
-        shieldG.add(rearWall);
-
+        // Poprzeczny: Filtr jest po lewej (Z=0.35), silnik na Z=0 (zatem z prawej strony auta).
+        // Ściana od strony silnika musi być na -Z lokalnym.
         const innerWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), this.scene.matSilver);
-        innerWall.position.set(filterPos.x, filterPos.y, filterPos.z - 0.13);
-        innerWall.userData.name = "Ściana boczna osłony termicznej (Wewnętrzna)";
+        innerWall.position.set(filterPos.x, filterPos.y, filterPos.z - 0.13); 
+        innerWall.userData.name = "Ściana boczna osłony termicznej (Od silnika)";
         shieldG.add(innerWall);
 
+        // Ściana od strony ściany grodziowej (tył komory, lokalnie -X)
+        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.28), this.scene.matSilver);
+        rearWall.position.set(filterPos.x - 0.13, filterPos.y, filterPos.z);
+        rearWall.userData.name = "Ściana tylna osłony termicznej (Od kabiny)";
+        shieldG.add(rearWall);
+
         const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.28), this.scene.matSilver);
-        bottomWall.position.set(filterPos.x, filterPos.y - 0.10, filterPos.z);
+        bottomWall.position.set(filterPos.x, filterPos.y - 0.135, filterPos.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
       } else {
@@ -881,7 +885,7 @@ buildEngineAssembly() {
         shieldG.add(outerWall);
 
         const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.26), this.scene.matSilver);
-        bottomWall.position.set(filterPos.x, filterPos.y - 0.10, filterPos.z);
+        bottomWall.position.set(filterPos.x, filterPos.y - 0.135, filterPos.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
       }
@@ -1044,15 +1048,18 @@ buildEngineAssembly() {
       });
 
       // Rura spustowa (Downpipe) od kolektora 4-1 (Z=0) do traktu podwozia - omija bezpiecznie koło zamachowe
+      const pt1 = new THREE.Vector3(colX + 0.02, colY - 0.04, (colZ + exhaustMergePoint.z) * 0.5);
       const downpipeCurve = new THREE.CatmullRomCurve3([
         collectorPoint.clone().add(new THREE.Vector3(0, -0.01, -0.06)),
-        new THREE.Vector3(colX + 0.02, colY - 0.04, (colZ + exhaustMergePoint.z) * 0.5),
+        pt1,
         exhaustMergePoint
       ]);
+      this.scene.exhaustOutTangentLocal = new THREE.Vector3().subVectors(exhaustMergePoint, pt1).normalize();
+      
       const downpipeMesh = new THREE.Mesh(
         new THREE.TubeGeometry(downpipeCurve, 16, 0.022, 12, false), this.scene.matExhaustPipe
       );
-      downpipeMesh.userData.name = "Rura spustowa kolektora (Downpipe)";
+      downpipeMesh.userData.name = "Kolektor (Downpipe 1)";
       exhaustG.add(downpipeMesh);
     } else if (layout === 'V' || layout === 'W') {
       // Dwa kolektory po bokach (Lewy i Prawy) wyprowadzone na zewnątrz głowic i łączące się w Y-pipe
@@ -1217,15 +1224,46 @@ buildEngineAssembly() {
         fullExhaustG.add(xCrossoverMesh);
         initialPoint = new THREE.Vector3(0.12, exhaustY, -0.40);
       } else {
-        const downpipeCurve = new THREE.CatmullRomCurve3([
-          startPointWorld,
-          new THREE.Vector3(
-            startPointWorld.x * 0.6 + underbodyX * 0.4,
-            (startPointWorld.y + exhaustY) * 0.5,
-            (startPointWorld.z + flexStart.z) * 0.5
-          ),
-          flexStart
-        ]);
+        // Dokładny wektor pobrany z poprzedniej rury, aby połączyć je w idealnie jedną, ciągłą rurę (zero załamań 90 stopni)
+        const outTangentLocal = this.scene.exhaustOutTangentLocal || new THREE.Vector3(0, -0.2, -1).normalize();
+        const outTangentWorld = outTangentLocal.applyQuaternion(this.scene.engineMountGroup.quaternion);
+        
+        // Pierwszy punkt po wyjściu z kolektora (utrzymuje stały kąt wyjścia)
+        const p1 = startPointWorld.clone().add(outTangentWorld.clone().multiplyScalar(0.15));
+        
+        let curvePoints = [];
+        if (this.scene.config.orientation === 'transverse') {
+          // Logiczne poprowadzenie rury pod silnikiem ze zdefiniowanym kątem wejścia i wyjścia
+          const underEngineZ = this.scene.engineMountGroup ? this.scene.engineMountGroup.position.z : startPointWorld.z;
+          const straightMidZ = (underEngineZ - 0.3 + flexStart.z + 0.15) / 2;
+          curvePoints = [
+            startPointWorld,
+            p1,
+            new THREE.Vector3(startPointWorld.x * 0.7 + underbodyX * 0.3, exhaustY - 0.05, underEngineZ), // Przejście pod miską
+            new THREE.Vector3(underbodyX, exhaustY, underEngineZ - 0.3), // Wyjście za silnik
+            new THREE.Vector3(underbodyX, exhaustY, straightMidZ), // Stabilizacja długiego prostego odcinka
+            flexStart.clone().add(new THREE.Vector3(0, 0, 0.15)), // Wymuszenie prostego kąta na wejściu
+            flexStart
+          ];
+        } else {
+          // Tradycyjne płynne zejście dla silników wzdłużnych
+          const pMid = new THREE.Vector3(
+              startPointWorld.x * 0.5 + underbodyX * 0.5,
+              (startPointWorld.y + exhaustY) * 0.5,
+              (startPointWorld.z + flexStart.z) * 0.5
+          );
+          const straightMidZ = (pMid.z + flexStart.z + 0.15) / 2;
+          curvePoints = [
+            startPointWorld,
+            p1,
+            pMid,
+            new THREE.Vector3(underbodyX, exhaustY, straightMidZ), // Stabilizacja długiego prostego odcinka
+            flexStart.clone().add(new THREE.Vector3(0, 0, 0.15)),
+            flexStart
+          ];
+        }
+        // Używamy typu centripetal i małego napięcia, aby rura nie "falowała" (loop-de-loop) na długich odcinkach
+        const downpipeCurve = new THREE.CatmullRomCurve3(curvePoints, false, 'centripetal', 0.2);
         const downpipeMesh = new THREE.Mesh(
           new THREE.TubeGeometry(downpipeCurve, 20, 0.022, 12, false), this.scene.matExhaustPipe
         );
@@ -1414,8 +1452,9 @@ buildEngineAssembly() {
     // ════════════════════════════════════════════════════════════════════════
     const scoopG = new THREE.Group();
     const scoopW = 0.32, scoopH = 0.052, scoopD = 0.08;
-    const scoopY = coreH / 2 + 0.025 + scoopH / 2 + 0.005; // Bezpośrednio nad górnym zbiornikiem chłodnicy!
-    const scoopX = -0.16; // Lekko po lewej stronie (po stronie dolotu)
+    // topTank top is at coreH/2 + 0.025 + 0.055/2 = coreH/2 + 0.0525
+    const scoopY = coreH / 2 + 0.0525 + scoopH / 2 + 0.015; // Wyżej nad zbiornikiem
+    const scoopX = (this.scene.config.orientation === 'transverse') ? -0.35 : -0.16; // W poprzecznym filtr przenieśliśmy na lewo
     const scoopZ = 0.00;
 
     // Obudowa czerpni

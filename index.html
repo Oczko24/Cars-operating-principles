@@ -91,6 +91,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="focus-btn" data-focus="drivetrain" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(100%); opacity: 0.6; transition: 0.3s;" title="Układ Napędowy">🏎️</button>
   </div>
 
+
   <!-- LEWY PANEL GŁÓWNY (Apple Pro Minimal Sidebar) -->
   <aside class="sidebar-left">
     <div class="sidebar-header">
@@ -106,6 +107,17 @@ window.addEventListener('unhandledrejection', function(e) {
           <span class="lang-opt" data-lang="en">EN</span>
         </button>
         <div class="fps-badge" id="fps-val" data-i18n-title="ui.fpsBadgeTitle" title="Wydajność renderowania">60 FPS</div>
+      </div>
+    </div>
+
+    <!-- PRESETY (Szybki wybór auta) - Tabela 2x2 -->
+    <div style="padding: 12px 15px 12px 15px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border-subtle);">
+      <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;" data-i18n="ui.quickPresets">Gotowe Presety (Wybierz)</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button class="car-preset-btn" data-preset="saab" style="background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-strong)'">Saab 9-3 (F17)</button>
+        <button class="car-preset-btn" data-preset="bmw" style="background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-strong)'">BMW F30 (8HP)</button>
+        <button class="car-preset-btn" data-preset="corvette" style="background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-strong)'">Corvette C5 (V8)</button>
+        <button class="car-preset-btn" data-preset="subaru" style="background: var(--bg-surface); border: 1px solid var(--border-strong); color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--border-strong)'">Subaru (CVT)</button>
       </div>
     </div>
 
