@@ -100,27 +100,28 @@ buildEngineAssembly() {
 
     const crankMaster = new THREE.Group();
     // ═══ SEGMENTOWE CZOPY GŁÓWNE I WYKORBIENIA WAŁU KORBOWEGO ═══
-    const pinWidth = 0.055;
-    const webThick = 0.022;
-    const throwHalfWidth = pinWidth / 2 + webThick; // ~0.0495
+    const pinWidth = 0.052; // nieco krótszy sworzeń by zrobić miejsce na grubsze ramiona
+    const webThick = 0.028; // znacznie grubsze ramię wykorbienia (masywniejszy wał)
+    const throwHalfWidth = pinWidth / 2 + webThick; // ~0.054
 
     // Profil ramienia wykorbienia i aerodynamicznego przeciwciężaru (THREE.Shape)
+    // Zwiększone promienie i szerokości, by wyglądał na ciężki, odkuty wał
     const webShape = new THREE.Shape();
-    webShape.moveTo(-0.036 * strokeScale, crankRadius);
-    webShape.absarc(0, crankRadius, 0.036 * strokeScale, Math.PI, 0, false); // łuk nad czopem korbowodowym
-    webShape.lineTo(0.044 * strokeScale, 0.02 * strokeScale);                              // ramię ku osi głównej
-    webShape.lineTo(0.100 * strokeScale, -0.04 * strokeScale);                             // rozszerzenie w przeciwciężar
-    webShape.quadraticCurveTo(0.108 * strokeScale, -0.175 * strokeScale, 0, -0.185 * strokeScale);       // dolny łuk przeciwciężaru
-    webShape.quadraticCurveTo(-0.108 * strokeScale, -0.175 * strokeScale, -0.100 * strokeScale, -0.04 * strokeScale);
-    webShape.lineTo(-0.044 * strokeScale, 0.02 * strokeScale);
-    webShape.lineTo(-0.036 * strokeScale, crankRadius);
+    webShape.moveTo(-0.042 * strokeScale, crankRadius);
+    webShape.absarc(0, crankRadius, 0.042 * strokeScale, Math.PI, 0, false); // grubszy materiał nad czopem
+    webShape.lineTo(0.055 * strokeScale, 0.02 * strokeScale);                              // ramię ku osi głównej (masywniejsze)
+    webShape.lineTo(0.120 * strokeScale, -0.05 * strokeScale);                             // szersze rozszerzenie w przeciwciężar
+    webShape.quadraticCurveTo(0.125 * strokeScale, -0.190 * strokeScale, 0, -0.200 * strokeScale);       // głębszy dolny łuk przeciwciężaru (większa masa)
+    webShape.quadraticCurveTo(-0.125 * strokeScale, -0.190 * strokeScale, -0.120 * strokeScale, -0.05 * strokeScale);
+    webShape.lineTo(-0.055 * strokeScale, 0.02 * strokeScale);
+    webShape.lineTo(-0.042 * strokeScale, crankRadius);
 
     const webGeo = new THREE.ExtrudeGeometry(webShape, {
       depth: webThick,
       bevelEnabled: true,
-      bevelSegments: 2,
-      bevelSize: 0.002,
-      bevelThickness: 0.002
+      bevelSegments: 3,
+      bevelSize: 0.0035, // wyraźniejsze fazowanie krawędzi (charakterystyczne dla odlewów/odkuwek)
+      bevelThickness: 0.0035
     });
     webGeo.translate(0, 0, -webThick / 2);
 

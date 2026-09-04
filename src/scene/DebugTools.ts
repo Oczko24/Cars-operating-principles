@@ -146,6 +146,7 @@ export function setupDebugClicker(scene3d) {
             
             // Dispatch custom event for our log console
             window.dispatchEvent(new CustomEvent('inspector-log', { detail: logMsg }));
+            window.dispatchEvent(new CustomEvent('part-selected', { detail: { object: targetObj, name: name } }));
         } else {
             transformControl.detach();
         }

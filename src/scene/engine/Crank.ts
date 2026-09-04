@@ -83,54 +83,54 @@ export function createConnectingRod(scene, length) {
       g.add(boltHead);
     });
 
-    // ═══ 5. TRZON KORBOWODU (H-Beam Shank) ═══
+    // ═══ 5. TRZON KORBOWODU (H-Beam / I-Beam Shank) ═══
     const shankBottomY = 0.046;
     const shankTopY = length - 0.025;
     const shankLen = shankTopY - shankBottomY;
     const shankMidY = (shankBottomY + shankTopY) / 2;
-    const flangeThickness = 0.0036;
-    const flangeZOffset = 0.0065;
+    const flangeThickness = 0.009;
+    const flangeZOffset = 0.010;
 
     // Środnik trzonu (Web):
     const webMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(0.018, shankLen, 0.0036),
+      new THREE.BoxGeometry(0.038, shankLen, 0.012), // znacznie poszerzony w osi X i pogrubiony w Z
       rodMat
     );
     webMesh.position.set(0, shankMidY, 0);
-    webMesh.userData.name = "Trzon korbowodu (profil H-Beam)";
+    webMesh.userData.name = "Trzon korbowodu (profil)";
     g.add(webMesh);
 
     // Półka przednia (+Z):
     const frontFlange = new THREE.Mesh(
-      new THREE.BoxGeometry(0.026, shankLen, flangeThickness),
+      new THREE.BoxGeometry(0.048, shankLen, flangeThickness), // bardzo szeroki
       rodMat
     );
     frontFlange.position.set(0, shankMidY, flangeZOffset);
-    frontFlange.userData.name = "Półka trzonu (profil H-Beam)";
+    frontFlange.userData.name = "Półka trzonu (profil)";
     g.add(frontFlange);
 
     // Półka tylna (-Z):
     const rearFlange = new THREE.Mesh(
-      new THREE.BoxGeometry(0.026, shankLen, flangeThickness),
+      new THREE.BoxGeometry(0.048, shankLen, flangeThickness), // bardzo szeroki
       rodMat
     );
     rearFlange.position.set(0, shankMidY, -flangeZOffset);
-    rearFlange.userData.name = "Półka trzonu (profil H-Beam)";
+    rearFlange.userData.name = "Półka trzonu (profil)";
     g.add(rearFlange);
 
     // Żeberka wzmacniające przejścia w główkę i stopę
     const gussetBottom = new THREE.Mesh(
-      new THREE.BoxGeometry(0.032, 0.015, 0.016),
+      new THREE.BoxGeometry(0.054, 0.020, 0.028),
       rodMat
     );
-    gussetBottom.position.set(0, shankBottomY + 0.004, 0);
+    gussetBottom.position.set(0, shankBottomY + 0.005, 0);
     g.add(gussetBottom);
 
     const gussetTop = new THREE.Mesh(
-      new THREE.BoxGeometry(0.024, 0.014, 0.014),
+      new THREE.BoxGeometry(0.042, 0.018, 0.028),
       rodMat
     );
-    gussetTop.position.set(0, shankTopY - 0.003, 0);
+    gussetTop.position.set(0, shankTopY - 0.005, 0);
     g.add(gussetTop);
 
     // ═══ 6. GŁÓWKA KORBOWODU (Small End) ═══

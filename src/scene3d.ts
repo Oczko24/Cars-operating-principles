@@ -11,6 +11,7 @@ import { DrivetrainBuilder } from './scene/DrivetrainBuilder.js';
 import { DevUIController } from './scene/DevUIController.js';
 import { Telemetry } from './scene/Telemetry.js';
 import { setupDebugClicker } from './scene/DebugTools.js';
+import { PartsExplorer } from './scene/PartsExplorer.js';
 
 import {
   CRANK_PRESETS,
@@ -162,6 +163,7 @@ export class Scene3D {
 
     this.carGroup = new THREE.Group();
     this.scene.add(this.carGroup);
+    this.partsExplorer = new PartsExplorer(this);
 
     // --- Narzędzie do debugowania (Klikacz) ---
     this.raycaster = new THREE.Raycaster();
@@ -376,7 +378,25 @@ export class Scene3D {
     this.controls.update();
   }
 
-  rebuildFullCar() {
+  async yieldAndSetLoadingText(text: string) {
+    const el = document.getElementById('loading-status-text');
+    if (el) el.innerText = text;
+    // Zwróć sterowanie do przeglądarki, żeby zaktualizowała DOM
+    return new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  isBuilding = false;
+
+  async rebuildFullCar() {
+      this.isBuilding = true;
+      // Pokaż overlay na wypadek ponownego budowania
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.classList.remove('hidden');
+      }
+
+      await this.yieldAndSetLoadingText('Czyszczenie sceny...');
       while (this.carGroup.children.length > 0) {
         this.carGroup.remove(this.carGroup.children[0]);
       }
@@ -390,21 +410,43 @@ export class Scene3D {
       this.exhaustMainStreamlines = [];
 
       if (this.config.showChassis) {
+        await this.yieldAndSetLoadingText('Budowa nadwozia i podwozia...');
         this.chassisBuilder.buildChassisFrame();
       }
+      
+      await this.yieldAndSetLoadingText('Budowa bloku silnika i rozrządu...');
       this.engineBuilder.buildEngineAssembly();
+      
+      await this.yieldAndSetLoadingText('Składanie układu napędowego i skrzyni biegów...');
       this.drivetrainBuilder.buildDrivetrainAssembly();
+      
       if (this.config.showChassis) {
+        await this.yieldAndSetLoadingText('Montaż zawieszenia i kół...');
         this.chassisBuilder.buildSuspensionAssembly();
       }
 
+      await this.yieldAndSetLoadingText('Podłączanie zegarów i wskaźników...');
       this.devUIController.updateCrankshaftUI();
       if (this.focusMode) {
           this.setFocusMode(this.focusMode);
       }
+      window.dispatchEvent(new CustomEvent('parts-tree-rebuild'));
+
+      // Koniec budowy. Reszta ukrywania nakładki dzieje się w pierwszej klatce w animate()
+      this.firstFrameRendered = false;
+      this.isBuilding = false;
   }
 
+  firstFrameRendered = false;
   animate(time) {
+    if (!this.firstFrameRendered && !this.isBuilding) {
+      this.firstFrameRendered = true;
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+        setTimeout(() => { if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 600);
+      }
+    }
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
     this.frameCount++;
@@ -436,13 +478,17 @@ export class Scene3D {
       this.crankMaster.rotation.z = -this.crankAngle;
     }
 
+    // Używamy ciągłego drivetrainAngle, by uniknąć resetowania rotacji (przeskoków) gdy crankAngle wraca do 0
+    let dtAngle = this.drivetrainAngle;
+    if (!this.isPlaying) dtAngle = this.crankAngle; // podczas suwaka ręcznego, używamy crankAngle
+
     // ═══ ALTERNATOR — obroty proporcjonalne do wału korbowego ═══
     // ω_alt = ω_crank · (D_korbowy / D_alternator) = ω_crank · 2.6
     if (this.alternatorGroup) {
       const altPulleyRatio = 0.085 / 0.033; // ≈ 2.58
       this.alternatorGroup.children.forEach(child => {
         if (child.userData.name === "Koło pasowe alternatora") {
-          child.rotation.y = this.crankAngle * altPulleyRatio;
+          child.rotation.y = dtAngle * altPulleyRatio;
         }
       });
     }
@@ -459,10 +505,6 @@ export class Scene3D {
     }
 
     // --- DRIVETRAIN ANIMATION ---
-    // Używamy ciągłego drivetrainAngle, by uniknąć resetowania rotacji (przeskoków) gdy crankAngle wraca do 0
-    let dtAngle = this.drivetrainAngle;
-    if (!this.isPlaying) dtAngle = this.crankAngle; // podczas suwaka ręcznego, używamy crankAngle
-
     const engineSpeed = -dtAngle;
     let inputSpeed = this.config.clutchEngaged ? engineSpeed : 0;
     
@@ -498,19 +540,25 @@ export class Scene3D {
     const wheelRpmEl = this.cachedDom.wheelRpm;
     const totalRedEl = this.cachedDom.totalRed;
 
+    let txtSpeed, txtRpm, txtRed;
+
     if (this.config.clutchEngaged && overallGearRatio !== 0 && currentG !== 'N') {
       const totalRatio = Math.abs(realRatio) * this.config.finalDrive;
       const wheelRPM = this.config.rpm / totalRatio;
       // Założony obwód koła ~1.98m (koło 205/55 R16)
       const kmh = (wheelRPM * 1.98 * 60) / 1000;
-      if (wheelSpeedEl) wheelSpeedEl.innerText = Math.abs(Math.round(kmh)) + ' km/h' + (realRatio < 0 ? ' (R)' : '');
-      if (wheelRpmEl) wheelRpmEl.innerText = Math.abs(Math.round(wheelRPM)) + ' RPM';
-      if (totalRedEl) totalRedEl.innerText = totalRatio.toFixed(2) + ':1';
+      txtSpeed = Math.abs(Math.round(kmh)) + ' km/h' + (realRatio < 0 ? ' (R)' : '');
+      txtRpm = Math.abs(Math.round(wheelRPM)) + ' RPM';
+      txtRed = totalRatio.toFixed(2) + ':1';
     } else {
-      if (wheelSpeedEl) wheelSpeedEl.innerText = '0 km/h (Luz / Sprzęgło)';
-      if (wheelRpmEl) wheelRpmEl.innerText = '0 RPM';
-      if (totalRedEl) totalRedEl.innerText = '-';
+      txtSpeed = '0 km/h (Luz / Sprzęgło)';
+      txtRpm = '0 RPM';
+      txtRed = '-';
     }
+
+    if (wheelSpeedEl && wheelSpeedEl.innerText !== txtSpeed) wheelSpeedEl.innerText = txtSpeed;
+    if (wheelRpmEl && wheelRpmEl.innerText !== txtRpm) wheelRpmEl.innerText = txtRpm;
+    if (totalRedEl && totalRedEl.innerText !== txtRed) totalRedEl.innerText = txtRed;
 
     if (this.gbOutputGroup) this.gbOutputGroup.rotation.z = outputSpeed;
     
@@ -758,7 +806,7 @@ export class Scene3D {
 
     // Animacja obrotu koła pasowego pompy wody
     if (this.wpPulley) {
-      this.wpPulley.rotation.y = this.crankAngle * (0.085 / 0.045);
+      this.wpPulley.rotation.y = dtAngle * (0.085 / 0.045);
     }
 
     if (this.vibCtx && this.vibCanvas && this.vibCanvas.offsetParent !== null) {

@@ -80,6 +80,9 @@ window.addEventListener('unhandledrejection', function(e) {
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="loading-overlay">
+    <div id="loading-status-text" class="loading-text" style="font-size: 18px; font-weight: bold; letter-spacing: 2px;">Uruchamianie stanowiska...</div>
+  </div>
   <div id="canvas-container"></div>
   <div id="focus_modes_bar" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px 25px; border-radius: 40px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
     <button class="focus-btn active" data-focus="all" style="font-size: 32px; background: none; border: none; cursor: pointer; filter: grayscale(0%); transition: 0.3s; transform: scale(1.1);" title="Całe auto">🚗</button>
@@ -115,6 +118,10 @@ window.addEventListener('unhandledrejection', function(e) {
       <button class="mode-tab-btn" data-mode="stats">
         <span class="mode-icon">📊</span>
         <span data-i18n="ui.modeStats">Statystyki & Osiągi</span>
+      </button>
+      <button class="mode-tab-btn" data-mode="tree">
+        <span class="mode-icon">🌲</span>
+        <span>Drzewo</span>
       </button>
     </div>
 
@@ -675,6 +682,21 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
     </div>
     
+    <!-- ═══════════════════════════════════════════════════
+         WIDOK 3: DRZEWO CZĘŚCI
+         ═══════════════════════════════════════════════════ -->
+    <div id="mode_tree_view" class="mode-view">
+      <div class="panel-section">
+        <div class="section-title-bar">
+          <span class="section-icon">🌲</span>
+          <h4 class="section-title">Eksplorator Części</h4>
+        </div>
+        <div id="parts-tree-container" class="parts-tree">
+          <!-- Tree UI will be generated here by JS -->
+        </div>
+      </div>
+    </div>
+
     <!-- CZĘŚCI I MODUŁY (Dla kompatybilności wstecznej) -->
     <div class="panel-section" style="display:none;">
       <nav class="category-pills" id="category-nav"></nav>

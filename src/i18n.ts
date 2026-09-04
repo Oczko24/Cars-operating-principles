@@ -85,7 +85,7 @@ export const i18n = {
       subtabViewTitle: "Narzędzia widoku, przekrój i kamera",
 
       // Statystyki & Osiągi (Live Engine Specs)
-      statsHeader: "Parametry & Telemetria Silnika",
+      statsHeader: "Parametry Pracy & Osiągi",
       statsPowerTitle: "Moc szacunkowa",
       statsTorqueTitle: "Moment obrotowy",
       statsPowerPerLiter: "Moc z 1 litra",
@@ -252,7 +252,8 @@ export const i18n = {
       devShowDatum: "Pokaż centrum silnika (Wektory / Datum)",
       devReloadApp: "Przeładuj aplikację",
       devReloadAppTitle: "Przeładuj całą stronę i zresetuj stan",
-      devNoPartsMatch: "Brak części pasujących do filtra"
+      devNoPartsMatch: "Brak części pasujących do filtra",
+      loadingText: "WCZYTYWANIE..."
     },
 
     // Dynamic Presets Descriptions
@@ -665,8 +666,8 @@ export const i18n = {
       subtabView: "View & Studio",
       subtabViewTitle: "View tools, cutaway and camera controls",
 
-      // Live Engine Specs & Telemetry
-      statsHeader: "Engine Performance & Telemetry",
+      // Live Engine Specs & Gauges
+      statsHeader: "Engine Performance & Live Data",
       statsPowerTitle: "Estimated Power",
       statsTorqueTitle: "Max Torque",
       statsPowerPerLiter: "Specific Power",
@@ -833,7 +834,8 @@ export const i18n = {
       devShowDatum: "Show engine center (Vectors / Datum)",
       devReloadApp: "Reload Application",
       devReloadAppTitle: "Reload the page and reset application state",
-      devNoPartsMatch: "No parts matching filter"
+      devNoPartsMatch: "No parts matching filter",
+      loadingText: "LOADING..."
     },
 
     // Dynamic Presets Descriptions

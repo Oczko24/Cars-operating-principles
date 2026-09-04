@@ -894,15 +894,19 @@ updateTooltip() {
 
         let tempName = null;
         let curr = obj;
+        let isVisible = true;
         while (curr) {
-          if (curr.userData && curr.userData.name) {
-            tempName = curr.userData.name;
+          if (curr.visible === false) {
+            isVisible = false;
             break;
+          }
+          if (!tempName && curr.userData && curr.userData.name) {
+            tempName = curr.userData.name;
           }
           curr = curr.parent;
         }
 
-        if (!tempName) continue;
+        if (!isVisible || !tempName) continue;
 
         // Pomijaj zarysy, pomocnicze płaszczyzny i niewidoczne w danym momencie efekty przepływu
         if (

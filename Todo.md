@@ -6,12 +6,12 @@
 
 ### 0. INTERAKTYWNE DRZEWO CZĘŚCI I INSPEKCJA (PARTS EXPLORER)
 
-* [ ] **Hierarchiczne Drzewo Komponentów w UI (Treeview)**:
+* [x] **Hierarchiczne Drzewo Komponentów w UI (Treeview)**:
   * Pełna taksonomia: Pojazd → Układ → Podzespół → Część (np. Silnik → Głowica → Zawór).
-  * [ ] **Dwukierunkowa interakcja (3D ↔ UI)**:
+  * [x] **Dwukierunkowa interakcja (3D ↔ UI)**:
     * Kliknięcie w drzewku: płynny najazd kamery (Focus), podświetlenie obrysem/pulsowaniem (Glow/Outline Mesh).
     * Kliknięcie w model 3D: automatyczne rozwinięcie gałęzi i zaznaczenie elementu w drzewku.
-  * [ ] **Karta Edukacyjna w panelu bocznym**:
+  * [x] **Karta Edukacyjna w panelu bocznym**:
     * Wyświetlanie zasady działania, celu konstrukcyjnego, genezy i typowych awarii z `i18n.js`.
     * Opcja izolacji widoku (Solo / Isolate Part) oraz ukrywania sąsiadujących podzespołów.
 
@@ -95,7 +95,7 @@
 * [ ] Poszycie: Spaceframe vs Monocoque, panele blach (maska, drzwi, błotniki, dach, zderzaki).
 * [ ] Przełącznik trybów: Solid (lakier), Ghost/X-Ray (przezroczysty), Wireframe, Cutaway (przekrój).
 * [ ] Anatomiczne przepływy: obieg oleju, obieg płynu chłodzącego, wektory przepływu momentu.
-* [ ] Wnętrze: fotele, pedały gazu/hamulca/sprzęgła, zegary telemetrii.
+* [ ] Wnętrze: fotele, pedały gazu/hamulca/sprzęgła, zegary i wskaźniki.
 
 ### VI. KOD, WYDAJNOŚĆ I DEV TOOLS
 
