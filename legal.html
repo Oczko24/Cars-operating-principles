@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Noty Prawne - Engine Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: var(--bg-main);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .page-container {
+      max-width: 800px;
+      margin: 40px 20px;
+      padding: 40px;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    h1 { margin-top: 0; color: #fff; font-size: 28px; }
+    h2 { color: #e2e8f0; font-size: 20px; margin-top: 30px; }
+    p { line-height: 1.6; color: var(--text-secondary); margin-bottom: 20px; }
+    .disclaimer {
+      padding: 15px;
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid #ef4444;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      text-decoration: none;
+      border-radius: 6px;
+      border: 1px solid var(--border-light);
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="page-container">
+    <h1>Noty Prawne (Legal)</h1>
+    
+    <h2>Wyłączenie odpowiedzialności (Disclaimer)</h2>
+    <div class="disclaimer">
+      <p style="margin:0; color: #fca5a5;"><strong>UWAGA:</strong> Niniejsza aplikacja to symulacja komputerowa o charakterze wyłącznie <strong>edukacyjnym i pokazowym</strong>. Przedstawione modele fizyczne, przepływy oraz wymiary są uproszczone i nie mogą stanowić podstawy do projektowania, budowy, ani naprawy rzeczywistych silników spalinowych. Twórca nie ponosi żadnej odpowiedzialności za szkody wynikłe z niewłaściwego użycia informacji zawartych w aplikacji.</p>
+    </div>
+    
+    <h2>Własność Intelektualna</h2>
+    <p>Kod źródłowy, modele 3D (wygenerowane proceduralnie w Three.js) oraz interfejs graficzny stanowią własność twórcy aplikacji. Jeśli chcesz wykorzystać części kodu w swoim projekcie Open Source, upewnij się co do nałożonej licencji w repozytorium projektu.</p>
+
+    <h2>Użyte Technologie i Biblioteki</h2>
+    <p>Projekt korzysta z darmowych bibliotek Open Source, na czele z:</p>
+    <ul style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+      <li><strong>Three.js</strong> (Licencja MIT) - silnik renderujący 3D</li>
+      <li><strong>Vite</strong> (Licencja MIT) - narzędzie budujące</li>
+      <li><strong>Font Awesome</strong> (Free License) - ikonografia</li>
+    </ul>
+
+    <h2>Kontakt</h2>
+    <p>W sprawach dotyczących działania aplikacji, uwag lub pytań prawnych, prosimy o kontakt przez repozytorium projektu (GitHub).</p>
+    
+    <a href="index.html" class="back-btn">← Wróć do Symulatora</a>
+  </div>
+</body>
+</html>

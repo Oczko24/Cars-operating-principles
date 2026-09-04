@@ -6,6 +6,7 @@ import { createValve, createSpringMesh, createRockerArm, createCamLobe, getCamRa
 
 import { resolveFiringSequence, resolveCrankPinAngles, analyzeEngineBalance } from '../crankshaft_solver.js';
 import { VehicleDimensions } from './VehicleConfig.js';
+import { SceneAssembler } from './modules/SceneAssembler';
 
 export class EngineBuilder {
   [key: string]: any;
@@ -31,7 +32,7 @@ buildDatumVisuals(engineGroup, datum) {
     return buildDatumVisuals(this.scene, engineGroup, datum);
   }
 
-buildEngineAssembly() {
+async buildEngineAssembly() {
     const datum = this.computeEngineDatum();
     this.scene.currentEngineDatum = datum;
     const { 
@@ -135,68 +136,17 @@ buildEngineAssembly() {
     // ═══ EXPLODE DISTANCE (musi być przed komponentami które go używają) ═══
     const explodeDist = this.scene.explodedFactor * 0.45;
 
-    // ═══ KOŁO PASOWE WAŁU KORBOWEGO (Crank Pulley) ═══
-    const crankPulleyR = 0.085;
-    const crankPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(crankPulleyR, crankPulleyR, 0.02, 32), this.scene.matDarkSteel
-    );
-    crankPulley.rotation.x = Math.PI / 2;
-    crankPulley.position.set(0, 0, maxZ + 0.08);
-    crankPulley.userData.name = "Koło pasowe wału korbowego";
-    crankMaster.add(crankPulley);
-
-    // ═══ KOŁO POMPY WODY (Water Pump Pulley) ═══
-    const wpPulleyR = 0.045;
-    const wpPosX = 0.0, wpPosY = 0.14;
-    const wpPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(wpPulleyR, wpPulleyR, 0.02, 24), this.scene.matDarkSteel
-    );
-    wpPulley.rotation.x = Math.PI / 2;
-    wpPulley.position.set(wpPosX, wpPosY, maxZ + 0.08);
-    wpPulley.userData.name = "Koło pasowe pompy wody";
-    engineGroup.add(wpPulley);
-    this.scene.wpPulley = wpPulley;
-
-    // ═══ ALTERNATOR (z kołem pasowym i regulatorem napięcia) ═══
-    const altG = new THREE.Group();
-    const altPosX = layout === 'Boxer' ? 0.32 : 0.28;
-    const altPosY = layout === 'Boxer' ? 0.10 : 0.18;
-    altG.position.set(altPosX, altPosY, maxZ + 0.05);
-
-    const altBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.065, 0.065, 0.1, 20), this.scene.matSilver
-    );
-    altBody.rotation.x = Math.PI / 2;
-    altBody.userData.name = "Alternator";
-    altG.add(altBody);
-
-    const altPulleyR = 0.033;
-    const altPulley = new THREE.Mesh(
-      new THREE.CylinderGeometry(altPulleyR, altPulleyR, 0.018, 24), this.scene.matDarkSteel
-    );
-    altPulley.rotation.x = Math.PI / 2;
-    altPulley.position.z = 0.058;
-    altPulley.userData.name = "Koło pasowe alternatora";
-    altG.add(altPulley);
-    this.scene.alternatorGroup = altG;
-    engineGroup.add(altG);
-
-    // Pasek klinowy wielorowkowy (Serpentine Belt) opasający wał, pompę wody i alternator
-    const beltCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, -crankPulleyR, 0),
-      new THREE.Vector3(crankPulleyR * 0.8, -crankPulleyR * 0.5, 0),
-      new THREE.Vector3(altPosX + altPulleyR, altPosY, 0),
-      new THREE.Vector3(altPosX, altPosY + altPulleyR, 0),
-      new THREE.Vector3(wpPosX + wpPulleyR, wpPosY + wpPulleyR, 0),
-      new THREE.Vector3(wpPosX - wpPulleyR, wpPosY, 0),
-      new THREE.Vector3(-crankPulleyR, 0, 0)
-    ], true);
-    const altBelt = new THREE.Mesh(
-      new THREE.TubeGeometry(beltCurve, 80, 0.007, 6, true), this.scene.matRubber
-    );
-    altBelt.position.z = maxZ + 0.08;
-    altBelt.userData.name = "Pasek klinowy (Serpentine)";
-    engineGroup.add(altBelt);
+    // ═══ DYNAMICZNE WCZYTYWANIE MODUŁÓW (OSPRZĘT) Z JSON ═══
+    const engineLayout = await SceneAssembler.loadLayout('engine_layout.json');
+    SceneAssembler.buildModules(engineLayout, this.scene, engineGroup, datum);
+    
+    // Jeżeli koło pasowe wału zostało dodane (a powinno przez SceneAssembler), 
+    // podpinamy je pod wał (crankMaster) żeby się kręciło z nim.
+    const builtCrankPulley = engineGroup.children.find(c => c.userData.id === 'crank_pulley_1');
+    if (builtCrankPulley) {
+      engineGroup.remove(builtCrankPulley);
+      crankMaster.add(builtCrankPulley);
+    }
 
     // ═══ Tablice do zbierania pozycji cylindrów (dla uniwersalnych kolektorów) ═══
     this.scene.cylinderPositions = [];

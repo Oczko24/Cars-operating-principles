@@ -10,7 +10,10 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: 'index.html',
-        sandbox: 'sandbox.html'
+        sandbox: 'sandbox.html',
+        privacy: 'privacy.html',
+        legal: 'legal.html',
+        notFound: '404.html'
       }
     }
   }

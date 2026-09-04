@@ -139,6 +139,13 @@ setupDevPanel() {
         const devAngleVal = document.getElementById('dev_angle_val');
         if (devAngleVal) devAngleVal.innerText = "15";
         this.scene.config.vAngle = 15;
+      } else if (val === 'V') {
+        const devAngle = document.getElementById('dev_angle');
+        if (devAngle) this.scene.config.vAngle = parseInt((devAngle as any).value);
+      } else if (val === 'Boxer') {
+        this.scene.config.vAngle = 180;
+      } else if (val === 'Inline') {
+        this.scene.config.vAngle = 0;
       }
       this.updateV8UI();
       updateDisplacementDisplay();

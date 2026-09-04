@@ -415,7 +415,7 @@ export class Scene3D {
       }
       
       await this.yieldAndSetLoadingText('Budowa bloku silnika i rozrządu...');
-      this.engineBuilder.buildEngineAssembly();
+      await this.engineBuilder.buildEngineAssembly();
       
       await this.yieldAndSetLoadingText('Składanie układu napędowego i skrzyni biegów...');
       this.drivetrainBuilder.buildDrivetrainAssembly();
