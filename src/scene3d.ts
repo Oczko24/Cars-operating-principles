@@ -331,7 +331,7 @@ export class Scene3D {
     this.rebuildFullCar();
   }
 
-  setFocusMode(target: string) {
+  setFocusMode(target: string, updateCamera: boolean = true) {
     this.focusMode = target;
     
     // Ustawienie widoczności głównych modułów
@@ -347,35 +347,37 @@ export class Scene3D {
         }
     });
 
-    // Funkcja pomocnicza do centrowania kamery na obiekcie
-    const focusOnGroup = (group: any, offset: any) => {
-      const box = new THREE.Box3().setFromObject(group);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      this.controls.target.copy(center);
-      
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const maxDim = Math.max(size.x, size.y, size.z, 1.0);
-      
-      // Skalujemy dystans kamery na podstawie wielkości obiektu
-      const distMult = maxDim * 0.8;
-      this.camera.position.copy(center).add(offset.clone().multiplyScalar(distMult));
-    };
+    if (updateCamera) {
+      // Funkcja pomocnicza do centrowania kamery na obiekcie
+      const focusOnGroup = (group: any, offset: any) => {
+        const box = new THREE.Box3().setFromObject(group);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        this.controls.target.copy(center);
+        
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+        
+        // Skalujemy dystans kamery na podstawie wielkości obiektu
+        const distMult = maxDim * 0.8;
+        this.camera.position.copy(center).add(offset.clone().multiplyScalar(distMult));
+      };
 
-    // Ustawienie kamery
-    if (target === 'engine' && this.engineGroup) {
-      focusOnGroup(this.engineGroup, new THREE.Vector3(1.5, 1.0, 1.5));
-    } else if (target === 'gearbox' && this.transGroup) {
-      focusOnGroup(this.transGroup, new THREE.Vector3(1.5, 1.0, -1.0));
-    } else if (target === 'drivetrain' && this.drivetrainGroup) {
-      focusOnGroup(this.drivetrainGroup, new THREE.Vector3(2.0, 1.5, -2.0));
-    } else {
-      this.controls.target.set(0, 0, -0.5);
-      this.camera.position.set(3, 2, 3);
+      // Ustawienie kamery
+      if (target === 'engine' && this.engineGroup) {
+        focusOnGroup(this.engineGroup, new THREE.Vector3(1.5, 1.0, 1.5));
+      } else if (target === 'gearbox' && this.transGroup) {
+        focusOnGroup(this.transGroup, new THREE.Vector3(1.5, 1.0, -1.0));
+      } else if (target === 'drivetrain' && this.drivetrainGroup) {
+        focusOnGroup(this.drivetrainGroup, new THREE.Vector3(2.0, 1.5, -2.0));
+      } else {
+        this.controls.target.set(0, 0, -0.5);
+        this.camera.position.set(3, 2, 3);
+      }
+      
+      this.controls.update();
     }
-    
-    this.controls.update();
   }
 
   async yieldAndSetLoadingText(text: string) {
@@ -428,7 +430,7 @@ export class Scene3D {
       await this.yieldAndSetLoadingText('Podłączanie zegarów i wskaźników...');
       this.devUIController.updateCrankshaftUI();
       if (this.focusMode) {
-          this.setFocusMode(this.focusMode);
+          this.setFocusMode(this.focusMode, false);
       }
       window.dispatchEvent(new CustomEvent('parts-tree-rebuild'));
 

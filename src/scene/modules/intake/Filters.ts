@@ -23,3 +23,4 @@ export class CivilAirbox {
     return intakeFilter;
   }
 }
+export { AirSystem } from './AirSystem';

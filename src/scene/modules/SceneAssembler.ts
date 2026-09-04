@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Alternator, WaterPump, CrankPulley, SerpentineBelt } from './accessories/Accessories';
-import { SportFilter, CivilAirbox } from './intake/Filters';
+import { SportFilter, CivilAirbox, AirSystem } from './intake/Filters';
+import { RadiatorSystem } from './cooling/RadiatorSystem';
 
 const registry: Record<string, any> = {
   Alternator: Alternator,
@@ -8,7 +9,9 @@ const registry: Record<string, any> = {
   CrankPulley: CrankPulley,
   SerpentineBelt: SerpentineBelt,
   SportFilter: SportFilter,
-  CivilAirbox: CivilAirbox
+  CivilAirbox: CivilAirbox,
+  AirSystem: AirSystem,
+  RadiatorSystem: RadiatorSystem
 };
 
 export class SceneAssembler {
@@ -47,7 +50,7 @@ export class SceneAssembler {
         }
 
         const instance = new Factory();
-        const mesh = instance.build(sceneContext, item, builtModules);
+        const mesh = instance.build(sceneContext, item, builtModules, datum);
         
         // 1. Z: align logic
         let zPos = item.position[2];
@@ -59,6 +62,17 @@ export class SceneAssembler {
         
         // 2. Base positioning
         mesh.position.set(item.position[0], item.position[1], zPos);
+        if (mesh) {
+          // 1. Z: align logic
+          let zPos = item.position[2];
+          if (item.alignZ === 'maxZ') {
+            zPos = datum.maxZ + zPos;
+          } else if (item.alignZ === 'minZ') {
+            zPos = datum.minZ + zPos;
+          }
+          
+          // 2. Base positioning
+          mesh.position.set(item.position[0], item.position[1], zPos);
 
         // 3. Custom rotations from layout if needed 
         if (item.rotation) {
@@ -66,6 +80,12 @@ export class SceneAssembler {
           mesh.rotation.y += item.rotation[1] * Math.PI / 180;
           mesh.rotation.z += item.rotation[2] * Math.PI / 180;
         }
+          // 3. Custom rotations from layout if needed 
+          if (item.rotation) {
+            mesh.rotation.x += item.rotation[0] * Math.PI / 180;
+            mesh.rotation.y += item.rotation[1] * Math.PI / 180;
+            mesh.rotation.z += item.rotation[2] * Math.PI / 180;
+          }
 
         mesh.userData.id = item.id;
         builtModules.set(item.id, mesh);
@@ -74,8 +94,17 @@ export class SceneAssembler {
         if (item.type === 'WaterPump') sceneContext.wpPulley = mesh;
         if (item.type === 'Alternator') sceneContext.alternatorGroup = mesh.userData.pulleyGroup;
         if (item.type === 'SportFilter' || item.type === 'CivilAirbox') sceneContext.intakeFilterMesh = mesh;
+          mesh.userData.id = item.id;
+          builtModules.set(item.id, mesh);
+          
+          // Special case: wpPulley and alternatorGroup for Scene3D references
+          if (item.type === 'WaterPump') sceneContext.wpPulley = mesh;
+          if (item.type === 'Alternator') sceneContext.alternatorGroup = mesh.userData.pulleyGroup;
+          if (item.type === 'SportFilter' || item.type === 'CivilAirbox') sceneContext.intakeFilterMesh = mesh;
 
         engineGroup.add(mesh);
+          engineGroup.add(mesh);
+        }
       });
     }
 
