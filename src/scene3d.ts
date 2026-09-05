@@ -196,9 +196,11 @@ export class Scene3D {
     this.rebuildFullCar();
 
     window.addEventListener("resize", () => this.onResize());
+    this.isDisposed = false;
     this.lastTime = performance.now();
+    this.frameCount = 0;
     this.animate = this.animate.bind(this);
-    requestAnimationFrame(this.animate);
+    if (!this.isDisposed) requestAnimationFrame(this.animate);
   }
 
 
@@ -381,9 +383,9 @@ export class Scene3D {
   }
 
   async yieldAndSetLoadingText(text: string) {
+    if (this.firstFrameRendered) return;
     const el = document.getElementById('loading-status-text');
     if (el) el.innerText = text;
-    // Zwróć sterowanie do przeglądarki, żeby zaktualizowała DOM
     return new Promise(resolve => setTimeout(resolve, 0));
   }
 
@@ -393,7 +395,7 @@ export class Scene3D {
       this.isBuilding = true;
       // Pokaż overlay na wypadek ponownego budowania
       const overlay = document.getElementById('loading-overlay');
-      if (overlay) {
+      if (overlay && !this.firstFrameRendered) {
         overlay.style.display = 'flex';
         overlay.classList.remove('hidden');
       }
@@ -435,18 +437,18 @@ export class Scene3D {
       window.dispatchEvent(new CustomEvent('parts-tree-rebuild'));
 
       // Koniec budowy. Reszta ukrywania nakładki dzieje się w pierwszej klatce w animate()
-      this.firstFrameRendered = false;
+      
       this.isBuilding = false;
   }
 
   firstFrameRendered = false;
   animate(time) {
-    if (!this.firstFrameRendered && !this.isBuilding) {
+    if (!this.isBuilding) {
       this.firstFrameRendered = true;
       const overlay = document.getElementById('loading-overlay');
       if (overlay) {
         overlay.classList.add('hidden');
-        setTimeout(() => { if(overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 600);
+        // removed removeChild
       }
     }
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
@@ -995,7 +997,19 @@ export class Scene3D {
 
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
-    requestAnimationFrame(this.animate);
+    if (!this.isDisposed) requestAnimationFrame(this.animate);
+  }
+
+
+  dispose() {
+    this.isDisposed = true;
+    if (this.controls) this.controls.dispose();
+    if (this.renderer) {
+      this.renderer.dispose();
+      if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+        this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+      }
+    }
   }
 
   setLanguage(lang) {

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   server: {
@@ -6,11 +7,12 @@ export default defineConfig({
     host: true,
   },
   plugins: [
+    react(),
     {
       name: 'clean-urls',
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if (req.url && !req.url.includes('.') && req.url !== '/') {
+          if (req.url && !req.url.includes('.') && req.url !== '/' && !req.url.startsWith('/@')) {
             req.url = req.url + '.html';
           }
           next();

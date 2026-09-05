@@ -23,7 +23,7 @@ export function computeEngineDatum(scene) {
     const sleeveRadius = boreRadius + 0.008 * boreScale;
     const crankRadius = 0.16 * strokeScale;
     const rodLength = 0.48 * strokeScale;
-    const pistonLength = Math.max(0.12, boreRadius * 1.4);
+    const pistonLength = Math.max(0.12, boreRadius * 1.5);
     const pistonCrownH = 0.035 + pistonLength / 2.0;
     const sleeveCenter = rodLength + pistonCrownH * 0.5;
     const deckHeight = rodLength + crankRadius + pistonCrownH;
@@ -131,7 +131,7 @@ export function computeEngineDatum(scene) {
     return { 
       cylinderConfigs, centroid, maxZ, minZ, engineLength, zSpacing, 
       boreScale, strokeScale, boreRadius, sleeveRadius, crankRadius, 
-      rodLength, pistonCrownH, sleeveCenter, deckHeight, sleeveLength 
+      rodLength, pistonCrownH, sleeveCenter, deckHeight, sleeveLength, pistonLength 
     };
 }
 

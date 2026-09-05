@@ -2,74 +2,454 @@
   "layouts": {
     "Inline": {
       "accessories": [
-        { "id": "alternator_1", "type": "Alternator", "position": [0.28, 0.18, 0.05], "alignZ": "maxZ" },
-        { "id": "water_pump_1", "type": "WaterPump", "position": [0.0, 0.14, 0.08], "alignZ": "maxZ" },
-        { "id": "crank_pulley_1", "type": "CrankPulley", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ" },
-        { "id": "serpentine_belt_1", "type": "SerpentineBelt", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ", "connections": ["crank_pulley_1", "alternator_1", "water_pump_1"] },
-        { 
-          "id": "main_air_system", 
-          "type": "AirSystem", 
-          "position": [0.0, 0.0, 0.0], 
-          "filterPosLongitudinal": [-0.35, 0.38, 0.35], 
-          "filterRotLongitudinal": [90, 0, 0],
-          "filterPosTransverse": [0.35, 0.38, 0.35], 
-          "filterRotTransverse": [0, 0, -90]
+        {
+          "id": "alternator_1",
+          "type": "Alternator",
+          "position": [
+            "math(0.28 * boreScale)",
+            "math(0.18 * boreScale)",
+            0.05
+          ],
+          "alignZ": "maxZ"
         },
-        { "id": "main_radiator", "type": "RadiatorSystem", "position": [0.0, 0.0, 0.0] }
+        {
+          "id": "water_pump_1",
+          "type": "WaterPump",
+          "position": [
+            0.0,
+            "math(0.14 * boreScale)",
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "crank_pulley_1",
+          "type": "CrankPulley",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "serpentine_belt_1",
+          "type": "SerpentineBelt",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ",
+          "connections": [
+            "crank_pulley_1",
+            "alternator_1",
+            "water_pump_1"
+          ]
+        },
+        {
+          "id": "main_air_system",
+          "type": "AirSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "filterPosLongitudinal": [
+            -0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotLongitudinal": [
+            90,
+            0,
+            0
+          ],
+          "filterPosTransverse": [
+            0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotTransverse": [
+            0,
+            0,
+            -90
+          ]
+        },
+        {
+          "id": "main_radiator",
+          "type": "RadiatorSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "block_1",
+          "type": "EngineBlock"
+        },
+        {
+          "id": "crank_1",
+          "type": "CrankshaftAssembly"
+        },
+        {
+          "id": "valvetrain_1",
+          "type": "ValvetrainAndCylinders"
+        },
+        {
+          "id": "intake_manifold_1",
+          "type": "IntakeManifold"
+        },
+        {
+          "id": "exhaust_manifold_1",
+          "type": "ExhaustManifold"
+        },
+        {
+          "id": "exhaust_system_1",
+          "type": "ExhaustSystem"
+        }
       ]
     },
     "V": {
       "accessories": [
-        { "id": "alternator_1", "type": "Alternator", "position": [0.28, 0.18, 0.05], "alignZ": "maxZ" },
-        { "id": "water_pump_1", "type": "WaterPump", "position": [0.0, 0.14, 0.08], "alignZ": "maxZ" },
-        { "id": "crank_pulley_1", "type": "CrankPulley", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ" },
-        { "id": "serpentine_belt_1", "type": "SerpentineBelt", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ", "connections": ["crank_pulley_1", "alternator_1", "water_pump_1"] },
-        { 
-          "id": "main_air_system", 
-          "type": "AirSystem", 
-          "position": [0.0, 0.0, 0.0], 
-          "filterPosLongitudinal": [-0.35, 0.38, 0.35], 
-          "filterRotLongitudinal": [90, 0, 0],
-          "filterPosTransverse": [0.35, 0.38, 0.35], 
-          "filterRotTransverse": [0, 0, -90]
+        {
+          "id": "alternator_1",
+          "type": "Alternator",
+          "position": [
+            "math(0.28 * boreScale)",
+            "math(0.18 * boreScale)",
+            0.05
+          ],
+          "alignZ": "maxZ"
         },
-        { "id": "main_radiator", "type": "RadiatorSystem", "position": [0.0, 0.0, 0.0] }
+        {
+          "id": "water_pump_1",
+          "type": "WaterPump",
+          "position": [
+            0.0,
+            "math(0.14 * boreScale)",
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "crank_pulley_1",
+          "type": "CrankPulley",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "serpentine_belt_1",
+          "type": "SerpentineBelt",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ",
+          "connections": [
+            "crank_pulley_1",
+            "alternator_1",
+            "water_pump_1"
+          ]
+        },
+        {
+          "id": "main_air_system",
+          "type": "AirSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "filterPosLongitudinal": [
+            -0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotLongitudinal": [
+            90,
+            0,
+            0
+          ],
+          "filterPosTransverse": [
+            0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotTransverse": [
+            0,
+            0,
+            -90
+          ]
+        },
+        {
+          "id": "main_radiator",
+          "type": "RadiatorSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "block_1",
+          "type": "EngineBlock"
+        },
+        {
+          "id": "crank_1",
+          "type": "CrankshaftAssembly"
+        },
+        {
+          "id": "valvetrain_1",
+          "type": "ValvetrainAndCylinders"
+        },
+        {
+          "id": "intake_manifold_1",
+          "type": "IntakeManifold"
+        },
+        {
+          "id": "exhaust_manifold_1",
+          "type": "ExhaustManifold"
+        },
+        {
+          "id": "exhaust_system_1",
+          "type": "ExhaustSystem"
+        }
       ]
     },
     "VR": {
       "accessories": [
-        { "id": "alternator_1", "type": "Alternator", "position": [0.28, 0.18, 0.05], "alignZ": "maxZ" },
-        { "id": "water_pump_1", "type": "WaterPump", "position": [0.0, 0.14, 0.08], "alignZ": "maxZ" },
-        { "id": "crank_pulley_1", "type": "CrankPulley", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ" },
-        { "id": "serpentine_belt_1", "type": "SerpentineBelt", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ", "connections": ["crank_pulley_1", "alternator_1", "water_pump_1"] },
-        { 
-          "id": "main_air_system", 
-          "type": "AirSystem", 
-          "position": [0.0, 0.0, 0.0], 
-          "filterPosLongitudinal": [-0.35, 0.38, 0.35], 
-          "filterRotLongitudinal": [90, 0, 0],
-          "filterPosTransverse": [0.35, 0.38, 0.35], 
-          "filterRotTransverse": [0, 0, -90]
+        {
+          "id": "alternator_1",
+          "type": "Alternator",
+          "position": [
+            "math(0.28 * boreScale)",
+            "math(0.18 * boreScale)",
+            0.05
+          ],
+          "alignZ": "maxZ"
         },
-        { "id": "main_radiator", "type": "RadiatorSystem", "position": [0.0, 0.0, 0.0] }
+        {
+          "id": "water_pump_1",
+          "type": "WaterPump",
+          "position": [
+            0.0,
+            "math(0.14 * boreScale)",
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "crank_pulley_1",
+          "type": "CrankPulley",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "serpentine_belt_1",
+          "type": "SerpentineBelt",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ",
+          "connections": [
+            "crank_pulley_1",
+            "alternator_1",
+            "water_pump_1"
+          ]
+        },
+        {
+          "id": "main_air_system",
+          "type": "AirSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "filterPosLongitudinal": [
+            -0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotLongitudinal": [
+            90,
+            0,
+            0
+          ],
+          "filterPosTransverse": [
+            0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotTransverse": [
+            0,
+            0,
+            -90
+          ]
+        },
+        {
+          "id": "main_radiator",
+          "type": "RadiatorSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "block_1",
+          "type": "EngineBlock"
+        },
+        {
+          "id": "crank_1",
+          "type": "CrankshaftAssembly"
+        },
+        {
+          "id": "valvetrain_1",
+          "type": "ValvetrainAndCylinders"
+        },
+        {
+          "id": "intake_manifold_1",
+          "type": "IntakeManifold"
+        },
+        {
+          "id": "exhaust_manifold_1",
+          "type": "ExhaustManifold"
+        },
+        {
+          "id": "exhaust_system_1",
+          "type": "ExhaustSystem"
+        }
       ]
     },
     "Boxer": {
       "accessories": [
-        { "id": "alternator_1", "type": "Alternator", "position": [0.32, 0.10, 0.05], "alignZ": "maxZ" },
-        { "id": "water_pump_1", "type": "WaterPump", "position": [0.0, 0.14, 0.08], "alignZ": "maxZ" },
-        { "id": "crank_pulley_1", "type": "CrankPulley", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ" },
-        { "id": "serpentine_belt_1", "type": "SerpentineBelt", "position": [0.0, 0.0, 0.08], "alignZ": "maxZ", "connections": ["crank_pulley_1", "alternator_1", "water_pump_1"] },
-        { 
-          "id": "main_air_system", 
-          "type": "AirSystem", 
-          "position": [0.0, 0.0, 0.0], 
-          "filterPosLongitudinal": [-0.35, 0.38, 0.35], 
-          "filterRotLongitudinal": [90, 0, 0],
-          "filterPosTransverse": [0.35, 0.38, 0.35], 
-          "filterRotTransverse": [0, 0, -90]
+        {
+          "id": "alternator_1",
+          "type": "Alternator",
+          "position": [
+            "math(0.32 * boreScale)",
+            "math(0.10 * boreScale)",
+            0.05
+          ],
+          "alignZ": "maxZ"
         },
-        { "id": "main_radiator", "type": "RadiatorSystem", "position": [0.0, 0.0, 0.0] }
+        {
+          "id": "water_pump_1",
+          "type": "WaterPump",
+          "position": [
+            0.0,
+            "math(0.14 * boreScale)",
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "crank_pulley_1",
+          "type": "CrankPulley",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ"
+        },
+        {
+          "id": "serpentine_belt_1",
+          "type": "SerpentineBelt",
+          "position": [
+            0.0,
+            0.0,
+            0.08
+          ],
+          "alignZ": "maxZ",
+          "connections": [
+            "crank_pulley_1",
+            "alternator_1",
+            "water_pump_1"
+          ]
+        },
+        {
+          "id": "main_air_system",
+          "type": "AirSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "filterPosLongitudinal": [
+            -0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotLongitudinal": [
+            90,
+            0,
+            0
+          ],
+          "filterPosTransverse": [
+            0.35,
+            0.38,
+            0.35
+          ],
+          "filterRotTransverse": [
+            0,
+            0,
+            -90
+          ]
+        },
+        {
+          "id": "main_radiator",
+          "type": "RadiatorSystem",
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "components": [
+        {
+          "id": "block_1",
+          "type": "EngineBlock"
+        },
+        {
+          "id": "crank_1",
+          "type": "CrankshaftAssembly"
+        },
+        {
+          "id": "valvetrain_1",
+          "type": "ValvetrainAndCylinders"
+        },
+        {
+          "id": "intake_manifold_1",
+          "type": "IntakeManifold"
+        },
+        {
+          "id": "exhaust_manifold_1",
+          "type": "ExhaustManifold"
+        },
+        {
+          "id": "exhaust_system_1",
+          "type": "ExhaustSystem"
+        }
       ]
     }
   }

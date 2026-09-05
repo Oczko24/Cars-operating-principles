@@ -172,7 +172,7 @@ export function createPiston(scene, radius, length) {
     const g = new THREE.Group();
     // Korpus tłoka (denko i płaszcz) - sworzeń znajduje się w Y = 0
     const piston = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 32), scene.matPiston);
-    piston.position.y = 0.035;
+    piston.position.y = length / 2 - 0.020;
     piston.userData.name = "Tłok";
     g.add(piston);
 
@@ -180,7 +180,7 @@ export function createPiston(scene, radius, length) {
     for (let i = 0; i < 3; i++) {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.001, 0.002, 8, 32), scene.matDarkSteel);
       ring.rotation.x = Math.PI / 2;
-      ring.position.y = 0.035 + length / 2 - 0.015 - i * 0.012;
+      ring.position.y = length - 0.030 - i * 0.012;
       ring.userData.name = (i < 2) ? `Pierścień uszczelniający #${i+1}` : "Pierścień zgarniający olejowy";
       g.add(ring);
     }

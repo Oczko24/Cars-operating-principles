@@ -294,21 +294,6 @@ setupDevPanel() {
       }
       
       updateValveButtonsState();
-    document.addEventListener('sync_dev_ui', (e: any) => {
-      const c = e.detail;
-      // Sync sliders if elements exist
-      const devBore = document.getElementById('dev_bore');
-      if (devBore) { (devBore as any).value = c.boreMm; const v = document.getElementById('dev_bore_val'); if(v) v.innerText = c.boreMm.toFixed(1) + " mm"; }
-      
-      const devStroke = document.getElementById('dev_stroke_len');
-      if (devStroke) { (devStroke as any).value = c.strokeMm; const v = document.getElementById('dev_stroke_len_val'); if(v) v.innerText = c.strokeMm.toFixed(1) + " mm"; }
-      
-      const devAngle = document.getElementById('dev_angle');
-      if (devAngle) { (devAngle as any).value = c.vAngle; const v = document.getElementById('dev_angle_val'); if(v) v.innerText = c.vAngle; }
-      
-      this.updateEngineStats();
-    });
-
       this.updateEngineStats();
       this.scene.rebuildFullCar();
     });
@@ -550,6 +535,52 @@ setupDevPanel() {
     setupButtonGroup('dev_diff', (val) => {
         // placeholder
     });
+
+    document.addEventListener('sync_dev_ui', (e: any) => {
+      const c = e.detail;
+      
+      const syncSlider = (id, val, suffix) => {
+          const el = document.getElementById(id);
+          const valEl = document.getElementById(id + '_val');
+          if (el) (el as any).value = val;
+          if (valEl) valEl.innerText = val + suffix;
+      };
+      
+      const syncBtnGroup = (groupId, val) => {
+          const container = document.getElementById(groupId);
+          if (!container) return;
+          const btns = container.querySelectorAll('button');
+          btns.forEach(b => {
+              b.classList.remove('active');
+              if (b.getAttribute('data-val') === String(val) || b.getAttribute('data-gear') === String(val)) {
+                  b.classList.add('active');
+              }
+          });
+      };
+
+      syncSlider('dev_bore', c.boreMm, ' mm');
+      syncSlider('dev_stroke_len', c.strokeMm, ' mm');
+      syncSlider('dev_angle', c.vAngle, '°');
+      syncSlider('dev_cyl', c.cylinders, '');
+
+      syncBtnGroup('dev_layout', c.layout);
+      syncBtnGroup('dev_drivetrain_layout', c.drivetrainLayout);
+      syncBtnGroup('dev_exhaust_pipes', c.exhaustPipes);
+      syncBtnGroup('dev_v8_crank', c.v8CrankType);
+      syncBtnGroup('dev_valves', c.valves);
+      syncBtnGroup('dev_valvetrain', c.valvetrain);
+      syncBtnGroup('dev_intake', c.intakeType);
+      syncBtnGroup('dev_placement', c.placement);
+      syncBtnGroup('dev_orientation', c.orientation);
+      
+      const angleContainer = document.getElementById('dev_angle_container');
+      if (angleContainer) {
+          angleContainer.style.display = (c.layout === 'Inline' || c.layout === 'VR' || c.layout === 'Boxer') ? 'none' : 'block';
+      }
+
+      this.updateEngineStats();
+    });
+
 
     const chkWireframes = document.getElementById('toggle_wireframes');
     if (chkWireframes) {
