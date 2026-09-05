@@ -184,17 +184,25 @@ export function analyzeEngineBalance(cylinderConfigs, config) {
       const f1 = Math.cos(alpha);
       const f1X = f1 * -Math.sin(cfg.bank);
       const f1Y = f1 * Math.cos(cfg.bank);
+      
+      // Counterweight simulation (balance factor = 0.5 per cylinder)
+      const phi = theta - cfg.crankPinAngle;
+      const cwX = -0.5 * Math.sin(phi);
+      const cwY = -0.5 * Math.cos(phi);
+      
+      const f1TotalX = f1X + cwX;
+      const f1TotalY = f1Y + cwY;
 
       // Siła II rzędu (cos 2*alpha)
       const f2 = Math.cos(2 * alpha) * 0.25; // uwzględniając lambda ~ 0.25
       const f2X = f2 * -Math.sin(cfg.bank);
       const f2Y = f2 * Math.cos(cfg.bank);
 
-      sumF1X += f1X; sumF1Y += f1Y;
+      sumF1X += f1TotalX; sumF1Y += f1TotalY;
       sumF2X += f2X; sumF2Y += f2Y;
 
-      sumM1X += f1Y * armZ;
-      sumM1Y += f1X * armZ;
+      sumM1X += f1TotalY * armZ;
+      sumM1Y += f1TotalX * armZ;
     });
 
     const totalF1 = Math.sqrt(sumF1X * sumF1X + sumF1Y * sumF1Y);
