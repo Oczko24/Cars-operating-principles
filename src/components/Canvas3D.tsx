@@ -18,7 +18,7 @@ export const Canvas3D: React.FC<Canvas3DProps> = ({ config, activeCategory, lang
 
     // Initialize the Vanilla Three.js Scene
     const scene = new Scene3D(containerRef.current, onFrameStats);
-    internalSceneRef.current = scene;
+    internalSceneRef.current = scene; window.scene3d = scene;
     if (sceneRef) {
       sceneRef.current = scene;
     }

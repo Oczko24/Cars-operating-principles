@@ -43,8 +43,8 @@ export class RadiatorSystem {
     radG.add(topTank, bottomTank);
 
     // Króćce chłodnicy
-    const topInletX = isTransverse ? -0.25 : 0.25;
-    const botOutletX = isTransverse ? 0.25 : -0.25;
+    const topInletX = isTransverse ? 0.25 : 0.25;
+    const botOutletX = isTransverse ? -0.25 : -0.25;
 
     const topInlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), scene.matDarkSteel);
     topInlet.rotation.x = Math.PI / 2;

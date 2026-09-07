@@ -149,25 +149,40 @@ export function createConnectingRod(scene, length) {
     return g;
 }
 
-let cachedPistonGeos = null;
-let lastPistonRadius = -1;
-let lastPistonLength = -1;
+let cachedPistonGeos = {};
 
-export function createPiston(scene, radius, length) {
+export function createPiston(scene, radius, length, slantAngle = 0) {
     const g = new THREE.Group();
     
-    if (!cachedPistonGeos || Math.abs(lastPistonRadius - radius) > 0.0001 || Math.abs(lastPistonLength - length) > 0.0001) {
+    const cacheKey = `${radius.toFixed(4)}_${length.toFixed(4)}_${slantAngle.toFixed(4)}`;
+    
+    if (!cachedPistonGeos[cacheKey]) {
         const pistonGeo = new THREE.CylinderGeometry(radius, radius, length, 24);
+        
+        // Apply slant to piston crown for VR/W engines
+        if (Math.abs(slantAngle) > 0.001) {
+            const posAttr = pistonGeo.attributes.position;
+            const yThreshold = length / 2 - 0.001; // Only top vertices
+            for (let i = 0; i < posAttr.count; i++) {
+                const y = posAttr.getY(i);
+                if (y > yThreshold) {
+                    const x = posAttr.getX(i);
+                    // Shift Y based on X to create a slant
+                    const newY = y - x * Math.tan(slantAngle);
+                    posAttr.setY(i, newY);
+                }
+            }
+            pistonGeo.computeVertexNormals();
+        }
+        
         const ringGeo = new THREE.TorusGeometry(radius + 0.001, 0.002, 5, 24);
         const pinGeo = new THREE.CylinderGeometry(0.013, 0.013, radius * 1.82, 12);
         const circlipGeo = new THREE.TorusGeometry(0.0135, 0.0012, 4, 12);
         
-        cachedPistonGeos = { pistonGeo, ringGeo, pinGeo, circlipGeo };
-        lastPistonRadius = radius;
-        lastPistonLength = length;
+        cachedPistonGeos[cacheKey] = { pistonGeo, ringGeo, pinGeo, circlipGeo };
     }
     
-    const cg = cachedPistonGeos;
+    const cg = cachedPistonGeos[cacheKey];
 
     const piston = new THREE.Mesh(cg.pistonGeo, scene.matPiston);
     piston.position.y = length / 2 - 0.020;

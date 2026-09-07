@@ -100,6 +100,25 @@ let lastPrimaryDesc = "";
       scene.config.orientation = 'longitudinal';
       scene.config.drivetrainLayout = 'AWD';
       scene.config.gearboxPreset = 'cvt_multitronic';
+    } else if (preset === 'golf_vr6') {
+      scene.config.layout = 'VR';
+      scene.config.cylinders = 6;
+      scene.config.boreMm = 81.0;
+      scene.config.strokeMm = 90.3;
+      scene.config.placement = 'front';
+      scene.config.orientation = 'transverse';
+      scene.config.drivetrainLayout = 'FWD';
+      scene.config.gearboxPreset = 'vw_dsg';
+    } else if (preset === 'passat_w8') {
+      scene.config.layout = 'W';
+      scene.config.cylinders = 8;
+      scene.config.boreMm = 84.0;
+      scene.config.strokeMm = 90.2;
+      scene.config.exhaustPipes = 'dual';
+      scene.config.placement = 'front';
+      scene.config.orientation = 'longitudinal';
+      scene.config.drivetrainLayout = 'AWD';
+      scene.config.gearboxPreset = 'zf_8hp';
     }
     if (scene.devUIController) {
         scene.devUIController.updateEngineStats();
@@ -111,7 +130,7 @@ let lastPrimaryDesc = "";
   
   const handleFocus = (focus: string) => {
     setFocusMode(focus);
-    if(sceneRef.current) sceneRef.current.setCameraFocus(focus);
+    if(sceneRef.current) sceneRef.current.setFocusMode(focus);
   };
   const handleStroke = (stroke: number) => {
     if(sceneRef.current) sceneRef.current.jumpToStroke(stroke);
@@ -164,6 +183,128 @@ let lastPrimaryDesc = "";
         lastPrimaryDesc = primaryCyl.desc;
       }
     }
+
+    if (newStats.engineDatum && newStats.config) {
+      const canvas = document.getElementById("engine_deck_canvas") as HTMLCanvasElement;
+      if (canvas) {
+        drawEngineDeck(canvas, newStats.engineDatum, newStats.config);
+      }
+    }
+  };
+
+  const drawEngineDeck = (canvas: HTMLCanvasElement, datum: any, config: any) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const toMm = 400; // 1 unit in 3D = 400 mm
+
+    // Compute bounds in mm
+    let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+    datum.cylinderConfigs.forEach((cyl: any, i: number) => {
+      const x = cyl.m.x * toMm;
+      const z = cyl.m.z * toMm;
+      const r = (datum.sleeveRadius || 0.12) * toMm;
+      if (i === 0) {
+        minX = x - r; maxX = x + r; minZ = z - r; maxZ = z + r;
+      } else {
+        minX = Math.min(minX, x - r); maxX = Math.max(maxX, x + r);
+        minZ = Math.min(minZ, z - r); maxZ = Math.max(maxZ, z + r);
+      }
+    });
+
+    const engineWidthMm = Math.max(maxX - minX, 150);
+    const engineLenMm = Math.max(maxZ - minZ, 150);
+    
+    // Calculate pixels per mm
+    const margin = 35;
+    const scale = Math.min((w - margin * 2) / engineWidthMm, (h - margin * 2) / engineLenMm);
+    
+    const cx = (minX + maxX) / 2;
+    const cz = (minZ + maxZ) / 2;
+
+    ctx.save();
+    ctx.translate(w / 2, h / 2 - 10); // Offset up slightly to leave room for scale bar
+    
+    // Oś środkowa (Wał korbowy) jeśli jest widoczna (x=0)
+    const crankX = (0 - cx) * scale;
+    ctx.beginPath();
+    ctx.moveTo(crankX, -h/2);
+    ctx.lineTo(crankX, h/2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw each cylinder
+    datum.cylinderConfigs.forEach((cyl: any) => {
+      const px = (cyl.m.x * toMm - cx) * scale;
+      const pz = (cyl.m.z * toMm - cz) * scale;
+      
+      const boreRadiusMm = (datum.boreRadius) * toMm;
+      const sleeveRadiusMm = (datum.sleeveRadius) * toMm;
+      
+      const rPx = boreRadiusMm * scale;
+      const sleevePx = sleeveRadiusMm * scale;
+      
+      ctx.beginPath();
+      ctx.arc(px, pz, rPx, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(203, 213, 225, 0.15)'; 
+      ctx.fill();
+      
+      // Zewnętrzny obrys tulei (sleeve)
+      ctx.beginPath();
+      ctx.arc(px, pz, sleevePx, 0, Math.PI * 2);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Wewnętrzny obrys (bore)
+      ctx.beginPath();
+      ctx.arc(px, pz, rPx, 0, Math.PI * 2);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Numer cylindra
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cyl.id.toString(), px, pz - 8);
+
+      // Średnica (Bore) tekst
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px monospace';
+      ctx.fillText(`Ø${(boreRadiusMm * 2).toFixed(1)}`, px, pz + 8);
+    });
+    
+    ctx.restore();
+
+    // Rysowanie paska skali (Scale bar)
+    const scaleBarMm = 100; // 100 mm w rzeczywistości
+    const scaleBarPx = scaleBarMm * scale;
+    
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    
+    const barX = 15;
+    const barY = h - 15;
+    
+    ctx.beginPath();
+    ctx.moveTo(barX, barY - 5);
+    ctx.lineTo(barX, barY);
+    ctx.lineTo(barX + scaleBarPx, barY);
+    ctx.lineTo(barX + scaleBarPx, barY - 5);
+    ctx.stroke();
+    
+    ctx.fillText(`${scaleBarMm} mm`, barX + scaleBarPx / 2 - 20, barY - 6);
   };
 
   return (
@@ -211,6 +352,8 @@ let lastPrimaryDesc = "";
         <button className="car-preset-btn" data-preset="bmw" onClick={() => handlePreset("bmw")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>BMW F30 (8HP)</button>
         <button className="car-preset-btn" data-preset="corvette" onClick={() => handlePreset("corvette")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Corvette C5 (V8)</button>
         <button className="car-preset-btn" data-preset="subaru" onClick={() => handlePreset("subaru")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Subaru (CVT)</button>
+        <button className="car-preset-btn" data-preset="golf_vr6" onClick={() => handlePreset("golf_vr6")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Golf (VR6)</button>
+        <button className="car-preset-btn" data-preset="passat_w8" onClick={() => handlePreset("passat_w8")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Passat (W8)</button>
       </div>
     </div>
 
@@ -383,6 +526,13 @@ let lastPrimaryDesc = "";
           <div className="focus-group" id="dev_exhaust_pipes">
             <button className="config-btn active" data-val="single" data-i18n="ui.exhaustSingleBtn">Pojedynczy (1 rura)</button>
             <button className="config-btn" data-val="dual" data-i18n="ui.exhaustDualBtn">Podwójny (2 rury)</button>
+          </div>
+
+          <label className="control-label" data-i18n="ui.exhaustManifoldType">Typ Kolektora Wydechowego:</label>
+          <div className="focus-group" id="dev_exhaust_manifold">
+            <button className="config-btn active" data-val="cast_iron">Krótki żeliwny (Log-style)</button>
+            <button className="config-btn" data-val="tubular">Rurowy sportowy (ELH / 4-1 / Barany)</button>
+            <button className="config-btn" data-val="uel">Nierównoodległościowy (UEL)</button>
           </div>
 
           <label className="control-label" data-i18n="ui.enginePlacement">Położenie silnika w ramie:</label>
@@ -1012,7 +1162,32 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
     </div>
   </div>
 
-  
+  {/* Floating Engine Blueprint Panel */}
+  <div id="blueprint-panel" style={{
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    width: '340px',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: '8px',
+    padding: '12px',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    flexDirection: 'column',
+    zIndex: 40,
+    pointerEvents: 'none'
+  }}>
+    <div style={{ color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
+      Wizualizacja głowicy (Skala rzeczywista)
+    </div>
+    <canvas id="engine_deck_canvas" width="314" height="240" style={{
+      width: '100%',
+      background: '#0f172a',
+      borderRadius: '4px',
+      border: '1px solid #334155'
+    }}></canvas>
+  </div>
 
     </div>
   );

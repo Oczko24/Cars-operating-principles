@@ -88,14 +88,14 @@ const crankMaster = new THREE.Group();
     const allCylZ = cylinderConfigs.map(c => c.z);
     const minCylZ = Math.min(...allCylZ);
     const maxCylZ = Math.max(...allCylZ);
-    const uniqueZ = [...new Set(allCylZ)].sort((a, b) => a - b);
+    const uniqueZ = Array.from(new Set(allCylZ)).map(Number).sort((a, b) => a - b);
 
     // 1. Czopy pośrednie pomiędzy sąsiednimi wykorbieniami
     for (let k = 0; k < uniqueZ.length - 1; k++) {
       const zA = uniqueZ[k];
       const zB = uniqueZ[k + 1];
-      const jStart = zA + throwHalfWidth;
-      const jEnd = zB - throwHalfWidth;
+      const jStart = Number(zA) + throwHalfWidth;
+      const jEnd = Number(zB) - throwHalfWidth;
       const jLen = jEnd - jStart;
       if (jLen > 0.004) {
         const midJ = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, jLen, 24), scene.matSteel);

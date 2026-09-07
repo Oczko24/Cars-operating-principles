@@ -235,6 +235,11 @@ setupDevPanel() {
       this.scene.rebuildFullCar();
     });
 
+    setupButtonGroup('dev_exhaust_manifold', (val) => {
+      this.scene.config.exhaustManifoldType = val;
+      this.scene.rebuildFullCar();
+    });
+
     // ═══ WYBÓR WAŁU DLA V8 (Crossplane vs Flatplane) ═══
     setupButtonGroup('dev_v8_crank', (val) => {
       this.scene.config.v8CrankType = val;
@@ -597,6 +602,7 @@ setupDevPanel() {
       syncBtnGroup('dev_layout', c.layout);
       syncBtnGroup('dev_drivetrain_layout', c.drivetrainLayout);
       syncBtnGroup('dev_exhaust_pipes', c.exhaustPipes);
+      syncBtnGroup('dev_exhaust_manifold', c.exhaustManifoldType || 'cast_iron');
       syncBtnGroup('dev_v8_crank', c.v8CrankType);
       syncBtnGroup('dev_valves', c.valves);
       syncBtnGroup('dev_valvetrain', c.valvetrain);
@@ -955,12 +961,27 @@ setupTooltip() {
     this.scene.isRaycasting = false;
   }
 
-updateTooltip() {
+  updateTooltip() {
     if (!this.scene.raycaster || !this.scene.scene || !this.scene.camera || this.scene.isRaycasting) return;
+    
+    // Zablokuj hover jeśli opcja jest wyłączona w Dev UI
+    if (this.scene.config && this.scene.config.enableHover === false) {
+      if (this.scene.tooltip) this.scene.tooltip.style.display = 'none';
+      return;
+    }
+
     this.scene.isRaycasting = true;
-    requestAnimationFrame(() => {
+
+    // Używamy setTimeout zamiast requestAnimationFrame dla raycastera żeby zmniejszyć obciążenie
+    // i nie blokować klatek (throttling do ok. 20 FPS dla samego hovera)
+    setTimeout(() => {
+      if (this.scene.isDisposed) return;
+      
       this.scene.raycaster.setFromCamera(this.scene.mouse, this.scene.camera);
-      const intersects = this.scene.raycaster.intersectObjects(this.scene.scene.children, true);
+      // Raycast tylko przeciwko carGroup, a nie całej scenie (pomija światła, siatkę, itp.)
+      const objectsToIntersect = this.scene.carGroup ? this.scene.carGroup.children : this.scene.scene.children;
+      const intersects = this.scene.raycaster.intersectObjects(objectsToIntersect, true);
+      
       let foundName = null;
       for (let i = 0; i < intersects.length; i++) {
         const item = intersects[i];
@@ -1015,13 +1036,15 @@ updateTooltip() {
       }
 
       if (foundName) {
-        this.scene.tooltip.innerHTML = `<span style="color: #86868b; font-size: 9.5px; text-transform: uppercase; margin-right: 6px; font-weight: 500;">ELEMENT</span><span>${foundName}</span>`;
-        this.scene.tooltip.style.display = 'block';
+        if (this.scene.tooltip) {
+            this.scene.tooltip.innerHTML = `<span style="color: #86868b; font-size: 9.5px; text-transform: uppercase; margin-right: 6px; font-weight: 500;">ELEMENT</span><span>${foundName}</span>`;
+            this.scene.tooltip.style.display = 'block';
+        }
       } else {
-        this.scene.tooltip.style.display = 'none';
+        if (this.scene.tooltip) this.scene.tooltip.style.display = 'none';
       }
       this.scene.isRaycasting = false;
-    });
+    }, 50); // Throttling 50ms
   }
 
 /**

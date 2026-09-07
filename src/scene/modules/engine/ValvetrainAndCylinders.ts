@@ -148,15 +148,28 @@ export class ValvetrainAndCylinders {
         bankG.add(cylG);
 
         const localCylAngle = cfg.bank - bankAngle;
-        const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
-        const localDesaxeY = 0;
+        const localDesaxeX = cfg.localDesaxeX || 0;
+        const localDesaxeY = cfg.localDesaxeY || 0;
 
         const cylPartsG = new THREE.Group();
         cylPartsG.position.set(localDesaxeX, localDesaxeY, 0);
         cylPartsG.rotation.z = localCylAngle;
         cylG.add(cylPartsG);
 
-        const sleeve = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLength, 16)), scene.lineMat);
+        const sleeveGeo = new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLength, 16);
+        if (Math.abs(localCylAngle) > 0.001) {
+            const posAttr = sleeveGeo.attributes.position;
+            const yThreshold = sleeveLength / 2 - 0.001;
+            for (let i = 0; i < posAttr.count; i++) {
+                const y = posAttr.getY(i);
+                if (y > yThreshold) {
+                    const x = posAttr.getX(i);
+                    posAttr.setY(i, y - x * Math.tan(localCylAngle));
+                }
+            }
+        }
+        
+        const sleeve = new THREE.LineSegments(new THREE.EdgesGeometry(sleeveGeo), scene.lineMat);
         sleeve.position.set(0, sleeveCenter + explodeDist, 0);
         sleeve.userData.name = "Tuleja cylindra (Zarys)";
         sleeve.visible = scene.config.showWireframes !== false;
@@ -202,7 +215,7 @@ export class ValvetrainAndCylinders {
             if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
                 const isRightRow = cfg.bank > 0;
                 const localCylAngle = cfg.bank - bankAngle;
-                const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
+                const localDesaxeX = cfg.localDesaxeX || 0;
                 const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
                 
                 const vxOff = 0.028 * boreScale;
@@ -241,7 +254,7 @@ export class ValvetrainAndCylinders {
             if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
                 const isRightRow = cfg.bank > 0;
                 const localCylAngle = cfg.bank - bankAngle;
-                const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
+                const localDesaxeX = cfg.localDesaxeX || 0;
                 const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
                 
                 const vxOff = 0.035 * boreScale; 
@@ -278,7 +291,7 @@ export class ValvetrainAndCylinders {
             } else if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
                 const vOffZInline = 0.043 * boreScale; 
                 const localCylAngle = cfg.bank - bankAngle;
-                const localDesaxeX = -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale;
+                const localDesaxeX = cfg.localDesaxeX || 0;
                 const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
                 
                 const isRightRow = cfg.bank > 0;
@@ -402,7 +415,7 @@ export class ValvetrainAndCylinders {
           sprayMat: sprayMat
         });
 
-        const pistonG = createPiston(scene, boreRadius, pistonLength);
+        const pistonG = createPiston(scene, boreRadius, pistonLength, localCylAngle);
         cylPartsG.add(pistonG);
 
         const rodG = createConnectingRod(scene, rodLength);
@@ -411,13 +424,18 @@ export class ValvetrainAndCylinders {
         const lobeRotIn = cfg.firingAngle / 2 + Math.PI / 4;
         const lobeRotEx = cfg.firingAngle / 2 + (7 * Math.PI) / 4;
 
+        const worldA0x = localDesaxeX * Math.cos(bankAngle) - localDesaxeY * Math.sin(bankAngle);
+        const worldA0y = localDesaxeX * Math.sin(bankAngle) + localDesaxeY * Math.cos(bankAngle);
+
         scene.movingCylinders.push({
           id: cfg.id, z: cfg.z, bank: cfg.bank,
           crankPinAngle: cfg.crankPinAngle, phaseOffset: cfg.phaseOffset,
           crankRadius, rodLength, sleeve, head, pistonG, rodG,
           fireMesh, fireMat, sparkPlug,
           inGas, inGasMat, exGas, exGasMat,
-          injFlash: sprayLines, injFlashMat: sprayMat
+          injFlash: sprayLines, injFlashMat: sprayMat,
+          a0: (cfg as any).a0,
+          worldA0: new THREE.Vector2(worldA0x, worldA0y)
         });
 
         valvesList.forEach((vData) => {

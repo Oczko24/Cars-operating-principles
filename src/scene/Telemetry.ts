@@ -422,7 +422,7 @@ checkOverlap() {
       const isExhaustB = exTerms.some(t => nB.includes(t));
 
       // 10. Układ dolotowy (Plenum, throttle, runners, injectors, air filter)
-      const inTerms = ["plenum", "przepustnica", "klapa", "oś klapy", "kolektor dolotowy", "runner", "filtr", "wtryskiwacz", "listwa wtryskowa"];
+      const inTerms = ["plenum", "przepustnica", "klapa", "oś klapy", "kolektor dolotowy", "runner", "filtr", "wtryskiwacz", "listwa wtryskowa", "chwytak", "kanał", "trąbka", "rura dolotowa", "osłona termiczna", "kierownica powietrza"];
       const isIntakeA = inTerms.some(t => nA.includes(t));
       const isIntakeB = inTerms.some(t => nB.includes(t));
 
@@ -436,30 +436,41 @@ checkOverlap() {
       const isBeltA = beltTerms.some(t => nA.includes(t));
       const isBeltB = beltTerms.some(t => nB.includes(t));
 
+      // 13. Blok Silnika (Głowica, blok, śruby, miska, pokrywa)
+      const blockTerms = ["blok", "silnika", "głowica", "miska", "pokrywa", "uszczelka", "śrub", "srub"];
+      const isBlockA = blockTerms.some(t => nA.includes(t));
+      const isBlockB = blockTerms.some(t => nB.includes(t));
+
       // Relacje konstrukcyjne (Subassembly Assembly Integrations)
-      if (isChassisA && (isChassisB || isSuspB || isWheelB || isDrivetrainB || isCoolingB || isExhaustB)) return true;
-      if (isChassisB && (isChassisA || isSuspA || isWheelA || isDrivetrainA || isCoolingA || isExhaustA)) return true;
+      // Zezwalamy na kolizje wewnątrz własnego układu (np. części układu chłodzenia między sobą), 
+      // oraz oczywiste łączenia (np. korbowody z wałem korbowym, wał z rozrządem).
+      if (isBlockA && (isBlockB || isCrankB || isRodPistonB || isTimingB || isCoolingB || isIntakeB || isExhaustB || isDrivetrainB || isBeltB)) return true;
+      if (isBlockB && (isBlockA || isCrankA || isRodPistonA || isTimingA || isCoolingA || isIntakeA || isExhaustA || isDrivetrainA || isBeltA)) return true;
+
+      if (isChassisA && (isChassisB || isSuspB || isWheelB || isDrivetrainB || isCoolingB || isExhaustB || isBlockB)) return true;
+      if (isChassisB && (isChassisA || isSuspA || isWheelA || isDrivetrainA || isCoolingA || isExhaustA || isBlockA)) return true;
 
       if (isSuspA && (isSuspB || isWheelB || isDrivetrainB)) return true;
       if (isSuspB && (isSuspA || isWheelA || isDrivetrainA)) return true;
 
       if (isWheelA && isWheelB) return true;
       if (isDrivetrainA && isDrivetrainB) return true;
-      if (isCoolingA && (isCoolingB || isTimingB || isCrankB || isBeltB)) return true;
-      if (isCoolingB && (isCoolingA || isTimingA || isCrankA || isBeltA)) return true;
+      if (isCoolingA && (isCoolingB || isBeltB)) return true;
+      if (isCoolingB && (isCoolingA || isBeltA)) return true;
 
-      if (isCrankA && (isCrankB || isRodPistonB || isBeltB || isDrivetrainB)) return true;
-      if (isCrankB && (isCrankA || isRodPistonA || isBeltA || isDrivetrainA)) return true;
+      // Usunięto ukrywanie błędnych kolizji! Układ wydechowy i napędowy NIE może przenikać się z wałem korbowym.
+      if (isCrankA && (isCrankB || isRodPistonB || isBeltB)) return true;
+      if (isCrankB && (isCrankA || isRodPistonA || isBeltA)) return true;
 
       if (isRodPistonA && isRodPistonB) return true;
       if (isTimingA && (isTimingB || isCrankB || isRodPistonB || isIntakeB || isExhaustB)) return true;
       if (isTimingB && (isTimingA || isCrankA || isRodPistonA || isIntakeA || isExhaustA)) return true;
 
-      if (isExhaustA && (isExhaustB || isDrivetrainB || isCrankB)) return true;
-      if (isExhaustB && (isExhaustA || isDrivetrainA || isCrankA)) return true;
+      if (isExhaustA && isExhaustB) return true;
+      if (isExhaustB && isExhaustA) return true;
 
-      if (isIntakeA && (isIntakeB || isCrankB)) return true;
-      if (isIntakeB && (isIntakeA || isCrankA)) return true;
+      if (isIntakeA && isIntakeB) return true;
+      if (isIntakeB && isIntakeA) return true;
 
       if (isBeltA && (isBeltB || isCrankB || isCoolingB)) return true;
       if (isBeltB && (isBeltA || isCrankA || isCoolingA)) return true;

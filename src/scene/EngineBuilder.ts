@@ -55,7 +55,7 @@ async buildEngineAssembly() {
     
     if (this.scene.config.placement === 'front') {
       const longZ = 0.85 - minZ; // Wyrównanie tyłu silnika (koła zamachowego) do grodzi
-      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.105) : longZ);
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.16) : longZ);
     } else if (this.scene.config.placement === 'mid') {
       const longZ = rearZ + 0.40 - minZ; // Wyrównanie tyłu silnika w okolicach tylnej osi
       this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ + 0.8) : longZ);

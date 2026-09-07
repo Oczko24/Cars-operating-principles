@@ -155,18 +155,19 @@ buildDrivetrainAssembly() {
     sideGearR.userData.name = "Koło Koronowe Prawe";
     rightAxle.add(sideGearR);
 
-    // Długość półosi obliczana od pozycji dyferencjału do kół
-    const leftShaftLen = Math.abs(xPos - (-VehicleDimensions.trackWidthHalf));
-    const axleShaftL = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, leftShaftLen, 16), this.scene.matSteel);
-    axleShaftL.rotation.z = Math.PI / 2;
-    axleShaftL.position.x = -leftShaftLen / 2;
+    // Długość i kąt półosi obliczane od pozycji dyferencjału do piast kół
+    const targetZ = isFront ? VehicleDimensions.wheelbaseFrontZ : VehicleDimensions.wheelbaseRearZ;
+    const localTargetZ = targetZ - zPos;
+
+    const targetL = new THREE.Vector3(-VehicleDimensions.trackWidthHalf - xPos, 0, localTargetZ);
+    const curveL = new THREE.LineCurve3(new THREE.Vector3(-0.03, 0, 0), targetL);
+    const axleShaftL = new THREE.Mesh(new THREE.TubeGeometry(curveL, 1, 0.025, 16, false), this.scene.matSteel);
     axleShaftL.userData.name = "Półoś Lewa";
     leftAxle.add(axleShaftL);
 
-    const rightShaftLen = Math.abs(xPos - VehicleDimensions.trackWidthHalf);
-    const axleShaftR = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, rightShaftLen, 16), this.scene.matSteel);
-    axleShaftR.rotation.z = Math.PI / 2;
-    axleShaftR.position.x = rightShaftLen / 2;
+    const targetR = new THREE.Vector3(VehicleDimensions.trackWidthHalf - xPos, 0, localTargetZ);
+    const curveR = new THREE.LineCurve3(new THREE.Vector3(0.03, 0, 0), targetR);
+    const axleShaftR = new THREE.Mesh(new THREE.TubeGeometry(curveR, 1, 0.025, 16, false), this.scene.matSteel);
     axleShaftR.userData.name = "Półoś Prawa";
     rightAxle.add(axleShaftR);
 
@@ -205,8 +206,8 @@ buildDrivetrainAssembly() {
       const f17PinionWorld = f17PinionLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
       
       diffX = f17PinionWorld.x + 0.06;
-      diffZ = f17PinionWorld.z + 0.215; 
-      // Nie przesuwamy silnika! Półosie mogą iść lekko pod kątem do przednich kół (frontZ).
+      diffZ = f17PinionWorld.z + 0.084; // Poprawka: odpowiednie odsunięcie dyferencjału do tyłu (za blok silnika)
+      // Nie przesuwamy silnika! Półosie idą kątowo do przednich kół.
       removeDiffPinion = true;
     }
 
@@ -238,7 +239,7 @@ buildDrivetrainAssembly() {
     this.scene.drivetrainGroup.add(propGroup);
     this.scene.propShaftMesh = propShaft;
   } else if (layout === "AWD" || layout === "4x4") {
-    const frontDiff = createDiff(diffZFront, isTransverse ? 0.18 : 0.0, true);
+    const frontDiff = createDiff(diffZFront, isTransverse ? 0.18 : 0.22, true);
     const rearDiff = createDiff(diffZRear, 0.0, false);
 
     // Skrzynia rozdzielcza (Transfer Case / PTU)

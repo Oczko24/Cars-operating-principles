@@ -38,27 +38,14 @@ export class ExhaustSystem {
       const flexStart = new THREE.Vector3(underbodyX, exhaustY, -0.40);
       
       let initialPoint = startPointWorld;
-
-      // Jeśli potrzebny X-Pipe (tylko w inline przy dual, gdzie obie rury idą z jednego kolektora)
-      if (needsCrossover) {
-        const xCrossoverCurve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(0.12, exhaustY, -0.40),
-          new THREE.Vector3(0, exhaustY, -0.45),
-          flexStart
-        ]);
-        const xCrossoverMesh = new THREE.Mesh(new THREE.TubeGeometry(xCrossoverCurve, 12, 0.020, 8, false), scene.matExhaustPipe);
-        xCrossoverMesh.userData.name = "Rura rozdzielająca wydech (Dual X-Pipe)";
-        fullExhaustG.add(xCrossoverMesh);
-        initialPoint = new THREE.Vector3(0.12, exhaustY, -0.40);
-      } else {
-        // Dokładny wektor pobrany z poprzedniej rury, aby połączyć je w idealnie jedną, ciągłą rurę (zero załamań 90 stopni)
-        const outTangentLocal = scene.exhaustOutTangentLocal || new THREE.Vector3(0, -0.2, -1).normalize();
-        const outTangentWorld = outTangentLocal.applyQuaternion(scene.engineMountGroup.quaternion);
-        
-        // Pierwszy punkt po wyjściu z kolektora (utrzymuje stały kąt wyjścia)
-        const p1 = startPointWorld.clone().add(outTangentWorld.clone().multiplyScalar(0.15));
-        
-        let curvePoints = [];
+      // Dokładny wektor pobrany z poprzedniej rury, aby połączyć je w idealnie jedną, ciągłą rurę (zero załamań 90 stopni)
+      const outTangentLocal = scene.exhaustOutTangentLocal || new THREE.Vector3(0, -0.2, -1).normalize();
+      const outTangentWorld = outTangentLocal.applyQuaternion(scene.engineMountGroup.quaternion);
+      
+      // Pierwszy punkt po wyjściu z kolektora (utrzymuje stały kąt wyjścia)
+      const p1 = startPointWorld.clone().add(outTangentWorld.clone().multiplyScalar(0.15));
+      
+      let curvePoints = [];
         if (scene.config.orientation === 'transverse') {
           // Logiczne poprowadzenie rury pod silnikiem ze zdefiniowanym kątem wejścia i wyjścia
           const underEngineZ = scene.engineMountGroup ? scene.engineMountGroup.position.z : startPointWorld.z;
@@ -66,7 +53,7 @@ export class ExhaustSystem {
           curvePoints = [
             startPointWorld,
             p1,
-            new THREE.Vector3(startPointWorld.x * 0.7 + underbodyX * 0.3, exhaustY - 0.05, underEngineZ), // Przejście pod miską
+            new THREE.Vector3(startPointWorld.x * 0.7 + underbodyX * 0.3, exhaustY - 0.12, underEngineZ), // Przejście pod miską (obniżone by nie zahaczać o wał)
             new THREE.Vector3(underbodyX, exhaustY, underEngineZ - 0.3), // Wyjście za silnik
             new THREE.Vector3(underbodyX, exhaustY, straightMidZ), // Stabilizacja długiego prostego odcinka
             flexStart.clone().add(new THREE.Vector3(0, 0, 0.15)), // Wymuszenie prostego kąta na wejściu
@@ -96,7 +83,6 @@ export class ExhaustSystem {
         );
         downpipeMesh.userData.name = `${namePrefix} Rura spustowa kolektora (Downpipe)`;
         fullExhaustG.add(downpipeMesh);
-      }
 
       const flexEnd = new THREE.Vector3(underbodyX, exhaustY, -0.52);
       const flexCurve = new THREE.CatmullRomCurve3([flexStart, flexEnd]);

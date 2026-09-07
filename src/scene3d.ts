@@ -469,7 +469,9 @@ export class Scene3D {
         fps: this.fps,
         frameTime: Math.round(dt * 1000),
         crankAngleDeg: Math.round((this.crankAngle * 180 / Math.PI) % 720),
-        cylinders: this.telemetry.getCylindersState()
+        cylinders: this.telemetry.getCylindersState(),
+        engineDatum: this.currentEngineDatum,
+        config: this.config
       });
     }
 
@@ -716,20 +718,28 @@ export class Scene3D {
       const pinY = part.crankRadius * Math.cos(worldAngle);
       const unitX = -Math.sin(part.bank);
       const unitY = Math.cos(part.bank);
-      const dot = pinX * unitX + pinY * unitY;
-      const pinDistSq = pinX * pinX + pinY * pinY;
-      const s = dot + Math.sqrt(Math.max(0, part.rodLength * part.rodLength - (pinDistSq - dot * dot)));
+
+      const a0x = part.worldA0 ? part.worldA0.x : 0;
+      const a0y = part.worldA0 ? part.worldA0.y : 0;
+      
+      const dx = a0x - pinX;
+      const dy = a0y - pinY;
+      const B = dy * unitY + dx * unitX;
+      const C = dx * dx + dy * dy - part.rodLength * part.rodLength;
+      
+      const s = -B + Math.sqrt(Math.max(0, B * B - C));
 
       part.pistonG.position.set(0, s, 0);
-      part.rodG.position.set(pinX, pinY, part.z);
-
-      const pistonEngineX = unitX * s;
-      const pistonEngineY = unitY * s;
+      const pistonEngineX = a0x + unitX * s;
+      const pistonEngineY = a0y + unitY * s;
       const rodAngle = Math.atan2(pistonEngineX - pinX, pistonEngineY - pinY);
+      
+      part.rodG.position.set(pinX, pinY, part.z);
       part.rodG.rotation.z = -rodAngle;
 
       // Wyliczenie siły bezwładności F_bezwl
-      // F = cos(alpha) + lambda * cos(2*alpha)
+      // Dla silników z przesunięciem (desaxe) przybliżamy klasycznie,
+      // ale poprawiamy ramiona momentu, aby w miarę działało pod analitykę
       const alpha = this.crankAngle - part.crankPinAngle + part.bank;
       const lambda = part.crankRadius / part.rodLength;
       const F = Math.cos(alpha) + lambda * Math.cos(2 * alpha);
