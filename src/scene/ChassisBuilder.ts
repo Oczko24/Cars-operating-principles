@@ -225,6 +225,198 @@ buildSuspensionAssembly() {
     this.scene.carGroup.add(suspGroup);
   }
 
+  buildBrakeSystem() {
+    const brakeGroup = new THREE.Group();
+    
+    const driverX = 0.45; // Sztywne położenie kierownicy, żeby nie uciekała poza auto przy płaskich/szerokich silnikach.
+    
+    // Grodź (Firewall)
+    let firewallZ = 0.80; // Domyślna pozycja grodzi (wystarczająca dla krótkich silników poprzecznych)
+    
+    // MATEMATYCZNE OBLICZANIE POZYCJI GRODZI W OSI Z
+    if (this.scene.engineGroup && this.scene.config.placement === 'front') {
+      this.scene.engineGroup.updateMatrixWorld(true);
+      const engineBox = new THREE.Box3().setFromObject(this.scene.engineGroup);
+      
+      // W świecie ThreeJS przód auta to +Z, tył to -Z.
+      // Cofamy gródź tylko w osi Z, ignorujemy oś X, by pedały mogły "wisieć" nad płaskimi silnikami jak Boxer.
+      const requiredFirewallZ = engineBox.min.z - 0.15;
+      
+      if (requiredFirewallZ < 0.80) {
+        firewallZ = requiredFirewallZ;
+      }
+    }
+
+    const brakeY = 0.85;
+
+    // 1. Serwo hamulcowe (Brake Booster)
+    const booster = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 32), this.scene.matDarkSteel);
+    booster.rotation.x = Math.PI / 2;
+    booster.position.set(driverX, brakeY, firewallZ);
+    booster.userData.name = "Serwo hamulcowe (Brake Booster)";
+    brakeGroup.add(booster);
+
+    // 2. Pompa hamulcowa (Master Cylinder)
+    const masterCylinder = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.18, 16), this.scene.matSteel);
+    masterCylinder.rotation.x = Math.PI / 2;
+    masterCylinder.position.set(driverX, brakeY, firewallZ + 0.13);
+    masterCylinder.userData.name = "Pompa hamulcowa (Brake Master Cylinder)";
+    brakeGroup.add(masterCylinder);
+
+    // 3. Zbiorniczek płynu hamulcowego (Brake Fluid Reservoir)
+    const reservoir = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.12), new THREE.MeshStandardMaterial({
+      color: 0xeeeeee, metalness: 0.1, roughness: 0.6, transparent: true, opacity: 0.8
+    }));
+    reservoir.position.set(driverX, brakeY + 0.06, firewallZ + 0.13);
+    reservoir.userData.name = "Zbiorniczek płynu hamulcowego ze współdzielonym płynem dla sprzęgła";
+    brakeGroup.add(reservoir);
+    
+    // Płyn w zbiorniczku
+    const fluid = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.05, 0.11), new THREE.MeshStandardMaterial({
+      color: 0xcca300, metalness: 0.1, roughness: 0.1
+    }));
+    fluid.position.set(0, -0.01, 0);
+    fluid.userData.name = "Płyn hamulcowy (DOT 4)";
+    reservoir.add(fluid);
+
+    // 4. Pompa sprzęgła (Clutch Master Cylinder)
+    // Lewa strona to +X. Więc żeby sprzęgło było po lewej od hamulca: driverX + 0.15
+    const clutchX = driverX + 0.15; 
+    const clutchY = brakeY - 0.05;
+    
+    const clutchMaster = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.10, 16), this.scene.matDarkSteel);
+    clutchMaster.rotation.x = Math.PI / 2;
+    clutchMaster.position.set(clutchX, clutchY, firewallZ + 0.05);
+    clutchMaster.userData.name = "Pompa sprzęgła hydraulicznego (Clutch Master Cylinder)";
+    brakeGroup.add(clutchMaster);
+
+    // 5. Wężyk elastyczny ze zbiorniczka do pompy sprzęgła
+    const clutchHoseCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(driverX + 0.03, brakeY + 0.04, firewallZ + 0.13), // Wyjście bocznie w stronę sprzęgła (+X)
+      new THREE.Vector3(clutchX - 0.02, brakeY, firewallZ + 0.13), 
+      new THREE.Vector3(clutchX, clutchY + 0.02, firewallZ + 0.08) // Do pompy sprzęgła
+    ]);
+    const clutchHose = new THREE.Mesh(new THREE.TubeGeometry(clutchHoseCurve, 12, 0.006, 8, false), this.scene.matRubber || this.scene.matDarkSteel);
+    clutchHose.userData.name = "Elastyczny przewód zasilający płynu hydraulicznego sprzęgła";
+    brakeGroup.add(clutchHose);
+
+    // 6. Pedały w kabinie
+    const pedalsG = new THREE.Group();
+    const pedalPivotY = brakeY + 0.05;
+    const pedalPivotZ = firewallZ - 0.05;
+    const pedalLen = 0.35;
+    const padY = pedalPivotY - pedalLen;
+    const padZ = pedalPivotZ - 0.15;
+    const gasX = driverX - 0.15;
+
+    [
+      { name: "Pedał sprzęgła", x: clutchX, padW: 0.05, mat: this.scene.matRubber },
+      { name: "Pedał hamulca", x: driverX, padW: 0.08, mat: this.scene.matRubber },
+      { name: "Pedał przyspieszenia (Gaz)", x: gasX, padW: 0.04, mat: this.scene.matSteel }
+    ].forEach(p => {
+      const armCurve = new THREE.LineCurve3(
+        new THREE.Vector3(p.x, pedalPivotY, pedalPivotZ),
+        new THREE.Vector3(p.x, padY, padZ)
+      );
+      const arm = new THREE.Mesh(new THREE.TubeGeometry(armCurve, 4, 0.01, 4, false), this.scene.matDarkSteel);
+      arm.userData.name = `Ramię: ${p.name}`;
+      pedalsG.add(arm);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(p.padW, 0.08, 0.02), p.mat);
+      pad.position.set(p.x, padY, padZ);
+      pad.rotation.x = Math.PI / 6;
+      pad.userData.name = p.name;
+      pedalsG.add(pad);
+      
+      // Popychacze wchodzące w gródź
+      if (p.x === clutchX || p.x === driverX) {
+        const cylY = (p.x === driverX) ? brakeY : clutchY;
+        const pushrodCurve = new THREE.LineCurve3(
+          new THREE.Vector3(p.x, cylY, pedalPivotZ - 0.05),
+          new THREE.Vector3(p.x, cylY, firewallZ + 0.05)
+        );
+        const pushrod = new THREE.Mesh(new THREE.TubeGeometry(pushrodCurve, 4, 0.005, 4, false), this.scene.matSteel);
+        pushrod.userData.name = `Popychacz pompy (${p.name})`;
+        pedalsG.add(pushrod);
+      }
+    });
+    brakeGroup.add(pedalsG);
+
+    // 7. Wysprzęglik Centralny (CSC) i jego połączenie
+    // Obliczamy jego idealne miejsce na podstawie docisku sprzęgła!
+    let cscWorldPos = new THREE.Vector3(0, 0, 1.0);
+    let cscWorldRot = new THREE.Euler();
+    if (this.scene.pressurePlateMesh && this.scene.pressurePlateMesh.parent) {
+      const cg = this.scene.pressurePlateMesh.parent; // clutchGroup
+      // CSC jest za tarczą dociskową (Z = -0.10 względem sprzęgła)
+      cscWorldPos = new THREE.Vector3(0, 0, -0.10).applyMatrix4(cg.matrixWorld);
+      cscWorldRot.setFromRotationMatrix(cg.matrixWorld);
+    }
+
+    const cscContainer = new THREE.Group();
+    cscContainer.position.copy(cscWorldPos);
+    cscContainer.rotation.copy(cscWorldRot);
+    brakeGroup.add(cscContainer);
+
+    // Obudowa wysprzęglika CSC
+    const cscBody = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 32), this.scene.matDarkSteel);
+    cscBody.rotation.x = Math.PI / 2;
+    cscBody.userData.name = "Wysprzęglik centralny hydrauliczny (CSC - Concentric Slave Cylinder)";
+    cscContainer.add(cscBody);
+
+    // Łożysko oporowe CSC (wysuwające się, pchające słoneczko)
+    const cscBearing = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.015, 32), this.scene.matSteel);
+    cscBearing.rotation.x = Math.PI / 2;
+    cscBearing.position.z = 0.032;
+    cscBearing.userData.name = "Łożysko oporowe wysprzęglika (dociska sprężynę talerzową)";
+    cscContainer.add(cscBearing);
+
+    // Króciec odpowietrznika wystający z dzwonu skrzyni
+    // Dzwon skrzyni ma ok 0.23 promienia, króciec musi wystawać poza niego, powiedzmy na Y=0.25.
+    const bleederAdapter = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.04), this.scene.matDarkSteel);
+    bleederAdapter.position.set(0, 0.25, 0);
+    bleederAdapter.userData.name = "Króciec przyłączeniowy wysprzęglika (na dzwonie skrzyni)";
+    cscContainer.add(bleederAdapter);
+
+    // Sam Odpowietrznik (Śruba)
+    const bleederValve = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.03, 8), this.scene.matGold);
+    bleederValve.position.set(0, 0.28, 0);
+    bleederValve.userData.name = "Odpowietrznik wysprzęglika (Kluczowy przy zapowietrzeniu!)";
+    cscContainer.add(bleederValve);
+
+    // 8. Sztywny przewód ciśnieniowy ze sprzęgła do wysprzęglika
+    cscContainer.updateMatrixWorld(true);
+    const adapterWorld = new THREE.Vector3(0, 0.25, 0).applyMatrix4(cscContainer.matrixWorld);
+    const lineStartWorld = new THREE.Vector3(clutchX, clutchY, firewallZ + 0.10);
+    
+    // Rysujemy rurkę
+    const cLineCurve = new THREE.CatmullRomCurve3([
+      lineStartWorld,
+      new THREE.Vector3(lineStartWorld.x, lineStartWorld.y - 0.2, lineStartWorld.z + 0.1),
+      new THREE.Vector3(adapterWorld.x, adapterWorld.y + 0.2, adapterWorld.z),
+      adapterWorld
+    ]);
+    const cLine = new THREE.Mesh(new THREE.TubeGeometry(cLineCurve, 16, 0.004, 8, false), this.scene.matSteel);
+    cLine.userData.name = "Sztywny przewód hydrauliczny sprzęgła (Wysokie ciśnienie)";
+    brakeGroup.add(cLine);
+
+    // Przewody hamulcowe idące w dół
+    const lineX = driverX - 0.03;
+    const lineZ1 = firewallZ + 0.10;
+    const lineZ2 = firewallZ + 0.16;
+    const bLinesCurve1 = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(driverX - 0.025, brakeY, lineZ1),
+      new THREE.Vector3(lineX, brakeY, lineZ1),
+      new THREE.Vector3(lineX, brakeY - 0.1, lineZ1),
+      new THREE.Vector3(lineX + 0.1, brakeY - 0.3, lineZ1 - 0.05)
+    ]);
+    const bline1 = new THREE.Mesh(new THREE.TubeGeometry(bLinesCurve1, 12, 0.003, 6, false), this.scene.matGold);
+    bline1.userData.name = "Przewód hamulcowy hydrauliczny (Sekcja 1)";
+    brakeGroup.add(bline1);
+
+    this.scene.carGroup.add(brakeGroup);
+  }
+
 createCarWheel(isFront = false, isRight = false) {
     const wheelGroup = new THREE.Group();
     wheelGroup.userData.name = isFront 

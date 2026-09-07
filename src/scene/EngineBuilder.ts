@@ -54,11 +54,14 @@ async buildEngineAssembly() {
     const rearZ = VehicleDimensions.wheelbaseRearZ;
     
     if (this.scene.config.placement === 'front') {
-      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.18) : (frontZ - 0.25));
+      const longZ = 0.85 - minZ; // Wyrównanie tyłu silnika (koła zamachowego) do grodzi
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.105) : longZ);
     } else if (this.scene.config.placement === 'mid') {
-      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ + 0.8) : (rearZ + 0.90));
+      const longZ = rearZ + 0.40 - minZ; // Wyrównanie tyłu silnika w okolicach tylnej osi
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ + 0.8) : longZ);
     } else if (this.scene.config.placement === 'rear') {
-      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ - 0.20) : (rearZ - 0.25));
+      const longZ = rearZ - 0.20 - minZ; // Wyrównanie tyłu silnika do tylnego zderzaka
+      this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (rearZ - 0.20) : longZ);
     }
 
     // 2. Orientation (Transverse vs Longitudinal)

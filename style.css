@@ -1898,3 +1898,8 @@ input[type="text"]:focus {
   color: var(--text-primary);
   border-color: var(--border-medium);
 }
+
+.config-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

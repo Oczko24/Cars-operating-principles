@@ -127,6 +127,38 @@ setupDevPanel() {
       this.updateEngineStats();
     };
 
+    const enforceCylinderConstraints = () => {
+      const layout = this.scene.config.layout;
+      const isBoxerOrW = layout === 'Boxer' || layout === 'W';
+      const isV = layout === 'V';
+      
+      const btn1 = document.querySelector('#dev_cyl button[data-val="1"]') as HTMLButtonElement;
+      const btn3 = document.querySelector('#dev_cyl button[data-val="3"]') as HTMLButtonElement;
+      const btn5 = document.querySelector('#dev_cyl button[data-val="5"]') as HTMLButtonElement;
+      
+      if (btn1) btn1.disabled = isBoxerOrW || isV; // V1 nie istnieje, Boxer/W też
+      if (btn3) btn3.disabled = isBoxerOrW; // V3 istnieje (np. Honda), Boxer/W nie
+      if (btn5) btn5.disabled = isBoxerOrW; // V5 istnieje (np. Honda), Boxer/W nie
+
+      const currentCyls = this.scene.config.cylinders;
+      let invalid = false;
+      if ((isBoxerOrW || isV) && currentCyls === 1) invalid = true;
+      if (isBoxerOrW && (currentCyls === 3 || currentCyls === 5)) invalid = true;
+
+      if (invalid) {
+          this.scene.config.cylinders += 1;
+          const container = document.getElementById('dev_cyl');
+          if (container) {
+              container.querySelectorAll('button').forEach(b => {
+                  b.classList.remove('active');
+                  if (b.getAttribute('data-val') === String(this.scene.config.cylinders)) {
+                      b.classList.add('active');
+                  }
+              });
+          }
+      }
+    };
+
     setupButtonGroup('dev_layout', (val) => {
       this.scene.config.layout = val;
       const angleContainer = document.getElementById('dev_angle_container');
@@ -147,22 +179,19 @@ setupDevPanel() {
       } else if (val === 'Inline') {
         this.scene.config.vAngle = 0;
       }
+      enforceCylinderConstraints();
       this.updateV8UI();
       updateDisplacementDisplay();
       this.scene.rebuildFullCar();
     });
 
-    const devCyl = document.getElementById('dev_cyl');
-    if (devCyl) {
-      devCyl.addEventListener('input', (e) => {
-        const valEl = document.getElementById('dev_cyl_val');
-        if (valEl) valEl.innerText = (e.target as any).value;
-        this.scene.config.cylinders = parseInt((e.target as any).value);
+    setupButtonGroup('dev_cyl', (val) => {
+        this.scene.config.cylinders = parseInt(val);
         this.updateV8UI();
         updateDisplacementDisplay();
+        enforceCylinderConstraints();
         this.scene.rebuildFullCar();
-      });
-    }
+    });
 
     const devBore = document.getElementById('dev_bore');
     if (devBore) {
@@ -258,20 +287,22 @@ setupDevPanel() {
     }
 
     const updateValveButtonsState = () => {
-      const btn4V = document.querySelector('#dev_valves button[data-val="4"]');
-      if (btn4V) {
-        if (this.scene.config.valvetrain === 'OHV') {
-          (btn4V as any).disabled = true;
-          (btn4V as any).style.opacity = '0.5';
-          (btn4V as any).style.cursor = 'not-allowed';
-          (btn4V as any).title = "Układ OHV jest kompatybilny tylko z 2 zaworami na cylinder w tym symulatorze.";
-        } else {
-          (btn4V as any).disabled = false;
-          (btn4V as any).style.opacity = '1';
-          (btn4V as any).style.cursor = 'pointer';
-          (btn4V as any).title = "";
+      ['4', '6'].forEach(val => {
+        const btn = document.querySelector(`#dev_valves button[data-val="${val}"]`);
+        if (btn) {
+          if (this.scene.config.valvetrain === 'OHV') {
+            (btn as any).disabled = true;
+            (btn as any).style.opacity = '0.5';
+            (btn as any).style.cursor = 'not-allowed';
+            (btn as any).title = "Układ OHV jest kompatybilny tylko z 2 zaworami na cylinder w tym symulatorze.";
+          } else {
+            (btn as any).disabled = false;
+            (btn as any).style.opacity = '1';
+            (btn as any).style.cursor = 'pointer';
+            (btn as any).title = "";
+          }
         }
-      }
+      });
     };
 
     setupButtonGroup('dev_valves', (val) => {
@@ -285,7 +316,7 @@ setupDevPanel() {
       this.scene.config.valvetrain = val;
       
       // Force 2 valves if switching to OHV and currently on 4 valves
-      if (val === 'OHV' && this.scene.config.valves === 4) {
+      if (val === 'OHV' && this.scene.config.valves > 2) {
         this.scene.config.valves = 2;
         const btns = document.querySelectorAll('#dev_valves button');
         btns.forEach(b => b.classList.remove('active'));
@@ -561,7 +592,7 @@ setupDevPanel() {
       syncSlider('dev_bore', c.boreMm, ' mm');
       syncSlider('dev_stroke_len', c.strokeMm, ' mm');
       syncSlider('dev_angle', c.vAngle, '°');
-      syncSlider('dev_cyl', c.cylinders, '');
+      syncBtnGroup('dev_cyl', c.cylinders);
 
       syncBtnGroup('dev_layout', c.layout);
       syncBtnGroup('dev_drivetrain_layout', c.drivetrainLayout);
@@ -577,6 +608,16 @@ setupDevPanel() {
       if (angleContainer) {
           angleContainer.style.display = (c.layout === 'Inline' || c.layout === 'VR' || c.layout === 'Boxer') ? 'none' : 'block';
       }
+
+      const isBoxerOrW = c.layout === 'Boxer' || c.layout === 'W';
+      const isV = c.layout === 'V';
+      const btn1 = document.querySelector('#dev_cyl button[data-val="1"]') as HTMLButtonElement;
+      const btn3 = document.querySelector('#dev_cyl button[data-val="3"]') as HTMLButtonElement;
+      const btn5 = document.querySelector('#dev_cyl button[data-val="5"]') as HTMLButtonElement;
+      
+      if (btn1) btn1.disabled = isBoxerOrW || isV;
+      if (btn3) btn3.disabled = isBoxerOrW;
+      if (btn5) btn5.disabled = isBoxerOrW;
 
       this.updateEngineStats();
     });
@@ -606,6 +647,15 @@ setupDevPanel() {
       (chkChassis as any).checked = this.scene.config.showChassis || false;
       chkChassis.addEventListener('change', (e) => {
         this.scene.config.showChassis = (e.target as any).checked;
+        this.scene.rebuildFullCar();
+      });
+    }
+
+    const chkBrakes = document.getElementById('toggle_brakes');
+    if (chkBrakes) {
+      (chkBrakes as any).checked = this.scene.config.showBrakes || false;
+      chkBrakes.addEventListener('change', (e) => {
+        this.scene.config.showBrakes = (e.target as any).checked;
         this.scene.rebuildFullCar();
       });
     }
@@ -1006,7 +1056,7 @@ updateEngineStats() {
   baseRedline += (bsRatio - 1.0) * 1200; // Krótkoskokowe silniki kręcą się wyżej
   if (valvetrain === 'OHC') baseRedline += 500;
   else baseRedline -= 700; // OHV
-  if (valves === 4) baseRedline += 300;
+  if (valves >= 4) baseRedline += (valves === 6 ? 400 : 300);
   if (cycle === 2) baseRedline += 600;
   const redline = Math.min(9500, Math.max(5000, Math.round(baseRedline / 100) * 100));
 
@@ -1037,14 +1087,14 @@ updateEngineStats() {
   // 5. Ciśnienie użyteczne (BMEP) i Moc / Moment
   let bmepBar = 11.2;
   if (intake === 'sport') bmepBar += 0.4;
-  if (valves === 4) bmepBar += 1.2;
+  if (valves >= 4) bmepBar += 1.2;
   if (valvetrain === 'OHC') bmepBar += 0.6;
   if (cycle === 2) bmepBar *= 0.85; // 2-suwy mają nieco niższy BMEP przez płukanie
 
   // Moment obrotowy Nm (realistyczny standard wolnossący OEM: 92 - 100 Nm / litr)
   let baseTorquePerL = 96; // Nm na litr dla seryjnego silnika
   if (intake === 'sport') baseTorquePerL *= 1.02;
-  if (valves === 4) baseTorquePerL *= 1.06;
+  if (valves >= 4) baseTorquePerL *= 1.06;
   if (valvetrain === 'OHV') baseTorquePerL *= 1.03;
   if (cycle === 2) baseTorquePerL *= 1.30;
   const maxTorque = Math.round((dispCm3 / 1000) * baseTorquePerL);
@@ -1054,7 +1104,7 @@ updateEngineStats() {
   const torqueRpm = Math.round(powerRpm * 0.65 / 100) * 100;
 
   // Moc szacunkowa KM (Realistyczne OEM: ~72-78 KM / litr dla 4V OHC, ~58-62 KM / litr dla 2V)
-  let flowEfficiency = (valves === 4 ? 1.0 : 0.84) * (valvetrain === 'OHC' ? 1.0 : 0.90) * (intake === 'sport' ? 1.02 : 1.0);
+  let flowEfficiency = (valves >= 4 ? 1.0 : 0.84) * (valvetrain === 'OHC' ? 1.0 : 0.90) * (intake === 'sport' ? 1.02 : 1.0);
   if (cycle === 2) flowEfficiency *= 1.25;
   const maxPowerHp = Math.round(((maxTorque * powerRpm) / 7120) * flowEfficiency);
   const maxPowerKw = Math.round(maxPowerHp * 0.7355);
@@ -1063,7 +1113,7 @@ updateEngineStats() {
   // 6. Masa zespołu (kg)
   let baseWeight = 22 + cyls * 16;
   if (valvetrain === 'OHC') baseWeight += 10;
-  if (valves === 4) baseWeight += 6;
+  if (valves >= 4) baseWeight += 6;
   if (exhaustPipes === 'dual') baseWeight += 8;
   if (drivetrain === 'RWD') baseWeight += 45;
   else if (drivetrain === 'FWD') baseWeight += 25;

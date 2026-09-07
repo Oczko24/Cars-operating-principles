@@ -15,26 +15,40 @@ export class ValvetrainAndCylinders {
     const vAngle = scene.config.vAngle * Math.PI / 180;
     const isTransverse = scene.config.orientation === 'transverse';
     scene.cylinderPositions = [];
-const banks = {};
+    const banks = {};
     cylinderConfigs.forEach(cfg => {
       // Group by approx bank angle to avoid precision issues
-      const bankKey = cfg.bank.toFixed(2);
-      if (!banks[bankKey]) banks[bankKey] = [];
-      banks[bankKey].push(cfg);
+      let bankKey = cfg.bank.toFixed(2);
+      let baseBank = cfg.bank;
+      
+      if (layout === 'VR') {
+          bankKey = '0.00';
+          baseBank = 0;
+      } else if (layout === 'W') {
+          baseBank = cfg.bank < 0 ? -(72 * Math.PI / 180)/2 : (72 * Math.PI / 180)/2;
+          bankKey = baseBank.toFixed(2);
+      }
+      
+      if (!banks[bankKey]) banks[bankKey] = { baseBank, cylinders: [] };
+      banks[bankKey].cylinders.push(cfg);
     });
 
     scene.banksData = [];
     const headBase = deckHeight + 0.02 * boreScale + explodeDist * 1.5; 
     const isOHV = scene.config.valvetrain === "OHV" || scene.config.valvetrain === "valve_ohv";
     const valveBaseY = headBase + 0.084 + 0.025 * boreScale;
-    const trueCamY = isOHV ? (rodLength * 0.5 + explodeDist * 0.5) : (valveBaseY + 0.095 * boreScale);
-    const camOffsetX = (scene.config.valves === 4 ? 0.048 : 0.038) * boreScale;
+    const isVR = scene.config.layout === 'VR' || scene.config.layout === 'W';
+    // W VR podnosimy wałek jeszcze wyżej (0.115 + 0.025), by dźwigienki mogły przejść nad szklankami.
+    // Dla zwykłych silników wystarczy 0.095 + 0.025.
+    const trueCamY = isOHV ? (rodLength * 0.5 + explodeDist * 0.5) : (valveBaseY + ((isVR && scene.config.valves >= 4) ? 0.140 : 0.120) * boreScale);
+    const camOffsetX = (scene.config.valves >= 4 ? 0.042 : 0.046) * boreScale;
     
     let firstBankOHV = true;
 
-    Object.keys(banks).forEach(bankAngleStr => {
-      const bankAngle = parseFloat(bankAngleStr);
-      const cylinders = banks[bankAngleStr];
+    Object.keys(banks).forEach(bankKey => {
+      const bankAngle = banks[bankKey].baseBank;
+      const cylinders = banks[bankKey].cylinders;
+      if (!Array.isArray(cylinders)) return;
 
       // Dla VR: jedna wspólna głowica cross-flow (dolot po lewej inSign=-1, wydech po prawej exSign=1 dla obu rzędów)
       const flipBank = (scene.config.layout === 'V' || scene.config.layout === 'W' || scene.config.layout === 'Boxer') && bankAngle > 0.001;
@@ -133,66 +147,146 @@ const banks = {};
         cylG.userData.cylId = cfg.id;
         bankG.add(cylG);
 
+        const localCylAngle = cfg.bank - bankAngle;
+        const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
+        const localDesaxeY = 0;
+
+        const cylPartsG = new THREE.Group();
+        cylPartsG.position.set(localDesaxeX, localDesaxeY, 0);
+        cylPartsG.rotation.z = localCylAngle;
+        cylG.add(cylPartsG);
+
         const sleeve = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(sleeveRadius, sleeveRadius, sleeveLength, 16)), scene.lineMat);
         sleeve.position.set(0, sleeveCenter + explodeDist, 0);
         sleeve.userData.name = "Tuleja cylindra (Zarys)";
         sleeve.visible = scene.config.showWireframes !== false;
-        cylG.add(sleeve);
+        cylPartsG.add(sleeve);
 
-        const headWidth = Math.max(0.28, 2 * sleeveRadius + 0.06);
-        const headDepth = zSpacing - 0.02;
-        const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16 * boreScale, headDepth)), scene.lineMat);
-        head.position.set(0, headBase + 0.08 * boreScale, 0);
-        if (scene.config.layout === 'VR') {
-           head.scale.set(1.45, 1, 2.0); // scale Z to bridge gap between offset cylinders
-           head.rotation.z = -bankAngle;
-           head.position.x = -bankAngle * 0.2; // slight shift to center
-        } else if (scene.config.layout === 'W') {
-           head.scale.set(1.45, 1, 2.0);
-           const wVRBaseAngle = bankAngle > 0 ? (72 * Math.PI/180)/2 : -(72 * Math.PI/180)/2;
-           head.rotation.z = -(bankAngle - wVRBaseAngle);
+        let head = null;
+        if (scene.config.layout !== 'VR' && scene.config.layout !== 'W') {
+            const headWidth = Math.max(0.28, 2 * sleeveRadius + 0.06);
+            const headDepth = zSpacing - 0.02;
+            head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16 * boreScale, headDepth)), scene.lineMat);
+            head.position.set(0, headBase + 0.08 * boreScale, 0);
+            head.userData.name = "Głowica cylindra (Zarys)";
+            head.visible = scene.config.showWireframes !== false;
+            cylG.add(head);
         }
-        head.userData.name = "Głowica cylindra (Zarys)";
-        head.visible = scene.config.showWireframes !== false;
-        cylG.add(head);
 
         const valvesList = [];
-        const vOffZ = (scene.config.valves === 4 ? 0.045 : 0) * boreScale;
         const vOffX = 0.045 * boreScale;
-        const vDiscR = (scene.config.valves === 4 ? 0.024 : 0.035) * boreScale;
+        let vDiscR_in = 0;
+        let vDiscR_ex = 0;
+        let vOffZ_in = 0;
+        let vOffZ_ex = 0;
+        let vOffZ_in_outer = 0;
 
-        if (scene.config.valves === 4) {
-            const vIn1 = createValve(scene, scene.matSteel, "Ssący 1", vDiscR);
-            const vIn2 = createValve(scene, scene.matSteel, "Ssący 2", vDiscR);
-            const vEx1 = createValve(scene, scene.matSteel, "Wydechowy 1", vDiscR);
-            const vEx2 = createValve(scene, scene.matSteel, "Wydechowy 2", vDiscR);
+        if (scene.config.valves === 5) {
+            vDiscR_in = 0.022 * boreScale;
+            vDiscR_ex = 0.028 * boreScale;
+            vOffZ_in_outer = 0.046 * boreScale;
+            vOffZ_ex = 0.036 * boreScale;
+            
+            const vIn1 = createValve(scene, scene.matSteel, "Ssący 1", vDiscR_in);
+            const vIn2 = createValve(scene, scene.matSteel, "Ssący 2", vDiscR_in);
+            const vIn3 = createValve(scene, scene.matSteel, "Ssący 3", vDiscR_in);
+            const vEx1 = createValve(scene, scene.matSteel, "Wydechowy 1", vDiscR_ex);
+            const vEx2 = createValve(scene, scene.matSteel, "Wydechowy 2", vDiscR_ex);
+            const sIn1 = createSpringMesh(scene);
+            const sIn2 = createSpringMesh(scene);
+            const sIn3 = createSpringMesh(scene);
+            const sEx1 = createSpringMesh(scene);
+            const sEx2 = createSpringMesh(scene);
+            cylG.add(vIn1, vIn2, vIn3, vEx1, vEx2, sIn1, sIn2, sIn3, sEx1, sEx2);
+            
+            if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
+                const isRightRow = cfg.bank > 0;
+                const localCylAngle = cfg.bank - bankAngle;
+                const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
+                const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
+                
+                const vxOff = 0.028 * boreScale;
+                valvesList.push(
+                    { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ_in_outer, forceOffX: deckX - vxOff },
+                    { vg: vIn2, sp: sIn2, type: 'in', offZ: 0, forceOffX: deckX - vxOff },
+                    { vg: vIn3, sp: sIn3, type: 'in', offZ: vOffZ_in_outer, forceOffX: deckX - vxOff },
+                    { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ_ex, forceOffX: deckX + vxOff },
+                    { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ_ex, forceOffX: deckX + vxOff }
+                );
+            } else {
+                valvesList.push(
+                    { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ_in_outer },
+                    { vg: vIn2, sp: sIn2, type: 'in', offZ: 0 },
+                    { vg: vIn3, sp: sIn3, type: 'in', offZ: vOffZ_in_outer },
+                    { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ_ex },
+                    { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ_ex }
+                );
+            }
+        } else if (scene.config.valves === 4) {
+            vDiscR_in = 0.035 * boreScale;
+            vDiscR_ex = 0.030 * boreScale;
+            vOffZ_in = 0.038 * boreScale;
+            vOffZ_ex = 0.038 * boreScale;
+            
+            const vIn1 = createValve(scene, scene.matSteel, "Ssący 1", vDiscR_in);
+            const vIn2 = createValve(scene, scene.matSteel, "Ssący 2", vDiscR_in);
+            const vEx1 = createValve(scene, scene.matSteel, "Wydechowy 1", vDiscR_ex);
+            const vEx2 = createValve(scene, scene.matSteel, "Wydechowy 2", vDiscR_ex);
             const sIn1 = createSpringMesh(scene);
             const sIn2 = createSpringMesh(scene);
             const sEx1 = createSpringMesh(scene);
             const sEx2 = createSpringMesh(scene);
             cylG.add(vIn1, vIn2, vEx1, vEx2, sIn1, sIn2, sEx1, sEx2);
-            valvesList.push(
-                { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ },
-                { vg: vIn2, sp: sIn2, type: 'in', offZ: vOffZ },
-                { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ },
-                { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ }
-            );
+            
+            if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
+                const isRightRow = cfg.bank > 0;
+                const localCylAngle = cfg.bank - bankAngle;
+                const localDesaxeX = (scene.config.layout === "VR" || scene.config.layout === "W") ? -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale : 0;
+                const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
+                
+                const vxOff = 0.035 * boreScale; 
+                valvesList.push(
+                    { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ_in, forceOffX: deckX - vxOff },
+                    { vg: vIn2, sp: sIn2, type: 'in', offZ: vOffZ_in, forceOffX: deckX - vxOff },
+                    { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ_ex, forceOffX: deckX + vxOff },
+                    { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ_ex, forceOffX: deckX + vxOff }
+                );
+            } else {
+                valvesList.push(
+                    { vg: vIn1, sp: sIn1, type: 'in', offZ: -vOffZ_in },
+                    { vg: vIn2, sp: sIn2, type: 'in', offZ: vOffZ_in },
+                    { vg: vEx1, sp: sEx1, type: 'ex', offZ: -vOffZ_ex },
+                    { vg: vEx2, sp: sEx2, type: 'ex', offZ: vOffZ_ex }
+                );
+            }
         } else {
-            const vIn = createValve(scene, scene.matSteel, "Ssący", vDiscR);
-            const vEx = createValve(scene, scene.matSteel, "Wydechowy", vDiscR);
+            vDiscR_in = 0.044 * boreScale;
+            vDiscR_ex = 0.038 * boreScale;
+            
+            const vIn = createValve(scene, scene.matSteel, "Ssący", vDiscR_in);
+            const vEx = createValve(scene, scene.matSteel, "Wydechowy", vDiscR_ex);
             const sIn = createSpringMesh(scene);
             const sEx = createSpringMesh(scene);
             cylG.add(vIn, vEx, sIn, sEx);
             
             if (scene.config.valvetrain === 'OHV') {
-                // OHV: Zawory w jednej linii wzdłuż wału korbowego (oś Z)
                 const vOffZOHV = 0.045 * boreScale;
                 valvesList.push(
                     { vg: vIn, sp: sIn, type: 'in', offZ: -vOffZOHV, forceOffX: 0 },
                     { vg: vEx, sp: sEx, type: 'ex', offZ: vOffZOHV, forceOffX: 0 }
                 );
+            } else if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
+                const vOffZInline = 0.043 * boreScale; 
+                const localCylAngle = cfg.bank - bankAngle;
+                const localDesaxeX = -(localCylAngle > 0 ? 1 : -1) * 0.12 * boreScale;
+                const deckX = localDesaxeX - deckHeight * Math.sin(localCylAngle);
+                
+                const isRightRow = cfg.bank > 0;
+                valvesList.push(
+                    { vg: vIn, sp: sIn, type: 'in', offZ: -vOffZInline, forceOffX: deckX, forceCam: isRightRow ? 'in' : 'ex' },
+                    { vg: vEx, sp: sEx, type: 'ex', offZ: vOffZInline, forceOffX: deckX, forceCam: isRightRow ? 'in' : 'ex' }
+                );
             } else {
-                // OHC: Zawory po bokach cylindra (oś X)
                 valvesList.push(
                     { vg: vIn, sp: sIn, type: 'in', offZ: 0 },
                     { vg: vEx, sp: sEx, type: 'ex', offZ: 0 }
@@ -202,26 +296,26 @@ const banks = {};
 
         const sparkPlug = createSparkPlug(scene);
         sparkPlug.position.set(0, headBase + 0.16 * boreScale + explodeDist, 0);
-        cylG.add(sparkPlug);
+        cylPartsG.add(sparkPlug);
 
         const fireMat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0 });
         const fireMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09 * boreScale, 16, 16), fireMat);
         fireMesh.position.set(0, headBase + 0.04 * boreScale + explodeDist, 0); 
-        cylG.add(fireMesh);
+        cylPartsG.add(fireMesh);
 
         // ═══ SFERA SSANIA (Intake Gas) ═══
         const inGasMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0, depthWrite: false });
         const inGas = new THREE.Mesh(new THREE.SphereGeometry(0.06 * boreScale, 12, 12), inGasMat);
         inGas.position.set(inSign * (0.06 * boreScale), headBase + 0.06 * boreScale, 0);
         inGas.userData.name = "Gazy ssące (powietrze)";
-        cylG.add(inGas);
+        cylPartsG.add(inGas);
 
         // ═══ SFERA WYDECHU (Exhaust Gas) ═══
         const exGasMat = new THREE.MeshBasicMaterial({ color: 0xfb923c, transparent: true, opacity: 0, depthWrite: false });
         const exGas = new THREE.Mesh(new THREE.SphereGeometry(0.06 * boreScale, 12, 12), exGasMat);
         exGas.position.set(exSign * (0.06 * boreScale), headBase + 0.06 * boreScale, 0);
         exGas.userData.name = "Spaliny (exhaust)";
-        cylG.add(exGas);
+        cylPartsG.add(exGas);
 
         // ═══ WTRYSKIWACZ PALIWA (Fuel Injector) ═══
         const injectorG = new THREE.Group();
@@ -256,10 +350,10 @@ const banks = {};
         sprayLines.userData.name = "Strumień wtrysku paliwa";
         injectorG.add(sprayLines);
 
-        injectorG.position.set(inSign * (0.07 * boreScale), headBase + 0.10 * boreScale, 0);
+        injectorG.position.set(inSign * (0.07 * boreScale), headBase + 0.12 * boreScale, 0);
         injectorG.rotation.z = -inSign * (20 * Math.PI / 180);
         injectorG.userData.name = "Wtryskiwacz";
-        cylG.add(injectorG);
+        cylPartsG.add(injectorG);
 
         // ═══ OBLICZENIA MATEMATYCZNE TRANSFORMACJI PORTÓW DO UKŁADU SILNIKA ═══
         const localInPortX = inSign * (0.14 * boreScale);
@@ -309,7 +403,7 @@ const banks = {};
         });
 
         const pistonG = createPiston(scene, boreRadius, pistonLength);
-        cylG.add(pistonG);
+        cylPartsG.add(pistonG);
 
         const rodG = createConnectingRod(scene, rodLength);
         engineGroup.add(rodG);
@@ -329,12 +423,12 @@ const banks = {};
         valvesList.forEach((vData) => {
             const isEx = vData.type === 'ex';
             const valveSign = isEx ? exSign : inSign;
-            const xPos = vData.forceOffX !== undefined ? vData.forceOffX : (valveSign * vOffX);
+            const xPos = vData.forceOffX !== undefined ? vData.forceOffX : (valveSign * camOffsetX);
             
             vData.vg.position.set(xPos, valveBaseY, vData.offZ);
             vData.sp.position.set(xPos, valveBaseY - 0.02, vData.offZ);
             
-            const camGroup = (isOHV) ? camShaftEx : (isEx ? camShaftEx : camShaftIn);
+            const camGroup = (isOHV) ? camShaftEx : (vData.forceCam ? (vData.forceCam === 'ex' ? camShaftEx : camShaftIn) : (isEx ? camShaftEx : camShaftIn));
             const lobeRot = isEx ? lobeRotEx : lobeRotIn;
             
             let lobeZOffset = vData.offZ;
@@ -343,6 +437,29 @@ const banks = {};
             lobe.position.set(0, 0, cfg.z + lobeZOffset);
             lobe.rotation.z = lobeRot;
             camGroup.add(lobe);
+            
+            // W VR dodajemy popychacze (rocker arms) łączące zawory z oddalonym wałkiem (dotyczy też 2 zaworów!)
+            if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
+                const targetCamX = vData.forceCam ? (vData.forceCam === 'ex' ? camOffsetX : -camOffsetX) : (isEx ? camOffsetX : -camOffsetX);
+                const distanceX = targetCamX - xPos;
+                if (Math.abs(distanceX) > 0.005) {
+                    const bridgeGeo = new THREE.BoxGeometry(Math.abs(distanceX) + 0.02, 0.008, 0.010);
+                    const bridge = new THREE.Mesh(bridgeGeo, scene.matGold);
+                    // Przesuwamy w osi Z mijankowo (intake w jedną, exhaust w drugą) by się nie przecinały!
+                    const bridgeZOff = isEx ? 0.007 : -0.007;
+                    // Mostek jest podniesiony do 0.115, by ominąć szklanki sąsiednich zaworów (szklanka jest na 0.095)
+                    bridge.position.set(distanceX / 2, 0.115 * boreScale, bridgeZOff); 
+                    bridge.userData.name = "Dźwigienka zaworowa (Rocker)";
+                    vData.vg.add(bridge);
+
+                    // Dodajemy mały dystans pionowy, żeby połączyć szklankę z podniesionym mostkiem
+                    const spacerGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.02 * boreScale, 16);
+                    const spacer = new THREE.Mesh(spacerGeo, scene.matGold);
+                    spacer.position.set(0, 0.105 * boreScale, bridgeZOff);
+                    spacer.userData.name = "Dystans dźwigienki";
+                    vData.vg.add(spacer);
+                }
+            }
             
             let pr = null;
             let ra = null;
@@ -393,6 +510,25 @@ const banks = {};
             });
         });
       });
+
+      if (scene.config.layout === 'VR' || scene.config.layout === 'W') {
+          // Głowica
+          const headWidth = Math.max(0.48, 2 * sleeveRadius * 2 + 0.1);
+          const headDepth = len + 0.02; // len is bMaxZ - bMinZ
+          const head = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth, 0.16 * boreScale, headDepth)), scene.lineMat);
+          head.position.set(0, headBase + 0.08 * boreScale, midZ);
+          head.userData.name = "Głowica cylindra (Zarys wspólny)";
+          head.visible = scene.config.showWireframes !== false;
+          bankG.add(head);
+
+          // Blok silnika (od korby do głowicy)
+          const blockHeight = deckHeight;
+          const blockMesh = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(headWidth * 0.95, blockHeight, headDepth)), scene.lineMat);
+          blockMesh.position.set(0, blockHeight / 2 + explodeDist, midZ);
+          blockMesh.userData.name = "Blok silnika (Zarys wspólny)";
+          blockMesh.visible = scene.config.showWireframes !== false;
+          bankG.add(blockMesh);
+      }
 
       let bankBelt = null;
       if (isOHV) {

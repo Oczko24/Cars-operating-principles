@@ -50,6 +50,7 @@ let lastPrimaryDesc = "";
     // We should call setupDevDrawer if we pass a mock app object
     // Or refactor DebugTools later. For now we just mount it.
     setupSettingsModal();
+    setupDevDrawer({ get scene3d() { return sceneRef.current; } });
   }, []);
 
   
@@ -142,7 +143,7 @@ let lastPrimaryDesc = "";
     }
 
     const cylContainer = getCached("cylContainer", "cylinders-telemetry");
-    if (cylContainer && newStats.cylinders && newStats.cylinders.length > 0) {
+    if (cylContainer && Array.isArray(newStats.cylinders) && newStats.cylinders.length > 0) {
       const newHtml = newStats.cylinders.map((c: any) => `
         <div class="cyl-card ${c.phaseClass}">
           <div class="cyl-num">CYL #${c.id}</div>
@@ -289,8 +290,19 @@ let lastPrimaryDesc = "";
             <button className="config-btn" data-val="Boxer" data-i18n="ui.layoutBoxer" data-i18n-title="ui.layoutBoxerTitle" title="Boxer (Przeciwsobny) - cylindry leżące płasko (180°).">Boxer</button>
           </div>
           
-          <label className="control-label"><span data-i18n="ui.cylinderCount">Liczba cylindrów:</span> <b id="dev_cyl_val" className="highlight-val">4</b></label>
-          <input type="range" id="dev_cyl" className="styled-slider" min="1" max="16" step="1" defaultValue="4" />
+          <label className="control-label" data-i18n="ui.cylinderCount">Liczba cylindrów:</label>
+          <div className="focus-group" id="dev_cyl" style={{ 'flexWrap': 'wrap' }}>
+            <button className="config-btn" data-val="1">1</button>
+            <button className="config-btn" data-val="2">2</button>
+            <button className="config-btn" data-val="3">3</button>
+            <button className="config-btn active" data-val="4">4</button>
+            <button className="config-btn" data-val="5">5</button>
+            <button className="config-btn" data-val="6">6</button>
+            <button className="config-btn" data-val="8">8</button>
+            <button className="config-btn" data-val="10">10</button>
+            <button className="config-btn" data-val="12">12</button>
+            <button className="config-btn" data-val="16">16</button>
+          </div>
 
           <label className="control-label"><span data-i18n="ui.bore">Średnica tłoka (Bore):</span> <b id="dev_bore_val" className="highlight-val">84.0 mm</b></label>
           <input type="range" id="dev_bore" className="styled-slider" min="50" max="120" step="0.5" defaultValue="84" />
@@ -318,6 +330,7 @@ let lastPrimaryDesc = "";
           <div className="focus-group" id="dev_valves">
             <button className="config-btn" data-val="2" data-i18n="ui.valves2Btn">2 zawory</button>
             <button className="config-btn active" data-val="4" data-i18n="ui.valves4Btn">4 zawory</button>
+            <button className="config-btn" data-val="5" data-i18n="ui.valves5Btn">5 zaworów</button>
           </div>
 
           <label className="control-label" data-i18n="ui.valvetrain">Układ rozrządu:</label>
@@ -651,6 +664,10 @@ let lastPrimaryDesc = "";
             <label style={{ 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'color': 'var(--text-secondary)', 'cursor': 'pointer', 'fontSize': '11.5px' }}>
               <span data-i18n="ui.toggleChassis">Podwozie, koła i zawieszenie</span>
               <input type="checkbox" id="toggle_chassis" />
+            </label>
+            <label style={{ 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'space-between', 'color': 'var(--text-secondary)', 'cursor': 'pointer', 'fontSize': '11.5px' }}>
+              <span data-i18n="ui.toggleBrakes">Układ hamulcowy (Hydraulika)</span>
+              <input type="checkbox" id="toggle_brakes" />
             </label>
           </div>
 

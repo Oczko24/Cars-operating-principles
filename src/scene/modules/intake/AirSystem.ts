@@ -18,9 +18,12 @@ export class AirSystem {
     let plenumY = 0;
     let plenumR = 0.045 * boreScale;
 
-    if (layout === 'Inline' || layout === 'VR') {
+    if (layout === 'Inline') {
       plenumX = -Math.max(0.18, 0.18 * boreScale + 0.04);
       plenumY = headBase + 0.12 * boreScale;
+    } else if (layout === 'VR') {
+      plenumX = -Math.max(0.26, 0.26 * boreScale + 0.04);
+      plenumY = headBase + 0.16 * boreScale;
     } else if (layout === 'V' || layout === 'W') {
       plenumX = 0.0;
       plenumY = headBase * Math.cos(vAngle / 2) + 0.10 * boreScale;
@@ -143,38 +146,70 @@ export class AirSystem {
       const filterP = filterLocalPos;
       
       if (isTransverse) {
-        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), scene.matSilver);
-        innerWall.position.set(filterP.x, filterP.y, filterP.z - 0.13); 
+        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.10, shThick), scene.matSilver);
+        innerWall.position.set(filterP.x, filterP.y - 0.05, filterP.z - 0.15); 
         innerWall.userData.name = "Ściana boczna osłony termicznej (Od silnika)";
         shieldG.add(innerWall);
 
-        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.28), scene.matSilver);
-        rearWall.position.set(filterP.x - 0.13, filterP.y, filterP.z);
-        rearWall.userData.name = "Ściana tylna osłony termicznej (Od kabiny)";
-        shieldG.add(rearWall);
+        const rearWallTop = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.06, 0.30), scene.matSilver);
+        rearWallTop.position.set(filterP.x - 0.15, filterP.y + 0.07, filterP.z);
+        rearWallTop.userData.name = "Ściana tylna osłony termicznej (Od kabiny) - Góra";
+        shieldG.add(rearWallTop);
 
-        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.28), scene.matSilver);
-        bottomWall.position.set(filterP.x, filterP.y - 0.135, filterP.z);
+        const rearWallBot = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.06, 0.30), scene.matSilver);
+        rearWallBot.position.set(filterP.x - 0.15, filterP.y - 0.07, filterP.z);
+        rearWallBot.userData.name = "Ściana tylna osłony termicznej (Od kabiny) - Dół";
+        shieldG.add(rearWallBot);
+
+        const rearWallL = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.08, 0.10), scene.matSilver);
+        rearWallL.position.set(filterP.x - 0.15, filterP.y, filterP.z - 0.10);
+        rearWallL.userData.name = "Ściana tylna osłony termicznej (Od kabiny) - Lewa";
+        shieldG.add(rearWallL);
+
+        const rearWallR = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.08, 0.10), scene.matSilver);
+        rearWallR.position.set(filterP.x - 0.15, filterP.y, filterP.z + 0.10);
+        rearWallR.userData.name = "Ściana tylna osłony termicznej (Od kabiny) - Prawa";
+        shieldG.add(rearWallR);
+
+        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.28, shThick, 0.30), scene.matSilver);
+        bottomWall.position.set(filterP.x, filterP.y - 0.14, filterP.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
       } else {
-        const rearWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.20, shThick), scene.matSilver);
-        rearWall.position.set(filterP.x, filterP.y, filterP.z - 0.13);
-        rearWall.userData.name = "Ściana tylna osłony termicznej (Od silnika)";
-        shieldG.add(rearWall);
+        // Zamiast jednej pełnej ściany tylnej (przez którą przechodzi rura), robimy 4 kawałki z otworem na rurę!
+        const rearWallTop = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, shThick), scene.matSilver);
+        rearWallTop.position.set(filterP.x, filterP.y + 0.07, filterP.z - 0.15);
+        rearWallTop.userData.name = "Ściana tylna osłony termicznej (Od silnika) - Góra";
+        shieldG.add(rearWallTop);
 
-        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.20, 0.26), scene.matSilver);
-        innerWall.position.set(filterP.x + 0.12, filterP.y, filterP.z);
+        const rearWallBot = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, shThick), scene.matSilver);
+        rearWallBot.position.set(filterP.x, filterP.y - 0.07, filterP.z - 0.15);
+        rearWallBot.userData.name = "Ściana tylna osłony termicznej (Od silnika) - Dół";
+        shieldG.add(rearWallBot);
+
+        const rearWallL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, shThick), scene.matSilver);
+        rearWallL.position.set(filterP.x - 0.09, filterP.y, filterP.z - 0.15);
+        rearWallL.userData.name = "Ściana tylna osłony termicznej (Od silnika) - Lewa";
+        shieldG.add(rearWallL);
+
+        const rearWallR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, shThick), scene.matSilver);
+        rearWallR.position.set(filterP.x + 0.09, filterP.y, filterP.z - 0.15);
+        rearWallR.userData.name = "Ściana tylna osłony termicznej (Od silnika) - Prawa";
+        shieldG.add(rearWallR);
+
+        // Obniżona ściana boczna, by rura mogła przejść nad nią
+        const innerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.10, 0.30), scene.matSilver);
+        innerWall.position.set(filterP.x + 0.15, filterP.y - 0.05, filterP.z);
         innerWall.userData.name = "Ściana boczna osłony termicznej (Od głowic V)";
         shieldG.add(innerWall);
 
-        const outerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.15, 0.26), scene.matSilver);
-        outerWall.position.set(filterP.x - 0.12, filterP.y - 0.025, filterP.z);
+        const outerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.15, 0.30), scene.matSilver);
+        outerWall.position.set(filterP.x - 0.15, filterP.y - 0.025, filterP.z);
         outerWall.userData.name = "Ściana boczna osłony termicznej (Nadkole)";
         shieldG.add(outerWall);
 
-        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, shThick, 0.26), scene.matSilver);
-        bottomWall.position.set(filterP.x, filterP.y - 0.135, filterP.z);
+        const bottomWall = new THREE.Mesh(new THREE.BoxGeometry(0.28, shThick, 0.30), scene.matSilver);
+        bottomWall.position.set(filterP.x, filterP.y - 0.14, filterP.z);
         bottomWall.userData.name = "Dno osłony termicznej";
         shieldG.add(bottomWall);
       }

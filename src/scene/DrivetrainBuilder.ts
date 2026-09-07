@@ -191,10 +191,8 @@ buildDrivetrainAssembly() {
   const gbOutWorld = gbOutLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
 
   if (layout === "FWD") {
-    // 1. Obrót i pozycjonowanie silnika
-    // Obrót o -90 stopni (standardowo w tym kodzie)
+    // 1. Obrót silnika
     this.scene.engineMountGroup.rotation.y = -Math.PI / 2;
-    this.scene.engineMountGroup.position.set(0, VehicleDimensions.engineMountY, diffZFront); 
     this.scene.engineMountGroup.updateMatrixWorld(true);
 
     let diffX = isTransverse ? 0.18 : 0.0;
@@ -202,30 +200,13 @@ buildDrivetrainAssembly() {
     let removeDiffPinion = false;
 
     if (preset === 'opel_f17') {
-      // Skrzynia F17 (Transaxle) - wyliczamy pozycję zębnika na wałku wyjściowym
-      // Gearbox jest w: X=0, Y=0, Z=engineZMin - 0.15
-      // W skrzyni F17 pinion (zębnik) jest w: counterGroup (X=-0.32, Y=-0.09, Z=-0.05) -> outShaft (Z=-0.25)
+      // Skrzynia F17 (Transaxle)
       const f17PinionLocal = new THREE.Vector3(-0.32, -0.09, this.scene.engineZMin - 0.45);
       const f17PinionWorld = f17PinionLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
       
-      // Dyferencjał znajduje się tam, gdzie zazębia się ring gear z pinonem F17
-      // Ring gear ma przesunięcie X=-0.06 względem środka dyferencjału.
       diffX = f17PinionWorld.x + 0.06;
-      
-      // Obliczamy o ile przesunąć cały silnik w Z, aby dyferencjał znalazł się dokładnie w osi przednich kół (frontZ)
-      const diffTargetZ = diffZFront;
-      const currentDiffZ = f17PinionWorld.z + 0.215; 
-      const zOffset = diffTargetZ - currentDiffZ;
-      
-      // Przesuwamy cały zespół napędowy, żeby półosie trafiły w koła!
-      this.scene.engineMountGroup.position.z += zOffset;
-      this.scene.engineMountGroup.updateMatrixWorld(true);
-      
-      // Ponownie przeliczamy pozycję pinion'a po przesunięciu silnika
-      const newF17PinionWorld = f17PinionLocal.clone().applyMatrix4(this.scene.engineMountGroup.matrixWorld);
-      
-      diffX = newF17PinionWorld.x + 0.06;
-      diffZ = newF17PinionWorld.z + 0.215;
+      diffZ = f17PinionWorld.z + 0.215; 
+      // Nie przesuwamy silnika! Półosie mogą iść lekko pod kątem do przednich kół (frontZ).
       removeDiffPinion = true;
     }
 

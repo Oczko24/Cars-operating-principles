@@ -43,14 +43,17 @@ export class RadiatorSystem {
     radG.add(topTank, bottomTank);
 
     // Króćce chłodnicy
+    const topInletX = isTransverse ? -0.25 : 0.25;
+    const botOutletX = isTransverse ? 0.25 : -0.25;
+
     const topInlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), scene.matDarkSteel);
     topInlet.rotation.x = Math.PI / 2;
-    topInlet.position.set(0.25, coreH / 2 + 0.025, -0.04);
+    topInlet.position.set(topInletX, coreH / 2 + 0.025, -0.04);
     radG.add(topInlet);
 
     const botOutlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), scene.matDarkSteel);
     botOutlet.rotation.x = Math.PI / 2;
-    botOutlet.position.set(-0.25, -coreH / 2 - 0.025, -0.04);
+    botOutlet.position.set(botOutletX, -coreH / 2 - 0.025, -0.04);
     radG.add(botOutlet);
 
     // Wentylator chłodnicy zamontowany z tyłu rdzenia
@@ -100,12 +103,26 @@ export class RadiatorSystem {
     const scoopX = -0.35; // Wspólne z AirSystem
     const scoopZ = 0.00;
 
-    const scoopOuter = new THREE.Mesh(
-      new THREE.BoxGeometry(scoopW, scoopH, scoopD), scene.matDarkSteel
-    );
-    scoopOuter.position.set(scoopX, scoopY, scoopZ);
-    scoopOuter.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop nad chłodnicą)";
-    scoopG.add(scoopOuter);
+    // Pusty w środku chwytak (zamiast jednej wielkiej bryły, żeby uniknąć kolizji OBB)
+    const scoopOuterTop = new THREE.Mesh(new THREE.BoxGeometry(scoopW, 0.005, scoopD), scene.matDarkSteel);
+    scoopOuterTop.position.set(scoopX, scoopY + scoopH/2, scoopZ);
+    scoopOuterTop.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop) - Góra";
+    scoopG.add(scoopOuterTop);
+
+    const scoopOuterBot = new THREE.Mesh(new THREE.BoxGeometry(scoopW, 0.005, scoopD), scene.matDarkSteel);
+    scoopOuterBot.position.set(scoopX, scoopY - scoopH/2, scoopZ);
+    scoopOuterBot.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop) - Dół";
+    scoopG.add(scoopOuterBot);
+
+    const scoopOuterL = new THREE.Mesh(new THREE.BoxGeometry(0.005, scoopH, scoopD), scene.matDarkSteel);
+    scoopOuterL.position.set(scoopX - scoopW/2, scoopY, scoopZ);
+    scoopOuterL.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop) - Bok Lewy";
+    scoopG.add(scoopOuterL);
+
+    const scoopOuterR = new THREE.Mesh(new THREE.BoxGeometry(0.005, scoopH, scoopD), scene.matDarkSteel);
+    scoopOuterR.position.set(scoopX + scoopW/2, scoopY, scoopZ);
+    scoopOuterR.userData.name = "Szeroki chwytak powietrza (Ram-Air Scoop) - Bok Prawy";
+    scoopG.add(scoopOuterR);
 
     const scoopMouth = new THREE.Mesh(
       new THREE.BoxGeometry(scoopW * 0.92, scoopH * 0.75, 0.02), scene.matSteel
@@ -144,20 +161,25 @@ export class RadiatorSystem {
       filterCenterWorld.set(-0.18, carRadY, 0.40);
     }
 
-    const targetZ = isSport ? (filterCenterWorld.z + 0.18) : (filterCenterWorld.z + 0.12);
+    // Koniec filtra stożkowego (sport) ma długość 0.24, więc jego wierzchołek jest na z + 0.12
+    // Dla standardowego airboxa, wymiar Z w świecie to 0.22, więc przednia ściana jest na z + 0.11
+    // Przesuwamy punkt docelowy (wlot) o połowę długości trąbki/kołnierza (0.02), by nie było kolizji!
+    let targetZ = isSport ? (filterCenterWorld.z + 0.14) : (filterCenterWorld.z + 0.125);
     const filterInletWorld = new THREE.Vector3(filterCenterWorld.x, filterCenterWorld.y, targetZ);
 
     const midDuctY = Math.max(scoopBackWorld.y, filterInletWorld.y) + 0.03;
     const midDuctWorld = new THREE.Vector3(
-      (scoopBackWorld.x + filterInletWorld.x) / 2,
+      (scoopBackWorld.x + filterInletWorld.x) / 2 - 0.1,
       midDuctY,
       (scoopBackWorld.z + filterInletWorld.z) / 2
     );
 
     const coldAirDuctCurve = new THREE.CatmullRomCurve3([
       scoopBackWorld,
+      new THREE.Vector3(scoopBackWorld.x, scoopBackWorld.y, scoopBackWorld.z - 0.05), // straight out of scoop
       midDuctWorld,
-      filterInletWorld
+      new THREE.Vector3(filterInletWorld.x, filterInletWorld.y, filterInletWorld.z + 0.05), // straight into filter
+      new THREE.Vector3(filterInletWorld.x, filterInletWorld.y, filterInletWorld.z + 0.015) // stop right at the edge of the trumpet/collar
     ], false, 'centripetal', 0.2);
 
     const coldAirDuctMesh = new THREE.Mesh(
@@ -196,13 +218,25 @@ export class RadiatorSystem {
     );
     const thermoInWorld = thermostatPosLocal.clone().applyMatrix4(scene.engineMountGroup.matrixWorld);
 
-    const radTopInWorld = new THREE.Vector3(0.25, carRadY + coreH / 2 + 0.025, carRadZ - 0.04);
+    const radTopInWorld = new THREE.Vector3(topInletX, carRadY + coreH / 2 + 0.025, carRadZ - 0.04);
     const midTopZ = (thermoInWorld.z + radTopInWorld.z) / 2;
     
+    // W silnikach poprzecznych (isTransverse) wąż górny musi zejść BARDZO NISKO,
+    // aby ominąć dolną ścianę osłony termicznej (heat shield) filtra sportowego, która sięga do Y ~0.38.
+    const dipY1 = thermoInWorld.y - 0.30;
+    const dipY2 = radTopInWorld.y - 0.35;
+    
+    const midTopY1 = isTransverse ? dipY1 : thermoInWorld.y + 0.03;
+    const midTopY2 = isTransverse ? dipY2 : thermoInWorld.y - 0.03;
+
+    // By uniknąć kolizji poziomej ze ścianką heat shielda, przyciskamy wąż bliżej silnika (thermoInWorld.x)
+    const midTopX1 = isTransverse ? thermoInWorld.x : thermoInWorld.x;
+    const midTopX2 = isTransverse ? (thermoInWorld.x + radTopInWorld.x) / 2 : radTopInWorld.x;
+
     const topHoseCurve = new THREE.CatmullRomCurve3([
       thermoInWorld,
-      new THREE.Vector3(thermoInWorld.x, thermoInWorld.y, midTopZ + 0.1),
-      new THREE.Vector3(radTopInWorld.x * 0.5, thermoInWorld.y - 0.05, midTopZ),
+      new THREE.Vector3(midTopX1, midTopY1, midTopZ - 0.05),
+      new THREE.Vector3(midTopX2, midTopY2, midTopZ + 0.1),
       radTopInWorld
     ], false, 'centripetal', 0.1);
 
@@ -210,7 +244,7 @@ export class RadiatorSystem {
     topHoseMesh.userData.name = "Górny wąż chłodnicy (Gorący płyn do chłodnicy)";
     scene.carGroup.add(topHoseMesh);
 
-    const radBotOutWorld = new THREE.Vector3(-0.25, carRadY - coreH / 2 - 0.025, carRadZ - 0.04);
+    const radBotOutWorld = new THREE.Vector3(botOutletX, carRadY - coreH / 2 - 0.025, carRadZ - 0.04);
     const waterPumpLocal = new THREE.Vector3(0, 0.14, maxZ + 0.08); // Dopasowane do JSON WaterPump
     const waterPumpWorld = waterPumpLocal.clone().applyMatrix4(scene.engineMountGroup.matrixWorld);
     
@@ -219,7 +253,7 @@ export class RadiatorSystem {
     const botHoseCurve = new THREE.CatmullRomCurve3([
       radBotOutWorld,
       new THREE.Vector3(radBotOutWorld.x, radBotOutWorld.y, midBotZ - 0.1),
-      new THREE.Vector3(waterPumpWorld.x * 0.5, waterPumpWorld.y - 0.05, midBotZ),
+      new THREE.Vector3(waterPumpWorld.x, waterPumpWorld.y - 0.05, midBotZ),
       waterPumpWorld
     ], false, 'centripetal', 0.1);
 

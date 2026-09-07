@@ -1,6 +1,7 @@
 {
   "name": "cars-operating-principles",
   "version": "1.0.0",
+  "type": "module",
   "description": "> **Interactive 3D Educational Engine & Automotive Mechanics Simulator**   > An open-source, mathematically grounded WebGL simulator designed to visualize and explain how an automobile works from the inside out.",
   "main": "test_syntax.js",
   "scripts": {

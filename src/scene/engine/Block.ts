@@ -39,10 +39,9 @@ export function computeEngineDatum(scene) {
     let wBankOffsetZ = Math.max(0.065, zSpacing * 0.28);
 
     if (layout === "VR") {
-      const vrAngleRad = 15 * Math.PI / 180;
-      const dx = 2 * sleeveCenter * Math.sin(vrAngleRad / 2);
-      const minRequiredDz = Math.sqrt(Math.max(0.012, minRequiredDist * minRequiredDist - dx * dx));
-      vrStaggerZ = Math.max(zSpacing * 0.50, minRequiredDz);
+      // Dla VR6 chcemy zmieścić 6 cylindrów w bloku 4-cylindrowym.
+      // Więc vrStaggerZ powinien wynosić około 0.55 * zSpacing dla R4.
+      vrStaggerZ = zSpacing * 0.55;
       zSpacing = vrStaggerZ * 2.0;
     } else if (layout === "V") {
       const dx = 2 * sleeveCenter * Math.sin(vAngle / 2);
@@ -107,11 +106,32 @@ export function computeEngineDatum(scene) {
       const firing = firingAnglesDeg[i];
       const crankPin = crankPinAngles[i];
       z = -z; // Odwracamy oś Z, aby cylinder #1 był z przodu (maxZ - rozrząd), a ostatni z tyłu (minZ - koło zamachowe)
+      let desaxeX = 0;
+      let desaxeY = 0;
+      if (layout === "VR") {
+          // W prawdziwym VR6 cylindry są rozsunięte na zewnątrz (od wału)
+          const bankSign = bank > 0 ? 1 : -1;
+          desaxeX = -bankSign * 0.12 * boreScale; // Zwiększone do 0.12 by tłoki się nie przecinały
+          desaxeY = 0; // Pomijamy Y, żeby zachować wspólną głowicę w pionie
+      } else if (layout === "W") {
+          const wVRBaseAngle = bank > 0 ? (72 * Math.PI / 180)/2 : -(72 * Math.PI / 180)/2;
+          const localVrAngle = bank - wVRBaseAngle;
+          // Apply desaxe locally within the VR block
+          const bankSign = localVrAngle > 0 ? 1 : -1;
+          desaxeX = -bankSign * 0.12 * boreScale;
+          desaxeY = 0;
+          
+          // Rotate desaxe vector by wVRBaseAngle to get world coordinates
+          const dxWorld = desaxeX * Math.cos(wVRBaseAngle) - desaxeY * Math.sin(wVRBaseAngle);
+          const dyWorld = desaxeX * Math.sin(wVRBaseAngle) + desaxeY * Math.cos(wVRBaseAngle);
+          desaxeX = dxWorld;
+          desaxeY = dyWorld;
+      }
+      
       const cfg = createCylConfig(config, i + 1, z, bank, firing, crankPin);
-
+      (cfg as any).a0 = new THREE.Vector3(desaxeX, desaxeY, z);
       (cfg as any).u = new THREE.Vector3(-Math.sin(bank), Math.cos(bank), 0);
       (cfg as any).n = new THREE.Vector3(Math.cos(bank), Math.sin(bank), 0);
-      (cfg as any).a0 = new THREE.Vector3(0, 0, z);
       (cfg as any).m = (cfg as any).a0.clone().add((cfg as any).u.clone().multiplyScalar(sleeveCenter));
 
       cylinderConfigs.push(cfg);

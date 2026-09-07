@@ -144,6 +144,7 @@ export class Scene3D {
       tiltAngle: 0,
       showDatum: false,
       showChassis: false,
+      showBrakes: false,
       cvtRatio: 2.60
     };
 
@@ -429,6 +430,11 @@ export class Scene3D {
         this.chassisBuilder.buildSuspensionAssembly();
       }
 
+      if (this.config.showBrakes) {
+        await this.yieldAndSetLoadingText('Montaż układu hamulcowego...');
+        this.chassisBuilder.buildBrakeSystem();
+      }
+
       await this.yieldAndSetLoadingText('Podłączanie zegarów i wskaźników...');
       this.devUIController.updateCrankshaftUI();
       if (this.focusMode) {
@@ -665,7 +671,7 @@ export class Scene3D {
     const isOHV = this.config.valvetrain === "OHV" || this.config.valvetrain === "valve_ohv";
     const valveBaseY = headBase + 0.084 + 0.025 * (boreScale || 1.0);
     const trueCamY = isOHV ? (rodLength * 0.5 + explodeDist * 0.5) : (valveBaseY + 0.095 * (boreScale || 1.0));
-    const camOffsetX = (this.config.valves === 4 ? 0.048 : 0.038) * boreScale;
+    const camOffsetX = (this.config.valves >= 4 ? 0.042 : 0.046) * boreScale;
 
     if (this.banksData) {
       this.banksData.forEach(bank => {
@@ -699,7 +705,9 @@ export class Scene3D {
     
     this.movingCylinders.forEach(part => {
       part.sleeve.position.set(0, sleeveCenter + explodeDist, 0);
-      part.head.position.set(part.head.position.x, headBase + 0.08 * boreScale, 0);
+      if (part.head) {
+          part.head.position.set(part.head.position.x, headBase + 0.08 * boreScale, 0);
+      }
       part.sparkPlug.position.set(0, headBase + 0.16 * boreScale + explodeDist, 0);
       part.fireMesh.position.set(0, headBase + 0.04 * boreScale + explodeDist, 0);
 
