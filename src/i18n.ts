@@ -259,6 +259,14 @@ export const i18n = {
 
     // Dynamic Presets Descriptions
     gearboxPresets: {
+      passat_b5: {
+        name: "Passat B5 1.9 (5b)",
+        desc: "Legendarna 5-biegowa skrzynia wzdłużna (Passat B5). Długie przełożenia i pancerne łożyska."
+      },
+      passat_b5: {
+        name: "Passat B5 1.9 (5-spd)",
+        desc: "Legendary 5-speed longitudinal gearbox (Passat B5). Long ratios and bulletproof bearings."
+      },
       opel_f17: {
         name: "Saab 9-3 (5b)",
         desc: "Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie."
@@ -280,8 +288,8 @@ export const i18n = {
         desc: "⚡ <b>Skrzynia Bezstopniowa CVT:</b> Dwie pary przesuwnych stożków i stalowy pas Van Doorne'a płynnie zmieniają przełożenie od 2.60:1 (ruszanie) do 0.60:1 (nadbieg) bez przerw w dostawie momentu."
       },
       zf_8hp: {
-        name: "Automat (6b)",
-        desc: "Klasyczna hydrokinetyczna skrzynia automatyczna z przekładniami planetarnymi. (Uproszczony model 3D)."
+        name: "Automat (8b)",
+        desc: "⚡ <b>Skrzynia Automatyczna (Planetarna):</b> Zawiera konwerter momentu obrotowego, 3 zestawy przekładni planetarnych Ravigneaux i pakiety sprzęgieł wielotarczowych (A-E) sterowane przez zawory hydrauliczne (valve body)."
       },
       custom: {
         name: "Własna",
@@ -863,8 +871,8 @@ export const i18n = {
         desc: "⚡ <b>Continuously Variable Transmission (CVT):</b> Two pairs of sliding cones and a Van Doorne steel push belt seamlessly vary ratios from 2.60:1 (launch) to 0.60:1 (overdrive) without power interruption."
       },
       zf_8hp: {
-        name: "Automatic (6-spd)",
-        desc: "Classic torque converter automatic transmission with planetary gearsets. (Simplified 3D model)."
+        name: "Automatic (8-spd)",
+        desc: "⚡ <b>Planetary Automatic Transmission:</b> Features a fluid torque converter, 3 Ravigneaux planetary gearsets, and multiple clutch drum packs (A-E) controlled by a hydraulic valve body."
       },
       custom: {
         name: "Custom",

@@ -4,7 +4,8 @@ export class EngineBlock {
   build(sceneContext: any, layoutProps: any, builtModules: Map<string, THREE.Object3D>, datum: any, engineGroup: THREE.Group): THREE.Object3D | null {
     const layout = sceneContext.config.layout;
     const { crankRadius, engineLength, maxZ, minZ, sleeveCenter, sleeveRadius } = datum;
-    const vAngle = (sceneContext.config.vAngle || 0) * Math.PI / 180;
+    let vAngle = (sceneContext.config.vAngle || 0) * Math.PI / 180;
+    if (layout === 'W') vAngle = 72 * Math.PI / 180;
     
     let blockWidth = Math.max(0.56, 2 * sleeveRadius + 0.36);
     if (layout === 'V' || layout === 'W') {

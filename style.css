@@ -801,6 +801,7 @@ input[type="text"]:focus {
 /* ═══ 5. SEGMENTED CONTROLS & BUTTONS (Apple Style) ═══ */
 .focus-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-subtle);

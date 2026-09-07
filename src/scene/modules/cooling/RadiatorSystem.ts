@@ -221,17 +221,17 @@ export class RadiatorSystem {
     const radTopInWorld = new THREE.Vector3(topInletX, carRadY + coreH / 2 + 0.025, carRadZ - 0.04);
     const midTopZ = (thermoInWorld.z + radTopInWorld.z) / 2;
     
-    // W silnikach poprzecznych (isTransverse) wąż górny musi zejść BARDZO NISKO,
-    // aby ominąć dolną ścianę osłony termicznej (heat shield) filtra sportowego, która sięga do Y ~0.38.
-    const dipY1 = thermoInWorld.y - 0.30;
-    const dipY2 = radTopInWorld.y - 0.35;
+    // W silnikach poprzecznych (isTransverse) prowadzimy wąż górny ostro na zewnątrz (w lewo, względem auta),
+    // by całkowicie ominąć kolektor wydechowy, który może znajdować się z przodu bloku.
+    const dipY1 = thermoInWorld.y - 0.10;
+    const dipY2 = radTopInWorld.y - 0.15;
     
     const midTopY1 = isTransverse ? dipY1 : thermoInWorld.y + 0.03;
     const midTopY2 = isTransverse ? dipY2 : thermoInWorld.y - 0.03;
 
-    // By uniknąć kolizji poziomej ze ścianką heat shielda, przyciskamy wąż bliżej silnika (thermoInWorld.x)
+    // Trzymamy się lewej strony silnika (thermoInWorld.x jest mocno na minusie) tak długo jak to możliwe
     const midTopX1 = isTransverse ? thermoInWorld.x : thermoInWorld.x;
-    const midTopX2 = isTransverse ? (thermoInWorld.x + radTopInWorld.x) / 2 : radTopInWorld.x;
+    const midTopX2 = isTransverse ? thermoInWorld.x + 0.1 : radTopInWorld.x;
 
     const topHoseCurve = new THREE.CatmullRomCurve3([
       thermoInWorld,
@@ -253,7 +253,8 @@ export class RadiatorSystem {
     const botHoseCurve = new THREE.CatmullRomCurve3([
       radBotOutWorld,
       new THREE.Vector3(radBotOutWorld.x, radBotOutWorld.y, midBotZ - 0.1),
-      new THREE.Vector3(waterPumpWorld.x, waterPumpWorld.y - 0.05, midBotZ),
+      // Pompa wody jest po lewej stronie, więc wąż idzie lewą stroną omijając wydech z przodu
+      new THREE.Vector3(isTransverse ? waterPumpWorld.x - 0.1 : waterPumpWorld.x, waterPumpWorld.y - 0.05, isTransverse ? (waterPumpWorld.z + 0.20) : midBotZ),
       waterPumpWorld
     ], false, 'centripetal', 0.1);
 

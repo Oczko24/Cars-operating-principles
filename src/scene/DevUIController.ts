@@ -1219,6 +1219,8 @@ updateEngineStats() {
   // Szybkie statystyki podzakładek (Quick Stats Strips)
   const qsEngDisp = document.getElementById('qs_engine_disp');
   if (qsEngDisp) qsEngDisp.innerText = `${dispL}L (${dispRounded} cm³)`;
+  const devDispVal = document.getElementById('dev_disp_val');
+  if (devDispVal) devDispVal.innerText = `${dispRounded} cm³ (${dispL}L)`;
   const qsEngBoreStroke = document.getElementById('qs_engine_bore_stroke');
   if (qsEngBoreStroke) qsEngBoreStroke.innerText = `${bore.toFixed(1)} × ${stroke.toFixed(1)} mm`;
   const qsEngBs = document.getElementById('qs_engine_bs');

@@ -49,12 +49,14 @@ export class ExhaustSystem {
         if (scene.config.orientation === 'transverse') {
           // Logiczne poprowadzenie rury pod silnikiem ze zdefiniowanym kątem wejścia i wyjścia
           const underEngineZ = scene.engineMountGroup ? scene.engineMountGroup.position.z : startPointWorld.z;
-          const straightMidZ = (underEngineZ - 0.3 + flexStart.z + 0.15) / 2;
+          const isBehindEngine = startPointWorld.z < underEngineZ - 0.1;
+          const routeZ = isBehindEngine ? startPointWorld.z - 0.1 : underEngineZ;
+          const straightMidZ = (routeZ - 0.3 + flexStart.z + 0.15) / 2;
           curvePoints = [
             startPointWorld,
             p1,
-            new THREE.Vector3(startPointWorld.x * 0.7 + underbodyX * 0.3, exhaustY - 0.12, underEngineZ), // Przejście pod miską (obniżone by nie zahaczać o wał)
-            new THREE.Vector3(underbodyX, exhaustY, underEngineZ - 0.3), // Wyjście za silnik
+            new THREE.Vector3(startPointWorld.x * 0.7 + underbodyX * 0.3, exhaustY - 0.12, routeZ), // Przejście pod miską (obniżone by nie zahaczać o wał)
+            new THREE.Vector3(underbodyX, exhaustY, routeZ - 0.3), // Wyjście za silnik
             new THREE.Vector3(underbodyX, exhaustY, straightMidZ), // Stabilizacja długiego prostego odcinka
             flexStart.clone().add(new THREE.Vector3(0, 0, 0.15)), // Wymuszenie prostego kąta na wejściu
             flexStart

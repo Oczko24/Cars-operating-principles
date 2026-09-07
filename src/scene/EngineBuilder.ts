@@ -54,7 +54,13 @@ async buildEngineAssembly() {
     const rearZ = VehicleDimensions.wheelbaseRearZ;
     
     if (this.scene.config.placement === 'front') {
-      const longZ = 0.85 - minZ; // Wyrównanie tyłu silnika (koła zamachowego) do grodzi
+      let longZ = 0.85 - minZ;
+      if (this.scene.config.drivetrainLayout === 'FWD' || this.scene.config.drivetrainLayout === 'AWD' || this.scene.config.drivetrainLayout === '4x4') {
+         // Longitudinal FWD/AWD: engine sits ahead of the front axle.
+         // Passat W8 overhangs (differential is at Z=1.00, wheels at Z=1.35).
+         // The engine MUST start at or after Z=1.35 so the halfshafts pass behind it!
+         longZ = 1.35 - minZ; 
+      }
       this.scene.engineMountGroup.position.set(isTransverse ? midZLocal : 0, mountY, isTransverse ? (frontZ + 0.16) : longZ);
     } else if (this.scene.config.placement === 'mid') {
       const longZ = rearZ + 0.40 - minZ; // Wyrównanie tyłu silnika w okolicach tylnej osi
@@ -89,9 +95,14 @@ async buildEngineAssembly() {
     
     // ═══ DYNAMICZNE WCZYTYWANIE MODUŁÓW (OSPRZĘT + KOMPONENTY) Z JSON ═══
     const engineLayout = await SceneAssembler.loadLayout('engine_layout.json');
+    
+    // Upewnijmy się że carGroup i engineMountGroup mają aktualne macierze
+    // Zanim moduły (np. wydech) zaczną liczyć globalne koordynaty z matrixWorld!
+    this.scene.carGroup.add(this.scene.engineMountGroup);
+    this.scene.carGroup.updateMatrixWorld(true);
+    
     SceneAssembler.buildModules(engineLayout, this.scene, engineGroup, datum);
     
-    this.scene.carGroup.add(this.scene.engineMountGroup);
     this.scene.engineGroup = engineGroup;
     this.scene.engineZMin = datum.minZ;
     this.scene.engineMountGroup.updateMatrixWorld(true);

@@ -125,19 +125,37 @@ export function resolveFiringSequence(config) {
  * Rozwiązuje kąty wykorbień (Crankpin Angles) w radianach (0 do 2PI) dla każdego cylindra.
  */
 export function resolveCrankPinAngles(config, bankAngles) {
-  const { cylinders: N, customOverride, customCrankPins } = config;
+  const { layout, cylinders: N, customOverride, customCrankPins } = config;
   const firingAnglesDeg = resolveFiringSequence(config);
 
   const pins = [];
   for (let i = 0; i < N; i++) {
     const bank = bankAngles ? bankAngles[i] : 0;
     if (customOverride && Array.isArray(customCrankPins) && customCrankPins[i] !== undefined) {
-      // Bezpośredni kąt wykorbienia czopa w radianach
       pins.push((customCrankPins[i] * Math.PI / 180) % (Math.PI * 2));
     } else {
-      // Formuła deterministyczna: phi_i = gamma_i + bank_i
       const firingRad = (firingAnglesDeg[i] * Math.PI) / 180;
-      pins.push((firingRad + bank) % (Math.PI * 2));
+      
+      // For standard V/Inline/Boxer: phi = gamma + bank
+      let pin = (firingRad + bank) % (Math.PI * 2);
+      
+      // W-engine (W8) has a flat-plane crank with 4 journals.
+      // Left and Right cylinders in the same row (e.g. 0 and 1, 2 and 3) share the same crank pin or are split by VR angle.
+      if (layout === "W" && N === 8) {
+          const pairIdx = Math.floor(i / 2); // 0, 1, 2, 3
+          // Flat plane crank for W8: journals at 0, 180, 180, 0
+          const journalDeg = (pairIdx === 1 || pairIdx === 2) ? 180 : 0;
+          // To make the 3D crankshaft look physically correct and unbroken, cylinders sharing a journal 
+          // (e.g. Left Front and Right Front) must have the exact same crankPinAngle in absolute 3D space.
+          pin = (journalDeg * Math.PI / 180) % (Math.PI * 2);
+      } 
+      else if (layout === "VR") {
+          // VR6 shares the Inline-6 120-degree crank logic physically, but split pins offset the narrow bank angle.
+          // By adding the bank angle, we effectively create the split-pin offset!
+          pin = (firingRad + bank) % (Math.PI * 2);
+      }
+      
+      pins.push(pin);
     }
   }
   return pins;

@@ -23,6 +23,13 @@ import {
 import { i18n } from './i18n.js';
 
 export const GEARBOX_PRESETS = {
+  passat_b5: {
+    name: "Passat B5 1.9 (5-biegowa wzdłużna)",
+    desc: "Legendarna 5-biegowa skrzynia wzdłużna (Passat B5). Długie przełożenia i pancerne łożyska.",
+    ratios: { '1': 3.50, '2': 1.89, '3': 1.23, '4': 0.93, '5': 0.73, '6': 0.60, 'R': -3.45, 'N': 0 },
+    finalDrive: 3.70,
+    speeds: 5
+  },
   opel_f17: {
     name: "Saab 9-3 1.8i (5-biegowa FWD)",
     desc: "Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie.",
@@ -229,6 +236,7 @@ export class Scene3D {
     this.matTire = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.9 });
     this.matRim = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.15 });
     this.matBrake = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8, roughness: 0.3 });
+    this.matRed = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.7, roughness: 0.35 });
     this.matCeramic = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1 });
     this.matSilver = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, metalness: 0.9, roughness: 0.2 });
     this.matRubber = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.95 });
@@ -523,31 +531,24 @@ export class Scene3D {
     if (this.flywheelMesh) this.flywheelMesh.rotation.y = engineSpeed;
     if (this.pressurePlateMesh) this.pressurePlateMesh.rotation.y = engineSpeed;
     if (this.frictionDiskMesh) this.frictionDiskMesh.rotation.y = inputSpeed;
-    
-    // Skrzynia biegów
-    if (this.gbInputGroup) this.gbInputGroup.rotation.z = inputSpeed;
-    
-    // Przełożenie zębatek wejściowych (Input -> Countershaft) 0.06 -> 0.08
-    const inputRatio = 0.06 / 0.08; 
-    const counterSpeed = -inputSpeed * inputRatio;
-    if (this.gbCounterGroup) this.gbCounterGroup.rotation.z = counterSpeed;
-    
-    // ═══ SKRZYNIA BIEGÓW I NAPĘD (DYNAMIC RATIOS & TELEMETRIA) ═══
+
     const currentG = this.config.currentGear || '1';
-    const realRatio = this.devUIController.getCurrentGearRatio();
-
     let outputSpeed = 0;
-    let overallGearRatio = 0;
 
+    // Delegate to modular transmission
+    if (this.transmissionModule) {
+      outputSpeed = this.transmissionModule.updateKinematics(dt, inputSpeed, currentG);
+    }
+
+    // Telemetry updates
+    const realRatio = this.devUIController.getCurrentGearRatio();
+    let overallGearRatio = 0;
     if (currentG === 'N' || realRatio === 0) {
-      outputSpeed = 0;
       overallGearRatio = 0;
     } else {
       overallGearRatio = 1.0 / Math.abs(realRatio);
-      outputSpeed = (realRatio < 0) ? (-inputSpeed / Math.abs(realRatio)) : (inputSpeed / realRatio);
     }
 
-    // Obliczanie prędkości kół (km/h), obrotów koła (RPM) i redukcji na podstawie RPM silnika
     const wheelSpeedEl = this.cachedDom.wheelSpeed;
     const wheelRpmEl = this.cachedDom.wheelRpm;
     const totalRedEl = this.cachedDom.totalRed;
@@ -557,7 +558,6 @@ export class Scene3D {
     if (this.config.clutchEngaged && overallGearRatio !== 0 && currentG !== 'N') {
       const totalRatio = Math.abs(realRatio) * this.config.finalDrive;
       const wheelRPM = this.config.rpm / totalRatio;
-      // Założony obwód koła ~1.98m (koło 205/55 R16)
       const kmh = (wheelRPM * 1.98 * 60) / 1000;
       txtSpeed = Math.abs(Math.round(kmh)) + ' km/h' + (realRatio < 0 ? ' (R)' : '');
       txtRpm = Math.abs(Math.round(wheelRPM)) + ' RPM';
@@ -572,79 +572,17 @@ export class Scene3D {
     if (wheelRpmEl && wheelRpmEl.innerText !== txtRpm) wheelRpmEl.innerText = txtRpm;
     if (totalRedEl && totalRedEl.innerText !== txtRed) totalRedEl.innerText = txtRed;
 
-    if (this.gbOutputGroup) this.gbOutputGroup.rotation.z = outputSpeed;
-    
-    // Animuj luźne zębatki (są podgrupą gbOutputGroup, więc ich rotacja Y musi być różnicą)
-    if (this.gbOutGears) {
-      this.gbOutGears.forEach((g, i) => {
-        if (g.userData.ratio !== undefined) {
-          // Jeśli to transaxle, zazębiają się bezpośrednio z wałkiem wejściowym
-          const driveSpeed = g.userData.isTransaxle ? inputSpeed : counterSpeed;
-          g.rotation.y = (-driveSpeed * g.userData.ratio) - outputSpeed;
-        } else {
-          // Fallback dla klasycznej skrzyni wzdłużnej
-          const ratios = [0.04 / 0.10, 0.06 / 0.08, 0.08 / 0.06, 0.10 / 0.04, -0.04 / 0.10];
-          if (i < ratios.length) {
-            g.rotation.y = (-counterSpeed * ratios[i]) - outputSpeed;
-          }
-        }
+    // Delegate to modular driveline (shafts)
+    if (this.drivelineModules) {
+      this.drivelineModules.forEach(module => {
+        module.updateKinematics(dt, outputSpeed);
       });
     }
-    
-    // Animacja rozsuwania/zsuwania stożków CVT w zależności od przełożenia
-    if (this.cvtConePrimMovable && this.cvtConeSecMovable) {
-      const clampedRatio = Math.max(0.6, Math.min(2.6, Math.abs(realRatio || 1.5)));
-      const norm = (clampedRatio - 0.6) / (2.6 - 0.6); // 1.0 (krótki bieg 2.6:1), 0.0 (nadbieg 0.6:1)
-      const targetPrimZ = 0.035 + (norm - 0.5) * 0.024;
-      const targetSecZ = -0.035 + (0.5 - norm) * 0.024;
-      this.cvtConePrimMovable.position.z = THREE.MathUtils.lerp(this.cvtConePrimMovable.position.z, targetPrimZ, 0.1);
-      this.cvtConeSecMovable.position.z = THREE.MathUtils.lerp(this.cvtConeSecMovable.position.z, targetSecZ, 0.1);
-    }
 
-    // Ruch synchronizatorów
-    const isTransverse = this.config.orientation === 'transverse';
-    const isF17 = this.config.gearboxPreset === 'opel_f17';
-    
-    if (this.gbSync12) {
-      let targetSync12Z = 0;
-      if (isF17) {
-        targetSync12Z = (currentG === '1') ? 0.04 : (currentG === '2') ? 0.00 : 0.02;
-      } else {
-        targetSync12Z = (currentG === '1') ? (isTransverse ? 0.02 : 0.20) : (currentG === '2') ? (isTransverse ? -0.02 : 0.14) : (isTransverse ? 0.0 : 0.17);
-      }
-      this.gbSync12.position.z = THREE.MathUtils.lerp(this.gbSync12.position.z, targetSync12Z, 0.1);
-    }
-    if (this.gbSync34) {
-      let targetSync34Z = 0;
-      if (isF17) {
-        targetSync34Z = (currentG === '3') ? -0.04 : (currentG === '4') ? -0.08 : -0.06;
-      } else {
-        targetSync34Z = (currentG === '3') ? (isTransverse ? -0.06 : 0.04) : (currentG === '4') ? (isTransverse ? -0.10 : -0.00) : (isTransverse ? -0.08 : 0.02);
-      }
-      this.gbSync34.position.z = THREE.MathUtils.lerp(this.gbSync34.position.z, targetSync34Z, 0.1);
-    }
-    if (this.gbSync56) {
-      let targetSync56Z = 0;
-      if (isF17) {
-        targetSync56Z = (currentG === '5') ? -0.12 : (currentG === 'R') ? 0.07 : -0.09; // Hack for R as it uses 5th sync visually if we wanted, but let's just make it jump to R gear
-      } else {
-        targetSync56Z = (currentG === '5') ? (isTransverse ? -0.14 : -0.06) : (currentG === '6') ? (isTransverse ? -0.18 : -0.12) : (isTransverse ? -0.14 : -0.09);
-      }
-      this.gbSync56.position.z = THREE.MathUtils.lerp(this.gbSync56.position.z, targetSync56Z, 0.1);
-    }
-    
-    if (this.propShaftMesh) this.propShaftMesh.rotation.z = outputSpeed;
-    if (this.pinionMesh) this.pinionMesh.rotation.y = outputSpeed;
-
+    // Update Wheels based on final drive (if we want to simulate diff ratio here)
     const finalDriveRatio = this.config.finalDrive || 3.94;
     const ringSpeed = outputSpeed / finalDriveRatio;
     
-    if (this.ringGearMesh) this.ringGearMesh.rotation.x = ringSpeed;
-    if (this.diffCarrier) this.diffCarrier.rotation.x = ringSpeed;
-    if (this.leftAxleG) this.leftAxleG.rotation.x = ringSpeed;
-    if (this.rightAxleG) this.rightAxleG.rotation.x = ringSpeed;
-
-    // ═══ OBRÓT 4 KÓŁ POJAZDU (Zsynchronizowany z półosiami i dyferencjałem) ═══
     if (this.carWheels && this.carWheels.length > 0) {
       this.carWheels.forEach(w => {
         w.rotation.x = ringSpeed;

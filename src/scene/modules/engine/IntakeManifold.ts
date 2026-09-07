@@ -10,7 +10,8 @@ export class IntakeManifold {
     const explodeDist = scene.explodedFactor * 0.45;
     const layout = scene.config.layout;
     const cylCount = scene.config.cylinders;
-    const vAngle = scene.config.vAngle * Math.PI / 180;
+    let vAngle = scene.config.vAngle * Math.PI / 180;
+    if (layout === 'W') vAngle = 72 * Math.PI / 180;
     const isTransverse = scene.config.orientation === 'transverse';
 // ═══ 1. UNIWERSALNY KOLEKTOR SSĄCY (Intake Manifold & Throttle Body) ═══
     // Przebudowano układ powietrza na JSON (AirSystem w engine_layout.json)

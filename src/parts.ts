@@ -6,7 +6,9 @@ export const PARTS_DATA = {
   block: {
     block_i4: { baseHp: 140, baseTorque: 180, baseWeight: 120, maxRpm: 6800, handling: 85, complexity: 30, diagram: "piston_inline" },
     block_v6: { baseHp: 240, baseTorque: 310, baseWeight: 175, maxRpm: 6800, handling: 75, complexity: 60, diagram: "piston_v" },
+    block_vr6: { baseHp: 250, baseTorque: 320, baseWeight: 165, maxRpm: 6500, handling: 78, complexity: 65, diagram: "piston_vr" },
     block_v8: { baseHp: 380, baseTorque: 500, baseWeight: 230, maxRpm: 6500, handling: 65, complexity: 75, diagram: "piston_v8" },
+    block_w8: { baseHp: 275, baseTorque: 370, baseWeight: 200, maxRpm: 6200, handling: 70, complexity: 95, diagram: "piston_w" },
     block_boxer4: { baseHp: 160, baseTorque: 200, baseWeight: 135, maxRpm: 7200, handling: 92, complexity: 65, diagram: "piston_boxer" }
   },
   valvetrain: {

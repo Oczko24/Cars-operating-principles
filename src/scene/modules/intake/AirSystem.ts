@@ -12,7 +12,8 @@ export class AirSystem {
 
     const plenumMidZ = (maxZ + minZ) / 2;
     const plenumLen = Math.max(0.20, engineLength * 0.72);
-    const vAngle = (scene.config.vAngle || 0) * Math.PI / 180;
+    let vAngle = (scene.config.vAngle || 0) * Math.PI / 180;
+    if (layout === 'W') vAngle = 72 * Math.PI / 180;
 
     let plenumX = 0;
     let plenumY = 0;

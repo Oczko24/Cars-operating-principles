@@ -60,6 +60,7 @@ let lastPrimaryDesc = "";
     
     const newConfig = { ...config };
     if (preset === 'saab') {
+      newConfig.block = 'block_i4'; newConfig.drivetrain = 'drive_fwd'; newConfig.aspiration = 'asp_na'; newConfig.valvetrain = 'valve_dohc';
       scene.config.layout = 'Inline';
       scene.config.cylinders = 4;
       scene.config.boreMm = 80.5;
@@ -70,6 +71,7 @@ let lastPrimaryDesc = "";
       scene.config.gearboxPreset = 'opel_f17';
       scene.config.intakeType = 'standard';
     } else if (preset === 'bmw') {
+      newConfig.block = 'block_i4'; newConfig.drivetrain = 'drive_rwd'; newConfig.aspiration = 'asp_turbo'; newConfig.valvetrain = 'valve_dohc';
       scene.config.layout = 'Inline';
       scene.config.cylinders = 4;
       scene.config.boreMm = 82.0;
@@ -79,6 +81,7 @@ let lastPrimaryDesc = "";
       scene.config.drivetrainLayout = 'RWD';
       scene.config.gearboxPreset = 'zf_8hp';
     } else if (preset === 'corvette') {
+      newConfig.block = 'block_v8'; newConfig.drivetrain = 'drive_rwd'; newConfig.aspiration = 'asp_na'; newConfig.valvetrain = 'valve_ohv';
       scene.config.layout = 'V';
       scene.config.cylinders = 8;
       scene.config.vAngle = 90;
@@ -91,6 +94,7 @@ let lastPrimaryDesc = "";
       scene.config.drivetrainLayout = 'RWD';
       scene.config.gearboxPreset = 'tremec_t56';
     } else if (preset === 'subaru') {
+      newConfig.block = 'block_boxer4'; newConfig.drivetrain = 'drive_awd'; newConfig.aspiration = 'asp_turbo'; newConfig.valvetrain = 'valve_dohc';
       scene.config.layout = 'Boxer';
       scene.config.cylinders = 4;
       scene.config.boreMm = 92.0;
@@ -101,6 +105,7 @@ let lastPrimaryDesc = "";
       scene.config.drivetrainLayout = 'AWD';
       scene.config.gearboxPreset = 'cvt_multitronic';
     } else if (preset === 'golf_vr6') {
+      newConfig.block = 'block_vr6'; newConfig.drivetrain = 'drive_fwd'; newConfig.aspiration = 'asp_na'; newConfig.valvetrain = 'valve_dohc';
       scene.config.layout = 'VR';
       scene.config.cylinders = 6;
       scene.config.boreMm = 81.0;
@@ -109,7 +114,19 @@ let lastPrimaryDesc = "";
       scene.config.orientation = 'transverse';
       scene.config.drivetrainLayout = 'FWD';
       scene.config.gearboxPreset = 'vw_dsg';
+    } else if (preset === 'passat_19') {
+      newConfig.block = 'block_i4'; newConfig.drivetrain = 'drive_fwd'; newConfig.aspiration = 'asp_turbo'; newConfig.valvetrain = 'valve_ohv';
+      scene.config.layout = 'Inline';
+      scene.config.cylinders = 4;
+      scene.config.boreMm = 79.5;
+      scene.config.strokeMm = 95.5;
+      scene.config.placement = 'front';
+      scene.config.orientation = 'longitudinal';
+      scene.config.drivetrainLayout = 'FWD';
+      scene.config.gearboxPreset = 'passat_b5';
+      scene.config.intakeType = 'standard';
     } else if (preset === 'passat_w8') {
+      newConfig.block = 'block_w8'; newConfig.drivetrain = 'drive_awd'; newConfig.aspiration = 'asp_na'; newConfig.valvetrain = 'valve_dohc';
       scene.config.layout = 'W';
       scene.config.cylinders = 8;
       scene.config.boreMm = 84.0;
@@ -124,6 +141,7 @@ let lastPrimaryDesc = "";
         scene.devUIController.updateEngineStats();
     }
     document.dispatchEvent(new CustomEvent('sync_dev_ui', { detail: scene.config }));
+    setConfig(newConfig);
     scene.rebuildFullCar();
   };
 
@@ -345,15 +363,26 @@ let lastPrimaryDesc = "";
     </div>
 
     {/*  PRESETY (Szybki wybór auta) - Tabela 2x2  */}
-    <div style={{ 'padding': '12px 15px 12px 15px', 'background': 'rgba(0,0,0,0.2)', 'borderBottom': '1px solid var(--border-subtle)' }}>
-      <div style={{ 'fontSize': '10px', 'color': 'var(--text-secondary)', 'textTransform': 'uppercase', 'fontWeight': '700', 'letterSpacing': '1px', 'marginBottom': '10px' }} data-i18n="ui.quickPresets">Gotowe Presety (Wybierz)</div>
-      <div style={{ 'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '8px' }}>
+    <div 
+      className="presets-dropdown-container"
+      style={{ 'padding': '12px 15px', 'background': 'rgba(0,0,0,0.2)', 'borderBottom': '1px solid var(--border-subtle)', 'cursor': 'pointer' }}
+      onMouseEnter={(e) => { const el = e.currentTarget.querySelector('.presets-wrapper') as HTMLElement; if(el) { el.style.maxHeight = '500px'; el.style.opacity = '1'; el.style.marginTop = '12px'; } }}
+      onMouseLeave={(e) => { const el = e.currentTarget.querySelector('.presets-wrapper') as HTMLElement; if(el) { el.style.maxHeight = '0px'; el.style.opacity = '0'; el.style.marginTop = '0px'; } }}
+    >
+      <div style={{ 'fontSize': '11px', 'color': 'var(--text-primary)', 'textTransform': 'uppercase', 'fontWeight': '700', 'letterSpacing': '1px', 'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center' }}>
+        <span data-i18n="ui.quickPresets">Gotowe Presety (Wybierz)</span>
+        <span style={{ fontSize: '10px', color: 'var(--accent-blue)' }}>▼</span>
+      </div>
+      <div className="presets-wrapper" style={{ 'maxHeight': '0px', 'opacity': '0', 'overflow': 'hidden', 'transition': 'all 0.3s ease-in-out', 'marginTop': '0px' }}>
+        <div className="presets-grid" style={{ 'display': 'grid', 'gridTemplateColumns': '1fr 1fr', 'gap': '8px' }}>
+        <button className="car-preset-btn" data-preset="passat_19" onClick={() => handlePreset("passat_19")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Passat 1.9 FWD</button>
         <button className="car-preset-btn" data-preset="saab" onClick={() => handlePreset("saab")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Saab 9-3 (F17)</button>
         <button className="car-preset-btn" data-preset="bmw" onClick={() => handlePreset("bmw")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>BMW F30 (8HP)</button>
         <button className="car-preset-btn" data-preset="corvette" onClick={() => handlePreset("corvette")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Corvette C5 (V8)</button>
         <button className="car-preset-btn" data-preset="subaru" onClick={() => handlePreset("subaru")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Subaru (CVT)</button>
         <button className="car-preset-btn" data-preset="golf_vr6" onClick={() => handlePreset("golf_vr6")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Golf (VR6)</button>
         <button className="car-preset-btn" data-preset="passat_w8" onClick={() => handlePreset("passat_w8")} style={{ 'background': 'var(--bg-surface)', 'border': '1px solid var(--border-strong)', 'color': 'var(--text-primary)', 'padding': '8px 10px', 'borderRadius': '8px', 'fontSize': '12px', 'fontWeight': '500', 'cursor': 'pointer', 'transition': '0.2s', 'boxShadow': '0 2px 5px rgba(0,0,0,0.2)' }} onMouseOver={(e) => e.currentTarget.style.borderColor="var(--accent-blue)"} onMouseOut={(e) => e.currentTarget.style.borderColor="var(--border-strong)"}>Passat (W8)</button>
+        </div>
       </div>
     </div>
 
@@ -478,7 +507,7 @@ let lastPrimaryDesc = "";
 
           <label className="control-label" data-i18n="ui.valvetrain">Układ rozrządu:</label>
           <div className="focus-group" id="dev_valvetrain">
-            <button className="config-btn active" data-val="OHC" data-i18n="ui.valvetrainOHCBtn">OHC (Głowica)</button>
+            <button className="config-btn active" data-val="DOHC" data-i18n="ui.valvetrainOHCBtn">OHC/DOHC (Głowica)</button>
             <button className="config-btn" data-val="OHV" data-i18n="ui.valvetrainOHVBtn">OHV (Popychacze)</button>
           </div>
           
@@ -512,7 +541,7 @@ let lastPrimaryDesc = "";
           <label className="control-label">Układ dolotowy powietrza:</label>
           <div className="focus-group" id="dev_intake">
             <button className="config-btn active" data-val="sport">Sportowy (Stożek)</button>
-            <button className="config-btn" data-val="normal">Cywilny (Airbox)</button>
+            <button className="config-btn" data-val="standard">Cywilny (Airbox)</button>
           </div>
 
           <label className="control-label">Doładowanie (Forced Induction):</label>
@@ -530,9 +559,9 @@ let lastPrimaryDesc = "";
 
           <label className="control-label" data-i18n="ui.exhaustManifoldType">Typ Kolektora Wydechowego:</label>
           <div className="focus-group" id="dev_exhaust_manifold">
-            <button className="config-btn active" data-val="cast_iron">Krótki żeliwny (Log-style)</button>
-            <button className="config-btn" data-val="tubular">Rurowy sportowy (ELH / 4-1 / Barany)</button>
-            <button className="config-btn" data-val="uel">Nierównoodległościowy (UEL)</button>
+            <button className="config-btn active" data-val="cast_iron" title="Krótki żeliwny (Log-style)">Żeliwny (Log)</button>
+            <button className="config-btn" data-val="tubular" title="Rurowy sportowy (ELH / 4-1 / Barany)">Rurowy (4-1/ELH)</button>
+            <button className="config-btn" data-val="uel" title="Nierównoodległościowy (UEL)">Asymetryczny (UEL)</button>
           </div>
 
           <label className="control-label" data-i18n="ui.enginePlacement">Położenie silnika w ramie:</label>
@@ -685,6 +714,7 @@ let lastPrimaryDesc = "";
           <div style={{ 'fontSize': '11px', 'color': '#888', 'margin': '8px 0 4px 0', 'textTransform': 'uppercase', 'letterSpacing': '0.5px' }}>Manualne</div>
           <div className="focus-group" id="dev_gearbox_preset_manual" style={{ 'flexWrap': 'wrap', 'marginBottom': '8px' }}>
             <button className="config-btn active" data-val="opel_f17">F17 (5b FWD)</button>
+            <button className="config-btn" data-val="passat_b5">Passat B5 1.9</button>
             <button className="config-btn" data-val="bmw_zf_gs6">BMW (6b RWD)</button>
             <button className="config-btn" data-val="tremec_t56">Tremec T56</button>
             <button className="config-btn" data-val="rally_dogbox">Kłowa (6b)</button>
