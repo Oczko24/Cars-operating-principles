@@ -1,14 +1,14 @@
-# car operating priciples
+# Car Operating Principles
 
-grafika opisana kodem, bez tekstur, pokazuje jak sa zbudowane i jak działają samochody.
+Graphics described entirely with code, zero textures, showing how cars are built and how they actually work.
 
-Ogólnie, to jest projekt edukacyjny dla mnie z perspektywy mechaniki i kodowania. Głównym zamysłem tego projektu jest proste wytłumaczenie zasad działania samochodów i mechaniki. Ma to się zmiescić jako strona internetowa.
+Overall, this is an educational project for myself from both a mechanics and coding perspective. The main idea is to explain car mechanics and how things work in a simple, approachable way — all accessible right in your browser.
 
-Główny zamysł? Możesz sobie budować samochód taki jak chcesz, ze specyfikacjami takie jak chcesz + widzisz całą jego budowę i zasady działania.
+The core concept? You can build a car however you want, tweak specs to your liking, and inspect the entire internal anatomy and mechanical principles in real-time.
 
-Aktualny link, gdzie możesz prosto zobaczyć aktualny stan prac:
+Live demo / current work in progress:
 <https://cars-operating-principles.vercel.app>
 
-Projekt jest ciągle w fazie tworzenia:)
+Still actively in development :)
 
 <img width="1268" height="725" alt="image" src="https://github.com/user-attachments/assets/a629747e-eb90-4d02-9d87-eb2b4362ae2e" />
