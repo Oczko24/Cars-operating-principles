@@ -10,3 +10,5 @@ Aktualny link, gdzie możesz prosto zobaczyć aktualny stan prac:
 <https://cars-operating-principles.vercel.app>
 
 Projekt jest ciągle w fazie tworzenia:)
+
+<img width="1268" height="725" alt="image" src="https://github.com/user-attachments/assets/a629747e-eb90-4d02-9d87-eb2b4362ae2e" />
