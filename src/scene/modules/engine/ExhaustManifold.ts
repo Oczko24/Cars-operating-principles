@@ -44,8 +44,11 @@ export class ExhaustManifold {
       if (manifoldType === 'cast_iron') {
         const logZStart = Math.max(...scene.cylinderPositions.map((c: any) => c.z)) + 0.05;
         const logZEnd = Math.min(...scene.cylinderPositions.map((c: any) => c.z)) - 0.05;
-        const logY = colY + 0.2;
-        const logX = colX - 0.1;
+        const avgExPortY = scene.cylinderPositions.reduce((sum: number, c: any) => sum + c.exPort.y, 0) / Math.max(1, scene.cylinderPositions.length);
+        const avgExPortX = scene.cylinderPositions.reduce((sum: number, c: any) => sum + c.exPort.x, 0) / Math.max(1, scene.cylinderPositions.length);
+        const exNormX = scene.cylinderPositions[0]?.exNorm?.x || (exhaustX >= 0 ? 1 : -1);
+        const logY = avgExPortY - 0.02;
+        const logX = avgExPortX + exNormX * 0.12;
         
         // Glowna rura żeliwna (Log)
         const logCurve = new THREE.CatmullRomCurve3([
@@ -54,9 +57,10 @@ export class ExhaustManifold {
         ]);
         createRunner(logCurve, 0.035, "Kolektor wydechowy żeliwny zbiorczy", scene.matExhaust);
         
-        // Złącze na dole
+        // Złącze na dole schodzące do kolektora/downpipe
         const dropCurve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(logX, logY, colZ),
+          new THREE.Vector3(logX + (colX - logX) * 0.5, logY * 0.4 + colY * 0.6, colZ),
           collectorPoint
         ]);
         createRunner(dropCurve, 0.035, "Kolektor wydechowy żeliwne złącze spustowe", scene.matExhaust);
@@ -112,11 +116,27 @@ export class ExhaustManifold {
           // Log style for V engines
           const logZStart = Math.max(...scene.cylinderPositions.map((c: any) => c.z)) + 0.05;
           const logZEnd = minZ - 0.05;
-          const logYL = colL.y + 0.15, logYR = colR.y + 0.15;
-          const logXL = -colXOffset + 0.05, logXR = colXOffset - 0.05;
+          const leftCyls = scene.cylinderPositions.filter((c: any) => c.exPort.x < 0);
+          const rightCyls = scene.cylinderPositions.filter((c: any) => c.exPort.x >= 0);
+          const avgYL = leftCyls.length ? leftCyls.reduce((s: number, c: any) => s + c.exPort.y, 0) / leftCyls.length : (colL.y + 0.35);
+          const avgYR = rightCyls.length ? rightCyls.reduce((s: number, c: any) => s + c.exPort.y, 0) / rightCyls.length : (colR.y + 0.35);
+          const avgXL = leftCyls.length ? leftCyls.reduce((s: number, c: any) => s + c.exPort.x, 0) / leftCyls.length : -colXOffset;
+          const avgXR = rightCyls.length ? rightCyls.reduce((s: number, c: any) => s + c.exPort.x, 0) / rightCyls.length : colXOffset;
+          const logYL = avgYL - 0.02, logYR = avgYR - 0.02;
+          const logXL = avgXL - 0.08, logXR = avgXR + 0.08;
 
-          const logLCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(logXL, logYL, logZStart), new THREE.Vector3(logXL, logYL, logZEnd), colL]);
-          const logRCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(logXR, logYR, logZStart), new THREE.Vector3(logXR, logYR, logZEnd), colR]);
+          const logLCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(logXL, logYL, logZStart),
+            new THREE.Vector3(logXL, logYL, logZEnd),
+            new THREE.Vector3(logXL * 0.7 + colL.x * 0.3, logYL * 0.5 + colL.y * 0.5, (logZEnd + colL.z) * 0.5),
+            colL
+          ]);
+          const logRCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(logXR, logYR, logZStart),
+            new THREE.Vector3(logXR, logYR, logZEnd),
+            new THREE.Vector3(logXR * 0.7 + colR.x * 0.3, logYR * 0.5 + colR.y * 0.5, (logZEnd + colR.z) * 0.5),
+            colR
+          ]);
           
           createRunner(logLCurve, 0.035, "Kolektor wydechowy żeliwny (Lewy)", scene.matExhaust);
           createRunner(logRCurve, 0.035, "Kolektor wydechowy żeliwny (Prawy)", scene.matExhaust);
@@ -164,22 +184,34 @@ export class ExhaustManifold {
       scene.exhaustOutTangentLocal = new THREE.Vector3(0, 0, -1).normalize();
 
     } else if (layout === 'Boxer') {
-      exhaustMergePoint.set(0, -0.14, minZ - 0.15);
-      scene.colLWorld = new THREE.Vector3(-exhaustX, -0.14, minZ - 0.15);
-      scene.colRWorld = new THREE.Vector3(exhaustX, -0.14, minZ - 0.15);
+      exhaustMergePoint.set(0, -0.26, minZ - 0.22);
+      scene.colLWorld = new THREE.Vector3(-exhaustX, -0.26, minZ - 0.22);
+      scene.colRWorld = new THREE.Vector3(exhaustX, -0.26, minZ - 0.22);
 
       if (manifoldType === 'cast_iron') {
           // Zeliwny dla Boxera
           const logZStart = Math.max(...scene.cylinderPositions.map((c: any) => c.z)) + 0.05;
           const logZEnd = minZ - 0.05;
-          const logY = -0.12;
-          const logXL = -0.22, logXR = 0.22;
+          const logY = -0.16;
+          const logXL = -0.24, logXR = 0.24;
 
           const targetL = isTrueDual ? scene.colLWorld : exhaustMergePoint;
           const targetR = isTrueDual ? scene.colRWorld : exhaustMergePoint;
 
-          const logLCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(logXL, logY, logZStart), new THREE.Vector3(logXL, logY, logZEnd), targetL]);
-          const logRCurve = new THREE.CatmullRomCurve3([new THREE.Vector3(logXR, logY, logZStart), new THREE.Vector3(logXR, logY, logZEnd), targetR]);
+          const logLCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(logXL, logY, logZStart),
+            new THREE.Vector3(logXL, logY, logZEnd),
+            new THREE.Vector3(logXL, -0.26, minZ - 0.12),
+            new THREE.Vector3(targetL.x * 0.5 + logXL * 0.5, -0.26, (minZ - 0.12 + targetL.z) * 0.5),
+            targetL
+          ]);
+          const logRCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(logXR, logY, logZStart),
+            new THREE.Vector3(logXR, logY, logZEnd),
+            new THREE.Vector3(logXR, -0.26, minZ - 0.12),
+            new THREE.Vector3(targetR.x * 0.5 + logXR * 0.5, -0.26, (minZ - 0.12 + targetR.z) * 0.5),
+            targetR
+          ]);
           
           createRunner(logLCurve, 0.035, "Kolektor wydechowy żeliwny Boxer (Lewy)", scene.matExhaust);
           createRunner(logRCurve, 0.035, "Kolektor wydechowy żeliwny Boxer (Prawy)", scene.matExhaust);

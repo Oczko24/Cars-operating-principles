@@ -18,11 +18,13 @@ buildChassisFrame() {
     const railYMid = sillY + 0.05;
     const railYRear = sillY + 0.15;
     const railX = VehicleDimensions.trackWidthHalf - 0.35; // Inside the wheels
+    const radSupportZ = (this.scene.carRadZ !== undefined) ? this.scene.carRadZ : (frontZ + 0.95);
+    const railFrontZ = Math.max(frontZ + 0.80, radSupportZ + 0.05);
 
     // Podłużnice główne ramy nośnej (Main Longitudinal Rails)
     [-railX, railX].forEach(x => {
       const railCurve = new THREE.CurvePath();
-      railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYFront, frontZ + 0.80), new THREE.Vector3(x, railYMid, frontZ - 0.20)));
+      railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYFront, railFrontZ), new THREE.Vector3(x, railYMid, frontZ - 0.20)));
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYMid, frontZ - 0.20), new THREE.Vector3(x, sillY, -0.20)));
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, sillY, -0.20), new THREE.Vector3(x, railYRear, rearZ + 0.40)));
       railCurve.add(new THREE.LineCurve3(new THREE.Vector3(x, railYRear, rearZ + 0.40), new THREE.Vector3(x, railYRear, rearZ - 0.60)));
@@ -44,7 +46,7 @@ buildChassisFrame() {
 
     // Belki poprzeczne ramy (Crossmembers)
     [
-      { z: frontZ + 0.70, w: railX * 2.2, y: railYFront, name: "Pas przedni chłodnicy" },
+      { z: radSupportZ - 0.05, w: railX * 2.2, y: railYFront, name: "Pas przedni chłodnicy" },
       { z: frontZ - 0.20, w: railX * 2.0, y: railYMid, name: "Kołyska silnika (Subframe przedni)" },
       { z: (frontZ + rearZ) / 2, w: railX * 2.0, y: sillY, name: "Belka nośna skrzyni biegów" },
       { z: rearZ + 0.40, w: railX * 2.0, y: railYRear, name: "Kołyska dyferencjału (Subframe tylny)" },

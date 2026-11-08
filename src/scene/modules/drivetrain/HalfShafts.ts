@@ -24,8 +24,8 @@ export class HalfShafts {
         const matRubber = sceneContext.matRubber || new THREE.MeshStandardMaterial({ color: 0x111111 });
 
 
-        // If transverse front, diff is offset to the left (X = -0.3)
-        const diffOffsetX = (isFront && isTransverse) ? 0.25 : 0;
+        // If transverse front, diff is offset inside transaxle bellhousing (X = 0.38)
+        const diffOffsetX = (isFront && isTransverse) ? 0.38 : 0;
         // If longitudinal front, diff is further back (Z = 1.00). Wheels are at Z = 1.35.
         // So the diff has a Z offset relative to the wheels.
         const diffOffsetZ = (isFront && !isTransverse) ? -0.35 : 0;

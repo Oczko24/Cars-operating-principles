@@ -89,10 +89,31 @@ export class Scene3D {
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(2.5, 1.8, 3.5);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    // Wczytanie konfiguracji oszczędzania energii i wydajności
+    const savedPower = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('cars_power_settings') || '{}');
+      } catch (_) {
+        return {};
+      }
+    })();
+
+    this.ecoMode = savedPower.ecoMode !== undefined ? !!savedPower.ecoMode : false;
+    this.targetFps = savedPower.targetFps !== undefined ? Number(savedPower.targetFps) : (this.ecoMode ? 30 : 60);
+    this.pixelRatio = savedPower.pixelRatio !== undefined ? Number(savedPower.pixelRatio) : 1.0;
+    this.pauseOnHidden = savedPower.pauseOnHidden !== undefined ? !!savedPower.pauseOnHidden : true;
+    this.idleSleepEnabled = savedPower.idleSleepEnabled !== undefined ? !!savedPower.idleSleepEnabled : true;
+
+    this.lastRenderTime = 0;
+    this.isTabHidden = false;
+    this.isDirty = true;
+    this.idleFrames = 20;
+    this.isLoopRunning = false;
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "default" });
     this.renderer.setClearColor(0x1a1d21, 1);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.3;
     this.container.appendChild(this.renderer.domElement);
@@ -107,7 +128,7 @@ export class Scene3D {
 
     this.crankAngle = 0; 
     this.speedMult = 0.35; 
-    this.isPlaying = true;
+    this._isPlaying = true;
     this.explodedFactor = 0.0;
     this.isCutaway = true;
     this.radialUI = null;
@@ -204,11 +225,75 @@ export class Scene3D {
     this.rebuildFullCar();
 
     window.addEventListener("resize", () => this.onResize());
+    this.controls.addEventListener("change", () => this.requestRender(15));
+    if (this.container) {
+      this.container.addEventListener("pointerdown", () => this.requestRender(15));
+      this.container.addEventListener("wheel", () => this.requestRender(15), { passive: true });
+    }
+
+    this.handleVisibilityChange = () => {
+      if (!this.pauseOnHidden) return;
+      this.isTabHidden = document.hidden;
+      if (!this.isTabHidden && !this.isDisposed) {
+        this.lastTime = performance.now();
+        this.lastRenderTime = performance.now();
+        this.requestRender(20);
+      }
+    };
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+
     this.isDisposed = false;
     this.lastTime = performance.now();
     this.frameCount = 0;
     this.animate = this.animate.bind(this);
+    this.isLoopRunning = true;
     if (!this.isDisposed) requestAnimationFrame(this.animate);
+  }
+
+  get isPlaying() {
+    return this._isPlaying;
+  }
+  set isPlaying(val) {
+    this._isPlaying = !!val;
+    if (this._isPlaying) {
+      this.requestRender(20);
+    }
+  }
+
+  requestRender(frames = 15) {
+    this.isDirty = true;
+    this.idleFrames = Math.max(this.idleFrames || 0, frames);
+    if (!this.isLoopRunning && !this.isDisposed && (!this.isTabHidden || !this.pauseOnHidden)) {
+      this.isLoopRunning = true;
+      this.lastTime = performance.now();
+      this.lastRenderTime = performance.now();
+      requestAnimationFrame(this.animate);
+    }
+  }
+
+  setPowerSettings(settings) {
+    if (settings.ecoMode !== undefined) this.ecoMode = !!settings.ecoMode;
+    if (settings.targetFps !== undefined) this.targetFps = Number(settings.targetFps);
+    if (settings.pauseOnHidden !== undefined) this.pauseOnHidden = !!settings.pauseOnHidden;
+    if (settings.idleSleepEnabled !== undefined) this.idleSleepEnabled = !!settings.idleSleepEnabled;
+    if (settings.pixelRatio !== undefined) {
+      this.pixelRatio = Number(settings.pixelRatio);
+      if (this.renderer) {
+        this.renderer.setPixelRatio(this.pixelRatio);
+      }
+    }
+
+    try {
+      localStorage.setItem('cars_power_settings', JSON.stringify({
+        ecoMode: this.ecoMode,
+        targetFps: this.targetFps,
+        pixelRatio: this.pixelRatio,
+        pauseOnHidden: this.pauseOnHidden,
+        idleSleepEnabled: this.idleSleepEnabled
+      }));
+    } catch (_) {}
+
+    this.requestRender(20);
   }
 
 
@@ -293,12 +378,13 @@ export class Scene3D {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  setSpeed(mult) { this.speedMult = mult; }
-  setManualCrankAngle(deg) { this.crankAngle = (deg * Math.PI) / 180; }
+  setSpeed(mult) { this.speedMult = mult; this.requestRender(); }
+  setManualCrankAngle(deg) { this.crankAngle = (deg * Math.PI) / 180; this.requestRender(); }
   jumpToStroke(strokeNumber) {
     const strokeAngles = [0, 90, 270, 450, 630];
     this.setManualCrankAngle(strokeAngles[strokeNumber] || 0);
     this.isPlaying = false;
+    this.requestRender();
   }
   setExploded(val) {
     this.explodedFactor = val;
@@ -340,6 +426,10 @@ export class Scene3D {
     document.dispatchEvent(evt);
     
     this.rebuildFullCar();
+  }
+
+  setFocus(target: string, updateCamera: boolean = true) {
+    this.setFocusMode(target, updateCamera);
   }
 
   setFocusMode(target: string, updateCamera: boolean = true) {
@@ -389,6 +479,7 @@ export class Scene3D {
       
       this.controls.update();
     }
+    this.requestRender(25);
   }
 
   async yieldAndSetLoadingText(text: string) {
@@ -398,9 +489,11 @@ export class Scene3D {
     return new Promise(resolve => setTimeout(resolve, 0));
   }
 
+  private buildGeneration = 0;
   isBuilding = false;
 
   async rebuildFullCar() {
+      const currentGen = ++this.buildGeneration;
       this.isBuilding = true;
       // Pokaż overlay na wypadek ponownego budowania
       const overlay = document.getElementById('loading-overlay');
@@ -410,6 +503,8 @@ export class Scene3D {
       }
 
       await this.yieldAndSetLoadingText('Czyszczenie sceny...');
+      if (currentGen !== this.buildGeneration) return;
+
       while (this.carGroup.children.length > 0) {
         this.carGroup.remove(this.carGroup.children[0]);
       }
@@ -424,26 +519,33 @@ export class Scene3D {
 
       if (this.config.showChassis) {
         await this.yieldAndSetLoadingText('Budowa nadwozia i podwozia...');
+        if (currentGen !== this.buildGeneration) return;
         this.chassisBuilder.buildChassisFrame();
       }
       
       await this.yieldAndSetLoadingText('Budowa bloku silnika i rozrządu...');
+      if (currentGen !== this.buildGeneration) return;
       await this.engineBuilder.buildEngineAssembly();
+      if (currentGen !== this.buildGeneration) return;
       
       await this.yieldAndSetLoadingText('Składanie układu napędowego i skrzyni biegów...');
+      if (currentGen !== this.buildGeneration) return;
       this.drivetrainBuilder.buildDrivetrainAssembly();
       
       if (this.config.showChassis) {
         await this.yieldAndSetLoadingText('Montaż zawieszenia i kół...');
+        if (currentGen !== this.buildGeneration) return;
         this.chassisBuilder.buildSuspensionAssembly();
       }
 
       if (this.config.showBrakes) {
         await this.yieldAndSetLoadingText('Montaż układu hamulcowego...');
+        if (currentGen !== this.buildGeneration) return;
         this.chassisBuilder.buildBrakeSystem();
       }
 
       await this.yieldAndSetLoadingText('Podłączanie zegarów i wskaźników...');
+      if (currentGen !== this.buildGeneration) return;
       this.devUIController.updateCrankshaftUI();
       if (this.focusMode) {
           this.setFocusMode(this.focusMode, false);
@@ -451,12 +553,33 @@ export class Scene3D {
       window.dispatchEvent(new CustomEvent('parts-tree-rebuild'));
 
       // Koniec budowy. Reszta ukrywania nakładki dzieje się w pierwszej klatce w animate()
-      
-      this.isBuilding = false;
+      if (currentGen === this.buildGeneration) {
+        this.isBuilding = false;
+        this.requestRender(20);
+      }
   }
 
   firstFrameRendered = false;
   animate(time) {
+    if (this.isDisposed || (this.isTabHidden && this.pauseOnHidden)) {
+      this.isLoopRunning = false;
+      return;
+    }
+
+    this.isLoopRunning = true;
+
+    // Limit klatek na sekundę (np. 60 FPS standard, 30 FPS w trybie Eco)
+    const effectiveFps = this.ecoMode ? 30 : this.targetFps;
+    if (effectiveFps > 0) {
+      const minInterval = 1000 / effectiveFps;
+      const elapsed = time - this.lastRenderTime;
+      if (elapsed < minInterval - 1) {
+        requestAnimationFrame(this.animate);
+        return;
+      }
+      this.lastRenderTime = time - (elapsed % minInterval);
+    }
+
     if (!this.isBuilding) {
       this.firstFrameRendered = true;
       const overlay = document.getElementById('loading-overlay');
@@ -465,6 +588,22 @@ export class Scene3D {
         // removed removeChild
       }
     }
+
+    // Sprawdzenie ruchu kamery i wygaszania bezczynności
+    const controlsMoved = this.controls.update();
+    if (controlsMoved) {
+      this.idleFrames = 15;
+    } else if (this.idleFrames > 0) {
+      this.idleFrames--;
+    }
+
+    // Tryb uśpienia renderowania w bezczynności przy zatrzymanym silniku (0% CPU / GPU)
+    if (this.idleSleepEnabled && !this.isPlaying && !this.isDirty && this.idleFrames <= 0) {
+      requestAnimationFrame(this.animate);
+      return;
+    }
+    this.isDirty = false;
+
     const dt = Math.min((time - this.lastTime) / 1000, 0.1);
     this.lastTime = time;
     this.frameCount++;
@@ -951,14 +1090,21 @@ export class Scene3D {
       }
     });
 
-    this.controls.update();
     this.renderer.render(this.scene, this.camera);
-    if (!this.isDisposed) requestAnimationFrame(this.animate);
+    if (!this.isDisposed && (!this.isTabHidden || !this.pauseOnHidden)) {
+      requestAnimationFrame(this.animate);
+    } else {
+      this.isLoopRunning = false;
+    }
   }
 
 
   dispose() {
     this.isDisposed = true;
+    this.isLoopRunning = false;
+    if (this.handleVisibilityChange) {
+      document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+    }
     if (this.controls) this.controls.dispose();
     if (this.renderer) {
       this.renderer.dispose();

@@ -83,7 +83,11 @@ export class AirSystem {
     }
     
     // Oblicz prawdziwe Z filtra (tak jak w SceneAssemblerze użyto maxZ dla akcesoriów)
-    filterPos.z += maxZ; 
+    if (layout === 'Boxer') {
+      filterPos.z = Math.min(filterPos.z, 0.05) + maxZ;
+    } else {
+      filterPos.z += maxZ;
+    } 
     
     // ---------------------------------------------------------
     // MATEMATYCZNE OBLICZENIE WYSOKOŚCI (Y)
@@ -201,7 +205,9 @@ export class AirSystem {
         // Obniżona ściana boczna, by rura mogła przejść nad nią
         const innerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.10, 0.30), scene.matSilver);
         innerWall.position.set(filterP.x + 0.15, filterP.y - 0.05, filterP.z);
-        innerWall.userData.name = "Ściana boczna osłony termicznej (Od głowic V)";
+        innerWall.userData.name = (layout === 'V' || layout === 'W') 
+          ? "Ściana boczna osłony termicznej (Od głowic V)" 
+          : "Ściana boczna osłony termicznej (Od silnika)";
         shieldG.add(innerWall);
 
         const outerWall = new THREE.Mesh(new THREE.BoxGeometry(shThick, 0.15, 0.30), scene.matSilver);

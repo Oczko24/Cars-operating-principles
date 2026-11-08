@@ -9,7 +9,13 @@ export class RadiatorSystem {
     const radG = new THREE.Group();
     const coreW = (layout === 'Boxer') ? 0.95 : 0.85;
     const coreH = 0.55, coreD = 0.055;
-    const carRadZ = (scene.config.placement === 'front') ? 2.30 : (scene.config.placement === 'mid' ? -0.50 : -2.40);
+    const engineZ = scene.engineMountGroup ? scene.engineMountGroup.position.z : 0;
+    const engineFrontLocalZ = (datum && datum.maxZ) ? (datum.maxZ + 0.22) : 0.45;
+    const engineFrontWorldZ = isTransverse ? (engineZ + 0.35) : (engineZ + engineFrontLocalZ);
+    const carRadZ = (scene.config.placement === 'front')
+      ? Math.max(2.35, engineFrontWorldZ + 0.14)
+      : (scene.config.placement === 'mid' ? -0.50 : -2.40);
+    scene.carRadZ = carRadZ;
     const carRadY = 0.65;
 
     // Rdzeń chłodnicy
@@ -43,8 +49,8 @@ export class RadiatorSystem {
     radG.add(topTank, bottomTank);
 
     // Króćce chłodnicy
-    const topInletX = isTransverse ? 0.25 : 0.25;
-    const botOutletX = isTransverse ? -0.25 : -0.25;
+    const topInletX = isTransverse ? -0.15 : 0.25;
+    const botOutletX = isTransverse ? 0.25 : -0.25;
 
     const topInlet = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), scene.matDarkSteel);
     topInlet.rotation.x = Math.PI / 2;
@@ -210,10 +216,11 @@ export class RadiatorSystem {
 
     // ═══ WĘŻE CHŁODNICY ═══
     const maxZ = datum.maxZ;
-    // Pozycja termostatu (górny wąż) na szczycie z przodu silnika
+    // Pozycja termostatu (górny wąż) na szczycie z przodu silnika (odsunięta od przepustnicy)
+    const thermoX = (layout === 'V' || layout === 'W') ? -0.15 : (isTransverse ? -0.12 : -0.08);
     const thermostatPosLocal = new THREE.Vector3(
-      0.0,
-      datum.deckHeight + 0.10 * datum.boreScale,
+      thermoX,
+      datum.deckHeight + 0.08 * datum.boreScale,
       maxZ + 0.10
     );
     const thermoInWorld = thermostatPosLocal.clone().applyMatrix4(scene.engineMountGroup.matrixWorld);
@@ -245,7 +252,8 @@ export class RadiatorSystem {
     scene.carGroup.add(topHoseMesh);
 
     const radBotOutWorld = new THREE.Vector3(botOutletX, carRadY - coreH / 2 - 0.025, carRadZ - 0.04);
-    const waterPumpLocal = new THREE.Vector3(0, 0.14, maxZ + 0.08); // Dopasowane do JSON WaterPump
+    const wpX = isTransverse ? -0.16 : -0.18;
+    const waterPumpLocal = new THREE.Vector3(wpX, 0.12, maxZ + 0.08); // Na lewym boku bloku, omijając centralny wał
     const waterPumpWorld = waterPumpLocal.clone().applyMatrix4(scene.engineMountGroup.matrixWorld);
     
     const midBotZ = (radBotOutWorld.z + waterPumpWorld.z) / 2;

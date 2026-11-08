@@ -463,8 +463,79 @@ export function setupSettingsModal() {
   const settingsModal = document.getElementById("settings-modal");
   const closeBtn = document.getElementById("close-settings-btn");
 
+  const ecoCheckbox = document.getElementById("setting-eco-mode") as HTMLInputElement | null;
+  const fpsSelect = document.getElementById("setting-fps-limit") as HTMLSelectElement | null;
+  const renderScaleSelect = document.getElementById("setting-render-scale") as HTMLSelectElement | null;
+  const pauseHiddenCheckbox = document.getElementById("setting-pause-hidden") as HTMLInputElement | null;
+  const idleSleepCheckbox = document.getElementById("setting-idle-sleep") as HTMLInputElement | null;
+
+  const syncUIFromScene = () => {
+    const scene = window.scene3d || window.app?.scene3d;
+    if (!scene) return;
+
+    if (ecoCheckbox) ecoCheckbox.checked = !!scene.ecoMode;
+    if (fpsSelect) fpsSelect.value = String(scene.targetFps);
+    if (renderScaleSelect) renderScaleSelect.value = String(scene.pixelRatio);
+    if (pauseHiddenCheckbox) pauseHiddenCheckbox.checked = scene.pauseOnHidden !== false;
+    if (idleSleepCheckbox) idleSleepCheckbox.checked = scene.idleSleepEnabled !== false;
+  };
+
+  const updateSceneSettings = () => {
+    const scene = window.scene3d || window.app?.scene3d;
+    if (!scene || typeof (scene as any).setPowerSettings !== 'function') return;
+
+    const eco = ecoCheckbox ? ecoCheckbox.checked : false;
+    const fps = fpsSelect ? Number(fpsSelect.value) : 60;
+    const scale = renderScaleSelect ? Number(renderScaleSelect.value) : 1.0;
+    const pauseHidden = pauseHiddenCheckbox ? pauseHiddenCheckbox.checked : true;
+    const idleSleep = idleSleepCheckbox ? idleSleepCheckbox.checked : true;
+
+    (scene as any).setPowerSettings({
+      ecoMode: eco,
+      targetFps: eco ? 30 : fps,
+      pixelRatio: scale,
+      pauseOnHidden: pauseHidden,
+      idleSleepEnabled: idleSleep
+    });
+
+    if (eco && fpsSelect && fpsSelect.value !== '30') {
+      fpsSelect.value = '30';
+    }
+  };
+
+  if (ecoCheckbox) {
+    ecoCheckbox.addEventListener('change', () => {
+      if (ecoCheckbox.checked && fpsSelect) {
+        fpsSelect.value = '30';
+      }
+      updateSceneSettings();
+    });
+  }
+
+  if (fpsSelect) {
+    fpsSelect.addEventListener('change', () => {
+      if (ecoCheckbox && Number(fpsSelect.value) > 30) {
+        ecoCheckbox.checked = false;
+      }
+      updateSceneSettings();
+    });
+  }
+
+  if (renderScaleSelect) {
+    renderScaleSelect.addEventListener('change', updateSceneSettings);
+  }
+
+  if (pauseHiddenCheckbox) {
+    pauseHiddenCheckbox.addEventListener('change', updateSceneSettings);
+  }
+
+  if (idleSleepCheckbox) {
+    idleSleepCheckbox.addEventListener('change', updateSceneSettings);
+  }
+
   if (settingsBtn && settingsModal && closeBtn) {
     settingsBtn.addEventListener('click', () => {
+      syncUIFromScene();
       settingsModal.classList.add('active');
     });
 
@@ -479,4 +550,6 @@ export function setupSettingsModal() {
       }
     });
   }
+
+  setTimeout(syncUIFromScene, 500);
 }

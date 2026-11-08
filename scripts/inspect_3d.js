@@ -22,26 +22,53 @@ const outputPath = path.resolve(process.cwd(), outputName);
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
+let browserInstance = null;
+
+const cleanupBrowser = async () => {
+  if (browserInstance) {
+    try {
+      await browserInstance.close();
+    } catch (_) {}
+    browserInstance = null;
+  }
+};
+
+process.on('SIGINT', async () => {
+  await cleanupBrowser();
+  process.exit(130);
+});
+
+process.on('SIGTERM', async () => {
+  await cleanupBrowser();
+  process.exit(143);
+});
+
 (async () => {
-  console.log(`🔍 Rozpoczynam inspekcję 3D (Focus: ${focus}, Gearbox: ${gearbox || 'default'})...`);
+  console.log(`[Inspekcja 3D] Rozpoczynam (Focus: ${focus}, Gearbox: ${gearbox || 'default'})...`);
   
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--enable-webgl', '--ignore-gpu-blocklist']
-  });
-
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
-
-  const errors = [];
-  page.on('console', msg => {
-    if (msg.type() === 'error' && !msg.text().includes('favicon.ico')) {
-      errors.push(`[Console Error] ${msg.text()}`);
-    }
-  });
-  page.on('pageerror', err => errors.push(`[Page Error] ${err.message}`));
-
   try {
+    browserInstance = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--enable-webgl',
+        '--ignore-gpu-blocklist',
+        '--disable-background-timer-throttling'
+      ]
+    });
+
+    const page = await browserInstance.newPage();
+    await page.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
+
+    const errors = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error' && !msg.text().includes('favicon.ico')) {
+        errors.push(`[Console Error] ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => errors.push(`[Page Error] ${err.message}`));
+
     await page.goto('http://localhost:8000', { waitUntil: 'domcontentloaded', timeout: 15000 });
     await new Promise(r => setTimeout(r, 1500));
 
@@ -57,7 +84,11 @@ fs.mkdirSync(path.dirname(outputPath), { recursive: true });
         app.scene3d.rebuildFullCar();
       }
 
-      app.scene3d.setFocus(f);
+      if (typeof app.scene3d.setFocusMode === 'function') {
+        app.scene3d.setFocusMode(f);
+      } else if (typeof app.scene3d.setFocus === 'function') {
+        app.scene3d.setFocus(f);
+      }
       
       // Specjalne ustawienia kamery dla szczegółowego widoku skrzyni biegów
       if (f === 'gearbox' || f === 'drivetrain') {
@@ -82,26 +113,31 @@ fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     await new Promise(r => setTimeout(r, 1000));
     await page.screenshot({ path: outputPath, type: 'png' });
 
-    console.log(`\n📸 Zrzut ekranu 3D zapisany: ${outputPath}`);
-    console.log(`📊 Raport inspekcji:`);
-    console.log(`   - Status: ${report.success ? '✓ OK' : '✕ Błąd'}`);
-    console.log(`   - Zbadano podzespołów: ${report.totalChecked}`);
-    console.log(`   - Wykryte kolizje OBB: ${report.collisions.length}`);
-    if (report.collisions.length > 0) {
-      report.collisions.slice(0, 5).forEach(c => console.log(`     ⚠️ ${c.replace(/<[^>]*>/g, '')}`));
+    console.log(`\n[Inspekcja 3D] Zrzut ekranu zapisany: ${outputPath}`);
+    console.log(`[Inspekcja 3D] Raport:`);
+    console.log(`   - Status: ${report.success ? 'OK' : 'Blad'}`);
+    if (report.error) {
+      console.log(`   - Szczegoly bledu: ${report.error}`);
+    }
+    console.log(`   - Zbadano podzespolow: ${report.totalChecked || 0}`);
+    console.log(`   - Wykryte kolizje OBB: ${report.collisions ? report.collisions.length : 0}`);
+    if (report.collisions && report.collisions.length > 0) {
+      report.collisions.slice(0, 5).forEach(c => console.log(`     Kolizja: ${c.replace(/<[^>]*>/g, '')}`));
     }
     if (errors.length > 0) {
-      console.log(`   - Błędy konsoli (${errors.length}):`);
-      errors.forEach(e => console.log(`     ✕ ${e}`));
+      console.log(`   - Bledy konsoli (${errors.length}):`);
+      errors.forEach(e => console.log(`     Blad: ${e}`));
     } else {
-      console.log(`   - Błędy konsoli: 0 (Czysto)`);
+      console.log(`   - Bledy konsoli: 0 (Czysto)`);
     }
 
-    await browser.close();
+    await cleanupBrowser();
     process.exit(errors.length > 0 ? 1 : 0);
   } catch (err) {
-    console.error('Błąd podczas inspekcji 3D:', err);
-    await browser.close();
+    console.error('[Inspekcja 3D] Blad krytyczny:', err);
+    await cleanupBrowser();
     process.exit(1);
+  } finally {
+    await cleanupBrowser();
   }
 })();

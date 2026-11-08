@@ -1174,13 +1174,59 @@ Kliknij przycisk powyżej, aby przeanalizować scenę 3D pod kątem kolizji i ov
   <div id="settings-modal" className="modal-overlay">
     <div className="modal-content">
       <div className="modal-header">
-        <h3>Ustawienia Techniczne</h3>
+        <h3>Ustawienia Techniczne i Zasilanie</h3>
         <button id="close-settings-btn" className="modal-close">✕</button>
       </div>
       <div className="modal-body">
-         <p style={{ 'color': 'var(--text-secondary)', 'fontSize': '13px', 'marginBottom': '20px' }}>
-           Opcje takie jak limit FPS, jakość renderowania czy antyaliasing (Wkrótce)
-         </p>
+         <div className="settings-group">
+           <div className="settings-row">
+             <div className="settings-label">
+               <span>Tryb Eco (Oszczędzanie Baterii)</span>
+               <span className="settings-desc">Wymusza 30 FPS, skalowanie 1.0x i cichą pracę wentylatorów na baterii</span>
+             </div>
+             <input type="checkbox" id="setting-eco-mode" className="settings-checkbox" />
+           </div>
+
+           <div className="settings-row">
+             <div className="settings-label">
+               <span>Maksymalny limit klatek (FPS)</span>
+               <span className="settings-desc">Ogranicza obciążenie iGPU Vega i zapobiega niepotrzebnemu 144Hz</span>
+             </div>
+             <select id="setting-fps-limit" className="settings-select">
+               <option value="30">30 FPS (Eco / Bateria)</option>
+               <option value="60">60 FPS (Zrównoważony)</option>
+               <option value="120">120 FPS (Wysoka płynność)</option>
+               <option value="0">Bez limitu</option>
+             </select>
+           </div>
+
+           <div className="settings-row">
+             <div className="settings-label">
+               <span>Skalowanie rozdzielczości WebGL</span>
+               <span className="settings-desc">1.0x oszczędza ponad 50% mocy GPU na ekranach 1080p/1440p</span>
+             </div>
+             <select id="setting-render-scale" className="settings-select">
+               <option value="1">1.0x (Standard / Oszczędny)</option>
+               <option value="1.5">1.5x (Wysoka ostrość Retina)</option>
+             </select>
+           </div>
+
+           <div className="settings-row">
+             <div className="settings-label">
+               <span>Wstrzymywanie w tle</span>
+               <span className="settings-desc">Zatrzymuje pętlę renderowania gdy karta przeglądarki jest ukryta (0% CPU/GPU)</span>
+             </div>
+             <input type="checkbox" id="setting-pause-hidden" defaultChecked className="settings-checkbox" />
+           </div>
+
+           <div className="settings-row">
+             <div className="settings-label">
+               <span>Usypianie w bezczynności</span>
+               <span className="settings-desc">Zatrzymuje zbędne rysowanie gdy silnik stoi i kamera nie porusza się</span>
+             </div>
+             <input type="checkbox" id="setting-idle-sleep" defaultChecked className="settings-checkbox" />
+           </div>
+         </div>
 
          <hr style={{ 'border': '0', 'borderTop': '1px solid var(--border-medium)', 'margin': '20px 0' }} />
          

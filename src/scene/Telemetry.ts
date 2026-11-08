@@ -370,11 +370,18 @@ checkOverlap() {
         return false;
       }
 
+      // Układ korbowo-tłokowy (Crankshaft, conrods, pistons, bearings, flywheel)
+      const isCrankA = nA.includes("wał korbowy") || nA.includes("wal korbowy") || nA.includes("czop") || nA.includes("wykorbienie") || nA.includes("przeciwwaga") || nA.includes("przeciwciężar") || nA.includes("ramię") || nA.includes("snout") || nA.includes("koło zębate wału") || nA.includes("koło pasowe wału") || nA.includes("koło zamachowe") || nA.includes("kołnierz");
+      const isCrankB = nB.includes("wał korbowy") || nB.includes("wal korbowy") || nB.includes("czop") || nB.includes("wykorbienie") || nB.includes("przeciwwaga") || nB.includes("przeciwciężar") || nB.includes("ramię") || nB.includes("snout") || nB.includes("koło zębate wału") || nB.includes("koło pasowe wału") || nB.includes("koło zamachowe") || nB.includes("kołnierz");
+      
+      const isRodPistonA = nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("główka") || nA.includes("panewka") || nA.includes("tulejka") || nA.includes("półka") || nA.includes("środnik") || nA.includes("śruba") || nA.includes("pokrywa stopy") || nA.includes("tłok") || nA.includes("tlok") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("seger");
+      const isRodPistonB = nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("główka") || nB.includes("panewka") || nB.includes("tulejka") || nB.includes("półka") || nB.includes("środnik") || nB.includes("śruba") || nB.includes("pokrywa stopy") || nB.includes("tłok") || nB.includes("tlok") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("seger");
+
       // 2c. IGNOROWANIE ZAKRZYWIONYCH RUR (Fałszywe kolizje przez ogromny OBB dla TubeGeometry)
-      const isCurvedTubeA = nA.includes("wąż chłodnicy") || nA.includes("waz chlodnicy") || nA.includes("kolektor wydechowy") || nA.includes("rura");
-      const isCurvedTubeB = nB.includes("wąż chłodnicy") || nB.includes("waz chlodnicy") || nB.includes("kolektor wydechowy") || nB.includes("rura");
-      const isInternalEngineA = isCylPartA || nA.includes("zawór") || nA.includes("zawor") || nA.includes("świeca") || nA.includes("swieca") || nA.includes("wtryskiwacz") || nA.includes("izolator");
-      const isInternalEngineB = isCylPartB || nB.includes("zawór") || nB.includes("zawor") || nB.includes("świeca") || nB.includes("swieca") || nB.includes("wtryskiwacz") || nB.includes("izolator");
+      const isCurvedTubeA = nA.includes("wąż chłodnicy") || nA.includes("waz chlodnicy") || nA.includes("kolektor wydechowy") || nA.includes("kanał") || nA.includes("kanal") || nA.includes("rura");
+      const isCurvedTubeB = nB.includes("wąż chłodnicy") || nB.includes("waz chlodnicy") || nB.includes("kolektor wydechowy") || nB.includes("kanał") || nB.includes("kanal") || nB.includes("rura");
+      const isInternalEngineA = isCylPartA || isCrankA || isRodPistonA || nA.includes("zawór") || nA.includes("zawor") || nA.includes("świeca") || nA.includes("swieca") || nA.includes("wtryskiwacz") || nA.includes("izolator");
+      const isInternalEngineB = isCylPartB || isCrankB || isRodPistonB || nB.includes("zawór") || nB.includes("zawor") || nB.includes("świeca") || nB.includes("swieca") || nB.includes("wtryskiwacz") || nB.includes("izolator");
       if ((isCurvedTubeA && isInternalEngineB) || (isCurvedTubeB && isInternalEngineA)) {
         return true;
       }
@@ -399,13 +406,6 @@ checkOverlap() {
       const isWheelA = whTerms.some(t => nA.includes(t));
       const isWheelB = whTerms.some(t => nB.includes(t));
 
-      // 6. Układ korbowo-tłokowy (Crankshaft, conrods, pistons, bearings, flywheel)
-      const isCrankA = nA.includes("wał korbowy") || nA.includes("wal korbowy") || nA.includes("czop") || nA.includes("wykorbienie") || nA.includes("przeciwwaga") || nA.includes("przeciwciężar") || nA.includes("ramię") || nA.includes("snout") || nA.includes("koło zębate wału") || nA.includes("koło pasowe wału") || nA.includes("koło zamachowe") || nA.includes("kołnierz");
-      const isCrankB = nB.includes("wał korbowy") || nB.includes("wal korbowy") || nB.includes("czop") || nB.includes("wykorbienie") || nB.includes("przeciwwaga") || nB.includes("przeciwciężar") || nB.includes("ramię") || nB.includes("snout") || nB.includes("koło zębate wału") || nB.includes("koło pasowe wału") || nB.includes("koło zamachowe") || nB.includes("kołnierz");
-      
-      const isRodPistonA = nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("główka") || nA.includes("panewka") || nA.includes("tulejka") || nA.includes("półka") || nA.includes("środnik") || nA.includes("śruba") || nA.includes("pokrywa stopy") || nA.includes("tłok") || nA.includes("tlok") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("seger");
-      const isRodPistonB = nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("główka") || nB.includes("panewka") || nB.includes("tulejka") || nB.includes("półka") || nB.includes("środnik") || nB.includes("śruba") || nB.includes("pokrywa stopy") || nB.includes("tłok") || nB.includes("tlok") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("seger");
-
       // 7. Rozrząd (Camshaft, valves, springs, retainers, timing belt)
       const tmTerms = ["wałek rozrządu", "walek rozrzadu", "krzywka", "koło wałka", "kolo walka", "pasek rozrządu", "pasek rozrzadu", "napinacz", "zawór", "zawor", "grzybek", "trzonek", "sprężyna zaworowa", "sprezyna zaworowa", "szklanka", "popychacz", "dźwigienka", "dzwigienka", "talerzyk", "snout"];
       const isTimingA = tmTerms.some(t => nA.includes(t));
@@ -417,17 +417,17 @@ checkOverlap() {
       const isCoolingB = coTerms.some(t => nB.includes(t));
 
       // 9. Układ wydechowy (Headers, downpipe, cat, muffler, tailpipe)
-      const exTerms = ["wydech", "kolektor wydechowy", "kolektor zbiorczy", "y-pipe", "x-pipe", "downpipe", "flex pipe", "złącze elastyczne", "katalizator", "tłumik", "tlumik", "końcówka", "koncowka", "rura"];
+      const exTerms = ["wydech", "kolektor wydechowy", "kolektor zbiorczy", "kanał wydechowy", "kanal wydechowy", "y-pipe", "x-pipe", "downpipe", "flex pipe", "złącze elastyczne", "katalizator", "tłumik", "tlumik", "końcówka", "koncowka", "rura"];
       const isExhaustA = exTerms.some(t => nA.includes(t));
       const isExhaustB = exTerms.some(t => nB.includes(t));
 
       // 10. Układ dolotowy (Plenum, throttle, runners, injectors, air filter)
-      const inTerms = ["plenum", "przepustnica", "klapa", "oś klapy", "kolektor dolotowy", "runner", "filtr", "wtryskiwacz", "listwa wtryskowa", "chwytak", "kanał", "trąbka", "rura dolotowa", "osłona termiczna", "kierownica powietrza"];
+      const inTerms = ["plenum", "przepustnica", "klapa", "oś klapy", "kolektor dolotowy", "runner", "filtr", "wtryskiwacz", "listwa wtryskowa", "chwytak", "czerpni", "gardziel", "kanał", "trąbka", "rura dolotowa", "osłona termiczna", "osłon", "heat shield", "kierownica powietrza"];
       const isIntakeA = inTerms.some(t => nA.includes(t));
       const isIntakeB = inTerms.some(t => nB.includes(t));
 
       // 11. Układ napędowy (Gearbox, transaxle, clutch, differential, halfshafts, CV boots, prop shaft, PTU)
-      const drTerms = ["skrzynia", "transaxle", "sprzęgło", "sprzeglo", "tarcza sprzęgła", "tarcza sprzegla", "docisk", "koło zamachowe", "kolo zamachowe", "dyferencjał", "dyferencjal", "wałek atakujący", "walek atakujacy", "koło talerzowe", "kolo talerzowe", "satelit", "krzyżak", "krzyzak", "kosz", "koło koronowe", "kolo koronowe", "półoś", "polos", "przegub", "boot", "driveshaft", "wał napędowy", "wal napedowy", "prop shaft", "ptu", "przekładnia kątowa", "bieg", "wałek wejściowy", "wałek wyjściowy", "synchronizator", "przesuwka"];
+      const drTerms = ["skrzynia", "transaxle", "sprzęgło", "sprzeglo", "tarcza sprzęgła", "tarcza sprzegla", "docisk", "koło zamachowe", "kolo zamachowe", "dyferencjał", "dyferencjal", "różnicow", "roznicow", "differential", "wałek atakujący", "walek atakujacy", "koło talerzowe", "kolo talerzowe", "satelit", "krzyżak", "krzyzak", "kosz", "koło koronowe", "kolo koronowe", "półoś", "polos", "przegub", "boot", "driveshaft", "wał napędowy", "wal napedowy", "prop shaft", "ptu", "przekładnia kątowa", "bieg", "wałek wejściowy", "wałek wyjściowy", "synchronizator", "przesuwka"];
       const isDrivetrainA = drTerms.some(t => nA.includes(t));
       const isDrivetrainB = drTerms.some(t => nB.includes(t));
 
@@ -458,9 +458,9 @@ checkOverlap() {
       if (isCoolingA && (isCoolingB || isBeltB)) return true;
       if (isCoolingB && (isCoolingA || isBeltA)) return true;
 
-      // Usunięto ukrywanie błędnych kolizji! Układ wydechowy i napędowy NIE może przenikać się z wałem korbowym.
-      if (isCrankA && (isCrankB || isRodPistonB || isBeltB)) return true;
-      if (isCrankB && (isCrankA || isRodPistonA || isBeltA)) return true;
+      // Układ korbowy łączy się z tłokami, osprzętem paskowym oraz kołem zamachowym/sprzęgłem napędu
+      if (isCrankA && (isCrankB || isRodPistonB || isBeltB || isDrivetrainB)) return true;
+      if (isCrankB && (isCrankA || isRodPistonA || isBeltA || isDrivetrainA)) return true;
 
       if (isRodPistonA && isRodPistonB) return true;
       if (isTimingA && (isTimingB || isCrankB || isRodPistonB || isIntakeB || isExhaustB)) return true;
