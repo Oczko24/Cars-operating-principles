@@ -111,8 +111,19 @@ export class ValvetrainAndCylinders {
           }
           scene.camshafts.push(camShaftEx);
       } else {
-          camBaseIn.position.set(inSign * camOffsetX, trueCamY, 0);
-          camBaseEx.position.set(exSign * camOffsetX, trueCamY, 0);
+          const camAngleDeg = scene.config.camAngle !== undefined ? Number(scene.config.camAngle) : 0;
+          const camAngleRad = (camAngleDeg * Math.PI) / 180;
+          const isAngledHead = scene.config.layout !== 'VR' && scene.config.layout !== 'W';
+          const effCamAngleRad = isAngledHead ? camAngleRad : 0;
+          const camStemDist = trueCamY - valveBaseY;
+
+          const camX_in = (inSign * camOffsetX) - camStemDist * Math.sin(-inSign * effCamAngleRad);
+          const camY_in = valveBaseY + camStemDist * Math.cos(-inSign * effCamAngleRad);
+          const camX_ex = (exSign * camOffsetX) - camStemDist * Math.sin(-exSign * effCamAngleRad);
+          const camY_ex = valveBaseY + camStemDist * Math.cos(-exSign * effCamAngleRad);
+
+          camBaseIn.position.set(camX_in, camY_in, 0);
+          camBaseEx.position.set(camX_ex, camY_ex, 0);
           
           const meshIn = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, len, 16), scene.matBronze);
           meshIn.rotation.x = Math.PI / 2;
@@ -441,10 +452,23 @@ export class ValvetrainAndCylinders {
         valvesList.forEach((vData) => {
             const isEx = vData.type === 'ex';
             const valveSign = isEx ? exSign : inSign;
-            const xPos = vData.forceOffX !== undefined ? vData.forceOffX : (valveSign * camOffsetX);
+            const camAngleDeg = scene.config.camAngle !== undefined ? Number(scene.config.camAngle) : 0;
+            const camAngleRad = (camAngleDeg * Math.PI) / 180;
+            const isAngledHead = (!isOHV) && scene.config.layout !== 'VR' && scene.config.layout !== 'W';
+            const valveTilt = isAngledHead ? (-valveSign * camAngleRad) : 0;
             
+            const baseX = vData.forceOffX !== undefined ? vData.forceOffX : (valveSign * camOffsetX);
+            const xPos = baseX;
+            
+            const springBaseY = headBase + 0.084 + 0.012 * boreScale;
+            const sOffset = springBaseY - valveBaseY;
+            const springX = xPos - sOffset * Math.sin(valveTilt);
+            const springY = valveBaseY + sOffset * Math.cos(valveTilt);
+
             vData.vg.position.set(xPos, valveBaseY, vData.offZ);
-            vData.sp.position.set(xPos, valveBaseY - 0.02, vData.offZ);
+            vData.vg.rotation.z = valveTilt;
+            vData.sp.position.set(springX, springY, vData.offZ);
+            vData.sp.rotation.z = valveTilt;
             
             const camGroup = (isOHV) ? camShaftEx : (vData.forceCam ? (vData.forceCam === 'ex' ? camShaftEx : camShaftIn) : (isEx ? camShaftEx : camShaftIn));
             const lobeRot = isEx ? lobeRotEx : lobeRotIn;
@@ -521,6 +545,10 @@ export class ValvetrainAndCylinders {
                 lobeRot: lobeRot,
                 bankAngle: bankAngle,
                 baseY: valveBaseY,
+                baseX: xPos,
+                springBaseX: springX,
+                springBaseY: springY,
+                valveTilt: valveTilt,
                 offsetX: xPos,
                 offsetZ: vData.offZ,
                 prZ: cfg.z + lobeZOffset,
@@ -569,15 +597,31 @@ export class ValvetrainAndCylinders {
             firstBankOHV = false;
         }
       } else {
+        const camAngleDeg = scene.config.camAngle !== undefined ? Number(scene.config.camAngle) : 0;
+        const camAngleRad = (camAngleDeg * Math.PI) / 180;
+        const isAngledHead = scene.config.layout !== 'VR' && scene.config.layout !== 'W';
+        const effCamAngleRad = isAngledHead ? camAngleRad : 0;
+        const camStemDist = trueCamY - valveBaseY;
+
+        const bInX = (inSign * camOffsetX) - camStemDist * Math.sin(-inSign * effCamAngleRad);
+        const bInY = valveBaseY + camStemDist * Math.cos(-inSign * effCamAngleRad);
+        const bExX = (exSign * camOffsetX) - camStemDist * Math.sin(-exSign * effCamAngleRad);
+        const bExY = valveBaseY + camStemDist * Math.cos(-exSign * effCamAngleRad);
+
+        const leftX = Math.min(bInX, bExX);
+        const leftY = (bInX < bExX) ? bInY : bExY;
+        const rightX = Math.max(bInX, bExX);
+        const rightY = (bInX < bExX) ? bExY : bInY;
+
         const beltPath = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(-camOffsetX, 0, 0),
-          new THREE.Vector3(-camOffsetX - 0.015, trueCamY / 2, 0),
-          new THREE.Vector3(-camOffsetX - 0.042, trueCamY, 0),
-          new THREE.Vector3(-camOffsetX, trueCamY + 0.042, 0),
-          new THREE.Vector3(camOffsetX, trueCamY + 0.042, 0),
-          new THREE.Vector3(camOffsetX + 0.042, trueCamY, 0),
-          new THREE.Vector3(camOffsetX + 0.015, trueCamY / 2, 0),
-          new THREE.Vector3(camOffsetX, 0, 0)
+          new THREE.Vector3(leftX, 0, 0),
+          new THREE.Vector3(leftX - 0.015, leftY / 2, 0),
+          new THREE.Vector3(leftX - 0.042, leftY, 0),
+          new THREE.Vector3(leftX, leftY + 0.042, 0),
+          new THREE.Vector3(rightX, rightY + 0.042, 0),
+          new THREE.Vector3(rightX + 0.042, rightY, 0),
+          new THREE.Vector3(rightX + 0.015, rightY / 2, 0),
+          new THREE.Vector3(rightX, 0, 0)
         ], true);
         bankBelt = new THREE.Mesh(new THREE.TubeGeometry(beltPath, 64, 0.015, 8, true), scene.matBelt);
         bankBelt.position.set(0, 0, gearZ);
@@ -585,7 +629,7 @@ export class ValvetrainAndCylinders {
         bankG.add(bankBelt); // Added per-bank for DOHC
       }
 
-      scene.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle, inSign, exSign });
+      scene.banksData.push({ bankG, camBaseIn, camBaseEx, bankBelt, bankAngle, inSign, exSign, camOffsetX, trueCamY, boreScale });
     });
 
     // ════════════════════════════════════════════════════════════════════════

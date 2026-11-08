@@ -511,6 +511,24 @@ let lastPrimaryDesc = "";
             <button className="config-btn" data-val="OHV" data-i18n="ui.valvetrainOHVBtn">OHV (Popychacze)</button>
           </div>
           
+          {/* KONFIGURACJA KĄTA POCHYLENIA WAŁKÓW I ZAWORÓW */}
+          <div id="dev_cam_angle_container" style={{ 'marginTop': '8px' }}>
+            <div style={{ 'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '4px' }}>
+              <label className="control-label" style={{ 'margin': '0' }} data-i18n="ui.camAngleLabel">Pochylenie wałków i zaworów:</label>
+              <b id="dev_cam_angle_val" className="highlight-val">0° (Pionowy)</b>
+            </div>
+            <div className="focus-group" id="dev_cam_angle_presets" style={{ 'flexWrap': 'wrap', 'marginBottom': '6px' }}>
+              <button className="config-btn active" data-val="0">0° (Pionowe 90°)</button>
+              <button className="config-btn" data-val="15">15° (Pochylone)</button>
+              <button className="config-btn" data-val="25">25° (Pentroof)</button>
+              <button className="config-btn" data-val="35">35° (Hemi)</button>
+            </div>
+            <input type="range" id="dev_cam_angle" className="styled-slider" min="0" max="35" step="1" defaultValue="0" />
+            <div className="crank-edu-note" id="cam_angle_note" style={{ 'marginTop': '4px' }}>
+              <b>Geometria komory:</b> Regulacja kąta rozchylenia zaworów i wałków rozrządu w głowicy.
+            </div>
+          </div>
+          
           <label className="control-label">Technologia zmiennych faz (VVT):</label>
           <div className="focus-group" id="dev_vvt">
             <button className="config-btn active" data-val="none">Brak (Stale)</button>
@@ -630,6 +648,24 @@ let lastPrimaryDesc = "";
             <div className="crank-preset-tech" id="crank_preset_tech">Interwał zapłonów: 180°</div>
           </div>
 
+          {/* MECHANIKA PRZECIWWAG WAŁU KORBOWEGO */}
+          <div id="dev_counterweight_container" style={{ 'marginTop': '10px', 'padding': '8px', 'background': 'rgba(255, 255, 255, 0.03)', 'borderRadius': '6px', 'border': '1px solid var(--border-subtle)' }}>
+            <div style={{ 'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '4px' }}>
+              <label className="control-label" style={{ 'margin': '0' }} data-i18n="ui.counterweightLabel">Mechanika przeciwwag wału:</label>
+              <b id="dev_counterweight_val" className="highlight-val" style={{ 'color': 'var(--accent-amber)' }}>50% (Standard)</b>
+            </div>
+            <div className="focus-group" id="dev_counterweight_presets" style={{ 'flexWrap': 'wrap', 'marginBottom': '6px' }}>
+              <button className="config-btn" data-val="0">Brak (0%)</button>
+              <button className="config-btn active" data-val="0.5">Standard (50%)</button>
+              <button className="config-btn" data-val="0.8">Pełne (80%)</button>
+              <button className="config-btn" data-val="0.6">Wyczynowe (60%)</button>
+            </div>
+            <input type="range" id="dev_counterweight_slider" className="styled-slider" min="0" max="1" step="0.05" defaultValue="0.5" />
+            <div className="crank-edu-note" style={{ 'marginTop': '4px' }}>
+              <b>Balans mas wirujących:</b> Przeciwwagi neutralizują momenty sił odśrodkowych masy korbowodów i drgania I rzędu.
+            </div>
+          </div>
+
           {/*  INTERAKTYWNA TARCZA BIEGUNOWA W TRYBIE WŁASNYM  */}
           <div id="radial_tuning_container" style={{ 'display': 'none', 'marginTop': '8px' }}>
             <div style={{ 'display': 'flex', 'justifyContent': 'space-between', 'alignItems': 'center', 'marginBottom': '6px' }}>
@@ -723,6 +759,7 @@ let lastPrimaryDesc = "";
           <div style={{ 'fontSize': '11px', 'color': '#888', 'margin': '8px 0 4px 0', 'textTransform': 'uppercase', 'letterSpacing': '0.5px' }}>Automaty / Inne</div>
           <div className="focus-group" id="dev_gearbox_preset_auto" style={{ 'flexWrap': 'wrap' }}>
             <button className="config-btn" data-val="zf_8hp">Automat (ZF)</button>
+            <button className="config-btn" data-val="vw_dsg">DSG (Dwusprzęgłowa)</button>
             <button className="config-btn" data-val="cvt_multitronic">CVT (Wariator)</button>
             <button className="config-btn" data-val="custom" data-i18n="ui.gearboxCustomBtn">Własna</button>
           </div>

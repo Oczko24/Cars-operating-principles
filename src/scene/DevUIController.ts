@@ -262,6 +262,40 @@ setupDevPanel() {
       this.scene.rebuildFullCar();
     });
 
+    // ═══ MECHANIKA PRZECIWWAG WAŁU (Crankshaft Counterweights) ═══
+    const cwSlider = document.getElementById('dev_counterweight_slider') as HTMLInputElement | null;
+    const cwVal = document.getElementById('dev_counterweight_val');
+    const updateCounterweightUI = (factor: number) => {
+      this.scene.config.counterweightFactor = factor;
+      const pct = Math.round(factor * 100);
+      if (cwVal) {
+        let label = `${pct}%`;
+        if (factor === 0) label = "0% (Brak / Lekki)";
+        else if (factor === 0.5) label = "50% (Standard)";
+        else if (factor === 0.6) label = "60% (Wyczynowy)";
+        else if (factor >= 0.8) label = `${pct}% (Pełny)`;
+        cwVal.innerText = label;
+      }
+      if (cwSlider) cwSlider.value = factor.toString();
+      const btns = document.querySelectorAll('#dev_counterweight_presets button');
+      btns.forEach(b => {
+        b.classList.toggle('active', (b as HTMLElement).dataset.val === factor.toString());
+      });
+      this.scene.rebuildFullCar();
+      this.updateBalanceUI();
+    };
+
+    if (cwSlider) {
+      cwSlider.addEventListener('input', (e) => {
+        const factor = parseFloat((e.target as HTMLInputElement).value);
+        updateCounterweightUI(factor);
+      });
+    }
+
+    setupButtonGroup('dev_counterweight_presets', (val) => {
+      updateCounterweightUI(parseFloat(val));
+    });
+
     // ═══ INTERAKTYWNY RADIAL UI (Biegunowa Tarcza 360°) ═══
     const radialCanvas = document.getElementById('radial_crank_canvas');
     if (radialCanvas) {
@@ -330,8 +364,64 @@ setupDevPanel() {
       }
       
       updateValveButtonsState();
+      updateCamAngleVisibility();
       this.updateEngineStats();
       this.scene.rebuildFullCar();
+    });
+
+    // ═══ KĄT POCHYLENIA WAŁKÓW I ZAWORÓW (Cam / Valve Angle) ═══
+    const camAngleSlider = document.getElementById('dev_cam_angle') as HTMLInputElement | null;
+    const camAngleVal = document.getElementById('dev_cam_angle_val');
+    const updateCamAngleUI = (deg: number) => {
+      this.scene.config.camAngle = deg;
+      if (camAngleVal) {
+        let label = `${deg}°`;
+        if (deg === 0) label = "0° (Pionowy 90°)";
+        else if (deg === 15) label = "15° (Pochylony)";
+        else if (deg === 25) label = "25° (Pentroof)";
+        else if (deg === 35) label = "35° (Hemi)";
+        camAngleVal.innerText = label;
+      }
+      if (camAngleSlider) camAngleSlider.value = deg.toString();
+      const btns = document.querySelectorAll('#dev_cam_angle_presets button');
+      btns.forEach(b => {
+        b.classList.toggle('active', (b as HTMLElement).dataset.val === deg.toString());
+      });
+      this.scene.rebuildFullCar();
+    };
+
+    if (camAngleSlider) {
+      camAngleSlider.addEventListener('input', (e) => {
+        const deg = parseInt((e.target as HTMLInputElement).value);
+        updateCamAngleUI(deg);
+      });
+    }
+
+    const updateCamAngleVisibility = () => {
+      const note = document.getElementById('cam_angle_note');
+      const slider = document.getElementById('dev_cam_angle') as HTMLInputElement | null;
+      const container = document.getElementById('dev_cam_angle_container');
+      const isOhv = this.scene.config.valvetrain === 'OHV';
+      const isVrOrW = this.scene.config.layout === 'VR' || this.scene.config.layout === 'W';
+      if (container) {
+        if (isOhv) {
+          container.style.opacity = '0.45';
+          if (slider) slider.disabled = true;
+          if (note) note.innerHTML = '<b>Rozrząd OHV:</b> Pojedynczy wałek w kadłubie i pionowe laski popychaczy (kąt stały 0°).';
+        } else if (isVrOrW) {
+          container.style.opacity = '0.45';
+          if (slider) slider.disabled = true;
+          if (note) note.innerHTML = '<b>Silnik VR/W:</b> Wspólna głowica o stałym rozstawie wałków OHC (kąt stały 0°).';
+        } else {
+          container.style.opacity = '1.0';
+          if (slider) slider.disabled = false;
+          if (note) note.innerHTML = '<b>Geometria komory:</b> Regulacja kąta rozchylenia zaworów i wałków rozrządu w głowicy (Pentroof / Hemi).';
+        }
+      }
+    };
+
+    setupButtonGroup('dev_cam_angle_presets', (val) => {
+      updateCamAngleUI(parseInt(val));
     });
 
     const updateAspirationPill = () => {
@@ -609,6 +699,10 @@ setupDevPanel() {
       syncBtnGroup('dev_intake', c.intakeType);
       syncBtnGroup('dev_placement', c.placement);
       syncBtnGroup('dev_orientation', c.orientation);
+      syncSlider('dev_cam_angle', c.camAngle || 0, '°');
+      syncBtnGroup('dev_cam_angle_presets', String(c.camAngle || 0));
+      syncSlider('dev_counterweight_slider', c.counterweightFactor !== undefined ? c.counterweightFactor : 0.5, '');
+      syncBtnGroup('dev_counterweight_presets', String(c.counterweightFactor !== undefined ? c.counterweightFactor : 0.5));
       
       const angleContainer = document.getElementById('dev_angle_container');
       if (angleContainer) {
@@ -625,6 +719,7 @@ setupDevPanel() {
       if (btn3) btn3.disabled = isBoxerOrW;
       if (btn5) btn5.disabled = isBoxerOrW;
 
+      updateCamAngleVisibility();
       this.updateEngineStats();
     });
 

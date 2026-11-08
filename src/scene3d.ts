@@ -73,6 +73,14 @@ export const GEARBOX_PRESETS = {
     finalDrive: 3.15,
     speeds: 6,
     type: 'automatic'
+  },
+  vw_dsg: {
+    name: "VW DSG DQ250 (6-biegowa dwusprzęgłowa)",
+    desc: "Automatyczna skrzynia dwusprzęgłowa z dwoma koncentrycznymi wałkami wejściowymi i dwoma wałkami zdawczymi. Dwa mokre sprzęgła K1 i K2 pozwalają na błyskawiczną zmianę biegu bez przerw w przenoszeniu momentu obrotowego.",
+    ratios: { '1': 3.46, '2': 2.15, '3': 1.46, '4': 1.08, '5': 0.85, '6': 0.76, 'R': -3.99, 'N': 0 },
+    finalDrive: 4.06,
+    speeds: 6,
+    type: 'dual_clutch'
   }
 };
 
@@ -173,7 +181,9 @@ export class Scene3D {
       showDatum: false,
       showChassis: false,
       showBrakes: false,
-      cvtRatio: 2.60
+      cvtRatio: 2.60,
+      counterweightFactor: 0.5,
+      camAngle: 0
     };
 
     this.focusMode = 'all';
@@ -763,8 +773,20 @@ export class Scene3D {
         } else {
             const inSign = bank.inSign !== undefined ? bank.inSign : -1;
             const exSign = bank.exSign !== undefined ? bank.exSign : 1;
-            if (bank.camBaseIn) bank.camBaseIn.position.set(inSign * camOffsetX, trueCamY, 0);
-            if (bank.camBaseEx) bank.camBaseEx.position.set(exSign * camOffsetX, trueCamY, 0);
+            const camAngleDeg = this.config.camAngle !== undefined ? Number(this.config.camAngle) : 0;
+            const camAngleRad = (camAngleDeg * Math.PI) / 180;
+            const isAngledHead = this.config.layout !== 'VR' && this.config.layout !== 'W';
+            const effCamAngleRad = isAngledHead ? camAngleRad : 0;
+            const bankTrueCamY = bank.trueCamY || trueCamY;
+            const camStemDist = bankTrueCamY - valveBaseY;
+
+            const camX_in = (inSign * camOffsetX) - camStemDist * Math.sin(-inSign * effCamAngleRad);
+            const camY_in = valveBaseY + camStemDist * Math.cos(-inSign * effCamAngleRad);
+            const camX_ex = (exSign * camOffsetX) - camStemDist * Math.sin(-exSign * effCamAngleRad);
+            const camY_ex = valveBaseY + camStemDist * Math.cos(-exSign * effCamAngleRad);
+
+            if (bank.camBaseIn) bank.camBaseIn.position.set(camX_in, camY_in, 0);
+            if (bank.camBaseEx) bank.camBaseEx.position.set(camX_ex, camY_ex, 0);
         }
       });
     }
@@ -824,13 +846,23 @@ export class Scene3D {
       // Rozbicie na wektory wg kąta rozwarcia bloku (bank)
       const fX = F * -Math.sin(part.bank);
       const fY = F * Math.cos(part.bank);
-      forceX += fX;
-      forceY += fY;
+
+      // Siła odśrodkowa przeciwwag wału (Counterweights)
+      const cwFactor = this.config.counterweightFactor !== undefined ? Number(this.config.counterweightFactor) : 0.5;
+      const phi = this.crankAngle - part.crankPinAngle;
+      const cwX = -cwFactor * Math.sin(phi);
+      const cwY = -cwFactor * Math.cos(phi);
+
+      const netX = fX + cwX;
+      const netY = fY + cwY;
+
+      forceX += netX;
+      forceY += netY;
       
       // Moment siły (Ramię = odległość Z od środka)
       const armZ = part.z - sumZ;
-      momentX += fY * armZ;
-      momentY += fX * armZ;
+      momentX += netY * armZ;
+      momentY += netX * armZ;
 
       const strokeAngle = (this.crankAngle + part.phaseOffset) % (Math.PI * 4);
       if (strokeAngle >= Math.PI * 2 && strokeAngle < Math.PI * 2.35) {
@@ -1034,14 +1066,33 @@ export class Scene3D {
       const pushDown = (r - 0.025) * (boreScale || 1.0);
       const valveBaseY = headBase + 0.084 + 0.025 * (boreScale || 1.0);
       const valveY = valveBaseY - pushDown;
-      v.valveG.position.set(v.offsetX, valveY, v.offsetZ);
-      
-      const springBaseY = headBase + 0.084 + 0.012 * (boreScale || 1.0);
-      v.spring.position.set(v.offsetX, springBaseY, v.offsetZ);
-      
-      const currentHeight = valveY - springBaseY + 0.065 * (boreScale || 1.0);
-      const uncompressedHeight = 0.085 * (boreScale || 1.0);
-      v.spring.scale.y = currentHeight / uncompressedHeight;
+
+      if (v.valveTilt) {
+        const deltaX = Math.sin(v.valveTilt) * pushDown;
+        const deltaY = Math.cos(v.valveTilt) * pushDown;
+        const rootX = v.baseX !== undefined ? v.baseX : v.offsetX;
+        v.valveG.position.set(rootX + deltaX, valveBaseY - deltaY, v.offsetZ);
+        v.valveG.rotation.z = v.valveTilt;
+        
+        const springRootX = v.springBaseX !== undefined ? v.springBaseX : rootX;
+        const springRootY = v.springBaseY !== undefined ? v.springBaseY : (headBase + 0.084 + 0.012 * (boreScale || 1.0));
+        v.spring.position.set(springRootX, springRootY, v.offsetZ);
+        v.spring.rotation.z = v.valveTilt;
+        
+        const uncompressedHeight = 0.085 * (boreScale || 1.0);
+        v.spring.scale.y = Math.max(0.35, (uncompressedHeight - pushDown) / uncompressedHeight);
+      } else {
+        v.valveG.position.set(v.offsetX, valveY, v.offsetZ);
+        v.valveG.rotation.z = 0;
+        
+        const springBaseY = headBase + 0.084 + 0.012 * (boreScale || 1.0);
+        v.spring.position.set(v.offsetX, springBaseY, v.offsetZ);
+        v.spring.rotation.z = 0;
+        
+        const currentHeight = valveY - springBaseY + 0.065 * (boreScale || 1.0);
+        const uncompressedHeight = 0.085 * (boreScale || 1.0);
+        v.spring.scale.y = currentHeight / uncompressedHeight;
+      }
       
       if (v.isOHV) {
           if (v.camGroup && v.camGroup.parent && v.pushrod) {

@@ -14,30 +14,48 @@ export class CrankshaftAssembly {
     const isTransverse = scene.config.orientation === 'transverse';
 const crankMaster = new THREE.Group();
     // ═══ SEGMENTOWE CZOPY GŁÓWNE I WYKORBIENIA WAŁU KORBOWEGO ═══
-    const pinWidth = 0.052; // nieco krótszy sworzeń by zrobić miejsce na grubsze ramiona
-    const webThick = 0.028; // znacznie grubsze ramię wykorbienia (masywniejszy wał)
-    const throwHalfWidth = pinWidth / 2 + webThick; // ~0.054
+    const cwFactor = scene.config.counterweightFactor !== undefined ? Number(scene.config.counterweightFactor) : 0.5;
+    const pinWidth = 0.052;
+    const webThick = (0.022 + 0.012 * Math.min(1.0, Math.max(0, cwFactor))); 
+    const throwHalfWidth = pinWidth / 2 + webThick;
 
-    // Profil ramienia wykorbienia i aerodynamicznego przeciwciężaru (THREE.Shape)
-    // Zwiększone promienie i szerokości, by wyglądał na ciężki, odkuty wał
+    // Profil ramienia wykorbienia i dynamicznej przeciwwagi (THREE.Shape)
     const webShape = new THREE.Shape();
-    webShape.moveTo(-0.042 * strokeScale, crankRadius);
-    webShape.absarc(0, crankRadius, 0.042 * strokeScale, Math.PI, 0, false); // grubszy materiał nad czopem
-    webShape.lineTo(0.055 * strokeScale, 0.02 * strokeScale);                              // ramię ku osi głównej (masywniejsze)
-    webShape.lineTo(0.120 * strokeScale, -0.05 * strokeScale);                             // szersze rozszerzenie w przeciwciężar
-    webShape.quadraticCurveTo(0.125 * strokeScale, -0.190 * strokeScale, 0, -0.200 * strokeScale);       // głębszy dolny łuk przeciwciężaru (większa masa)
-    webShape.quadraticCurveTo(-0.125 * strokeScale, -0.190 * strokeScale, -0.120 * strokeScale, -0.05 * strokeScale);
-    webShape.lineTo(-0.055 * strokeScale, 0.02 * strokeScale);
-    webShape.lineTo(-0.042 * strokeScale, crankRadius);
+    webShape.moveTo(-0.040 * strokeScale, crankRadius);
+    webShape.absarc(0, crankRadius, 0.040 * strokeScale, Math.PI, 0, false);
+    webShape.lineTo(0.048 * strokeScale, 0.02 * strokeScale);
+
+    if (cwFactor > 0.05) {
+      // Pełna przeciwwaga wachlarzowa o promieniu i masie zależnej od cwFactor
+      const cwRadius = (0.120 + 0.090 * cwFactor) * strokeScale;
+      const cwSpread = (0.090 + 0.050 * cwFactor) * strokeScale;
+      
+      webShape.lineTo(cwSpread, -0.04 * strokeScale);
+      webShape.quadraticCurveTo(cwSpread * 1.15, -cwRadius * 0.95, 0, -cwRadius);
+      webShape.quadraticCurveTo(-cwSpread * 1.15, -cwRadius * 0.95, -cwSpread, -0.04 * strokeScale);
+      webShape.lineTo(-0.048 * strokeScale, 0.02 * strokeScale);
+    } else {
+      // Wariant ultralekki bez przeciwwag (Racing Flat-Plane / Uncounterweighted)
+      webShape.lineTo(0.038 * strokeScale, -0.025 * strokeScale);
+      webShape.absarc(0, 0, 0.038 * strokeScale, 0, Math.PI, false);
+      webShape.lineTo(-0.038 * strokeScale, 0.02 * strokeScale);
+    }
+    webShape.lineTo(-0.040 * strokeScale, crankRadius);
 
     const webGeo = new THREE.ExtrudeGeometry(webShape, {
       depth: webThick,
       bevelEnabled: true,
-      bevelSegments: 3,
-      bevelSize: 0.0035, // wyraźniejsze fazowanie krawędzi (charakterystyczne dla odlewów/odkuwek)
-      bevelThickness: 0.0035
+      bevelSegments: 2,
+      bevelSize: 0.003,
+      bevelThickness: 0.003
     });
     webGeo.translate(0, 0, -webThick / 2);
+
+    // Otwory wyważające nawiercane w przeciwwadze (Dynamic Balancing Drill Holes)
+    const drillDepth = webThick * 0.6;
+    const drillR = 0.007 * strokeScale;
+    const drillGeo = new THREE.CylinderGeometry(drillR, drillR, drillDepth, 16);
+    drillGeo.rotateX(Math.PI / 2);
 
     // ═══ KOŁO ZĘBATE WAŁU (Timing Gear) ═══
     const crankGear = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 32), scene.matDarkSteel);
@@ -76,8 +94,19 @@ const crankMaster = new THREE.Group();
         const webZOff = dir * (pinWidth / 2 + webThick / 2);
         const web = new THREE.Mesh(webGeo, scene.matDarkSteel);
         web.position.set(0, 0, webZOff);
-        web.userData.name = "Ramię wykorbienia i przeciwciężar";
+        web.userData.name = "Ramię wykorbienia i przeciwwaga wału";
         throwG.add(web);
+
+        if (cwFactor > 0.15) {
+          const cwRadius = (0.120 + 0.090 * cwFactor) * strokeScale;
+          [-0.032 * strokeScale, 0, 0.032 * strokeScale].forEach((holeX, hIdx) => {
+            const holeY = -cwRadius * 0.76;
+            const drill = new THREE.Mesh(drillGeo, scene.matSteel);
+            drill.position.set(holeX, holeY, webZOff + dir * (webThick * 0.3));
+            drill.userData.name = `Nawiercenie wyważające przeciwwagi #${hIdx + 1}`;
+            throwG.add(drill);
+          });
+        }
       });
 
       crankMaster.add(throwG);

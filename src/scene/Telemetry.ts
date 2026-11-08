@@ -286,7 +286,7 @@ checkOverlap() {
 
         child.geometry.computeBoundingBox();
         const bbox = child.geometry.boundingBox;
-        if (!bbox) return;
+        if (!bbox || !isFinite(bbox.min.x) || !isFinite(bbox.max.x)) return;
 
         // Lokalny środek i półwymiary (extents)
         const localCenter = new THREE.Vector3().addVectors(bbox.min, bbox.max).multiplyScalar(0.5);
@@ -371,8 +371,8 @@ checkOverlap() {
       }
 
       // Układ korbowo-tłokowy (Crankshaft, conrods, pistons, bearings, flywheel)
-      const isCrankA = nA.includes("wał korbowy") || nA.includes("wal korbowy") || nA.includes("czop") || nA.includes("wykorbienie") || nA.includes("przeciwwaga") || nA.includes("przeciwciężar") || nA.includes("ramię") || nA.includes("snout") || nA.includes("koło zębate wału") || nA.includes("koło pasowe wału") || nA.includes("koło zamachowe") || nA.includes("kołnierz");
-      const isCrankB = nB.includes("wał korbowy") || nB.includes("wal korbowy") || nB.includes("czop") || nB.includes("wykorbienie") || nB.includes("przeciwwaga") || nB.includes("przeciwciężar") || nB.includes("ramię") || nB.includes("snout") || nB.includes("koło zębate wału") || nB.includes("koło pasowe wału") || nB.includes("koło zamachowe") || nB.includes("kołnierz");
+      const isCrankA = nA.includes("wał korbowy") || nA.includes("wal korbowy") || nA.includes("czop") || nA.includes("wykorbienie") || nA.includes("przeciwwag") || nA.includes("przeciwciężar") || nA.includes("nawiercenie") || nA.includes("ramię") || nA.includes("snout") || nA.includes("koło zębate wału") || nA.includes("koło pasowe wału") || nA.includes("koło zamachowe") || nA.includes("kołnierz");
+      const isCrankB = nB.includes("wał korbowy") || nB.includes("wal korbowy") || nB.includes("czop") || nB.includes("wykorbienie") || nB.includes("przeciwwag") || nB.includes("przeciwciężar") || nB.includes("nawiercenie") || nB.includes("ramię") || nB.includes("snout") || nB.includes("koło zębate wału") || nB.includes("koło pasowe wału") || nB.includes("koło zamachowe") || nB.includes("kołnierz");
       
       const isRodPistonA = nA.includes("korbowód") || nA.includes("korbowod") || nA.includes("trzon") || nA.includes("stopa") || nA.includes("główka") || nA.includes("panewka") || nA.includes("tulejka") || nA.includes("półka") || nA.includes("środnik") || nA.includes("śruba") || nA.includes("pokrywa stopy") || nA.includes("tłok") || nA.includes("tlok") || nA.includes("sworzeń") || nA.includes("sworzen") || nA.includes("pierścień") || nA.includes("pierscien") || nA.includes("seger");
       const isRodPistonB = nB.includes("korbowód") || nB.includes("korbowod") || nB.includes("trzon") || nB.includes("stopa") || nB.includes("główka") || nB.includes("panewka") || nB.includes("tulejka") || nB.includes("półka") || nB.includes("środnik") || nB.includes("śruba") || nB.includes("pokrywa stopy") || nB.includes("tłok") || nB.includes("tlok") || nB.includes("sworzeń") || nB.includes("sworzen") || nB.includes("pierścień") || nB.includes("pierscien") || nB.includes("seger");
@@ -426,8 +426,8 @@ checkOverlap() {
       const isIntakeA = inTerms.some(t => nA.includes(t));
       const isIntakeB = inTerms.some(t => nB.includes(t));
 
-      // 11. Układ napędowy (Gearbox, transaxle, clutch, differential, halfshafts, CV boots, prop shaft, PTU)
-      const drTerms = ["skrzynia", "transaxle", "sprzęgło", "sprzeglo", "tarcza sprzęgła", "tarcza sprzegla", "docisk", "koło zamachowe", "kolo zamachowe", "dyferencjał", "dyferencjal", "różnicow", "roznicow", "differential", "wałek atakujący", "walek atakujacy", "koło talerzowe", "kolo talerzowe", "satelit", "krzyżak", "krzyzak", "kosz", "koło koronowe", "kolo koronowe", "półoś", "polos", "przegub", "boot", "driveshaft", "wał napędowy", "wal napedowy", "prop shaft", "ptu", "przekładnia kątowa", "bieg", "wałek wejściowy", "wałek wyjściowy", "synchronizator", "przesuwka"];
+      // 11. Układ napędowy (Gearbox, transaxle, clutch, differential, halfshafts, CV boots, prop shaft, PTU, mechatronics)
+      const drTerms = ["skrzynia", "transaxle", "sprzęgło", "sprzeglo", "tarcza", "docisk", "koło zamachowe", "kolo zamachowe", "dyferencjał", "dyferencjal", "różnicow", "roznicow", "differential", "wałek", "walek", "koło zębate", "kolo zebate", "koło talerzowe", "kolo talerzowe", "koło obiegowe", "kolo obiegowe", "koło słoneczne", "kolo sloneczne", "satelit", "krzyżak", "krzyzak", "kosz", "koło koronowe", "kolo koronowe", "półoś", "polos", "przegub", "boot", "driveshaft", "wał napędowy", "wal napedowy", "prop shaft", "ptu", "przekładnia", "przekladnia", "bieg", "synchronizator", "przesuwka", "piasta", "widłak", "widlak", "wodzik", "łuk", "luk", "uchwyt", "chwytaj", "ramię widłaka", "ramie widlaka", "ramię widłaka hydraulicznego", "łożysko", "lozysko", "dzwon", "flansza", "konwerter", "impeller", "turbin", "stator", "kierownic", "mechatronik", "elektrozawór", "elektrozawor", "solenoid", "sterownik", "tcu", "zabierak", "kły", "kly", "kłowe", "klowe", "zapadka", "stożek", "stozek", "wariator", "pas", "servo", "nawrotnik"];
       const isDrivetrainA = drTerms.some(t => nA.includes(t));
       const isDrivetrainB = drTerms.some(t => nB.includes(t));
 
@@ -466,8 +466,8 @@ checkOverlap() {
       if (isTimingA && (isTimingB || isCrankB || isRodPistonB || isIntakeB || isExhaustB)) return true;
       if (isTimingB && (isTimingA || isCrankA || isRodPistonA || isIntakeA || isExhaustA)) return true;
 
-      if (isExhaustA && isExhaustB) return true;
-      if (isExhaustB && isExhaustA) return true;
+      if (isExhaustA && (isExhaustB || isDrivetrainB || isBlockB || isCrankB || isChassisB)) return true;
+      if (isExhaustB && (isExhaustA || isDrivetrainA || isBlockA || isCrankA || isChassisA)) return true;
 
       if (isIntakeA && isIntakeB) return true;
       if (isIntakeB && isIntakeA) return true;

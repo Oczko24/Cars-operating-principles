@@ -3,6 +3,7 @@ import { VehicleDimensions } from './VehicleConfig.js';
 import { ManualGearbox } from './modules/transmission/ManualGearbox.js';
 import { AutomaticPlanetary } from './modules/transmission/AutomaticPlanetary.js';
 import { CVT } from './modules/transmission/CVT.js';
+import { DualClutch } from './modules/transmission/DualClutch.js';
 import { HalfShafts } from './modules/drivetrain/HalfShafts.js';
 import { PropShaft } from './modules/drivetrain/PropShaft.js';
 
@@ -23,8 +24,8 @@ export class DrivetrainBuilder {
     // 1. SPRZĘGŁO / KONWERTER I SKRZYNIA BIEGÓW
     const transGroup = new THREE.Group();
 
-    // Setup Clutch/Flywheel if not automatic (Automatics use Torque Converter in their module)
-    if (this.scene.config.gearboxPreset !== 'zf_8hp') {
+    // Setup Clutch/Flywheel if not automatic/DSG (Automatics use Torque Converter, DSG uses integrated dual clutch)
+    if (this.scene.config.gearboxPreset !== 'zf_8hp' && this.scene.config.gearboxPreset !== 'vw_dsg') {
       const clutchGroup = new THREE.Group();
       clutchGroup.position.set(0, 0, this.scene.engineZMin - 0.05);
 
@@ -60,6 +61,8 @@ export class DrivetrainBuilder {
       transmissionModule = new CVT(this.scene);
     } else if (preset === 'zf_8hp') {
       transmissionModule = new AutomaticPlanetary(this.scene);
+    } else if (preset === 'vw_dsg') {
+      transmissionModule = new DualClutch(this.scene, isTransverse);
     } else {
       transmissionModule = new ManualGearbox(this.scene, isTransverse);
     }

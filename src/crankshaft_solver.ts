@@ -203,10 +203,11 @@ export function analyzeEngineBalance(cylinderConfigs, config) {
       const f1X = f1 * -Math.sin(cfg.bank);
       const f1Y = f1 * Math.cos(cfg.bank);
       
-      // Counterweight simulation (balance factor = 0.5 per cylinder)
+      // Symulacja mechaniki przeciwwag wału (Balance factor konfigurowalny przez użytkownika)
+      const cwFactor = config.counterweightFactor !== undefined ? Number(config.counterweightFactor) : 0.5;
       const phi = theta - cfg.crankPinAngle;
-      const cwX = -0.5 * Math.sin(phi);
-      const cwY = -0.5 * Math.cos(phi);
+      const cwX = -cwFactor * Math.sin(phi);
+      const cwY = -cwFactor * Math.cos(phi);
       
       const f1TotalX = f1X + cwX;
       const f1TotalY = f1Y + cwY;
@@ -248,24 +249,24 @@ export function analyzeEngineBalance(cylinderConfigs, config) {
 
   if (isF1Zero && isF2Zero && isM1Zero) {
     status = "perfect";
-    title = "🌟 Perfekcyjny Balans (Złoty Standard)";
+    title = "Perfekcyjny Balans (Złoty Standard)";
     message = "Wszystkie wektory sił I i II rzędu znoszą się wzajemnie.";
-    recommendation = "Przykład: R6, V12 lub Boxer 6 – najwyższa kultura pracy w motoryzacji.";
+    recommendation = "Przykład: R6, V12 lub Boxer 6 - najwyższa kultura pracy w motoryzacji.";
   } else if (isF1Zero && isM1Zero && !isF2Zero) {
     status = "warning-secondary";
-    title = "⚡ Drgania Wtórne (Siły II Rzędu)";
+    title = "Drgania Wtórne (Siły II Rzędu)";
     message = `Siły I rzędu zneutralizowane, lecz powstaje wypadkowa siła II rzędu (${(normF2 * 100).toFixed(1)}%).`;
-    recommendation = "Cechuje to silniki R4 i V8 Flat-Plane – w autach cywilnych wymaga wałków Lanchester kręcących się z 2x RPM.";
+    recommendation = "Cechuje to silniki R4 i V8 Flat-Plane - w autach cywilnych wymaga wałków Lanchester kręcących się z 2x RPM.";
   } else if (isF1Zero && !isM1Zero) {
     status = "warning-moment";
-    title = "🔄 Moment Kiwający (Rocking Couple)";
+    title = "Moment Kiwający (Rocking Couple)";
     message = "Wypadkowa sił wynosi zero, lecz powstaje moment obrotowy przechylający silnik wzdłuż osi Z.";
     recommendation = "Dostosuj przeciwległe czopy skrajne (symetria lustrzana) lub dodaj wałek wyrównoważający (np. w R3 / R5).";
   } else if (!isF1Zero) {
     status = "error-primary";
-    title = "⚠️ Niezrównoważone Siły I Rzędu";
+    title = "Niezrównoważone Siły I Rzędu";
     message = `Wykryto silną wypadkową siłę poprzeczną/pionową I rzędu (${(normF1 * 100).toFixed(1)}%).`;
-    recommendation = "Przesuń czopy na tarczy, aby uzyskać symetrię kątową (np. rozstaw co 360°/N lub przeciwsobne pary).";
+    recommendation = "Przesuń czopy na tarczy, aby uzyskać symetrię kątową (np. rozstaw co 360°/N lub przeciwsobne pary) lub dostosuj masę przeciwwag.";
   }
 
   return {

@@ -146,6 +146,8 @@ export const i18n = {
       valvetrain: "Układ rozrządu:",
       valvetrainOHCBtn: "OHC (Wałek w głowicy)",
       valvetrainOHVBtn: "OHV (Popychacze)",
+      camAngleLabel: "Pochylenie wałków i zaworów:",
+      counterweightLabel: "Mechanika przeciwwag wału:",
       enginePlacement: "Położenie silnika w podwoziu:",
       placementFrontBtn: "Z przodu",
       placementMidBtn: "Centralnie",
@@ -281,15 +283,19 @@ export const i18n = {
       },
       cvt_multitronic: {
         name: "CVT (Wariator)",
-        desc: "⚡ <b>Skrzynia Bezstopniowa CVT:</b> Dwie pary przesuwnych stożków i stalowy pas Van Doorne'a płynnie zmieniają przełożenie od 2.60:1 (ruszanie) do 0.60:1 (nadbieg) bez przerw w dostawie momentu."
+        desc: "<b>Skrzynia Bezstopniowa CVT:</b> Dwie pary przesuwnych stożków i stalowy pas Van Doorne'a płynnie zmieniają przełożenie od 2.60:1 (ruszanie) do 0.60:1 (nadbieg) bez przerw w dostawie momentu."
       },
       zf_8hp: {
         name: "Automat (8b)",
-        desc: "⚡ <b>Skrzynia Automatyczna (Planetarna):</b> Zawiera konwerter momentu obrotowego, 3 zestawy przekładni planetarnych Ravigneaux i pakiety sprzęgieł wielotarczowych (A-E) sterowane przez zawory hydrauliczne (valve body)."
+        desc: "<b>Skrzynia Automatyczna (Planetarna):</b> Zawiera konwerter momentu obrotowego, 3 zestawy przekładni planetarnych Ravigneaux i pakiety sprzęgieł wielotarczowych (A-E) sterowane przez zawory hydrauliczne (valve body)."
+      },
+      vw_dsg: {
+        name: "DSG (6b)",
+        desc: "<b>Skrzynia Dwusprzęgłowa DSG:</b> Dwa współosiowe wałki sprzęgłowe i dwa mokre sprzęgła wielopłytkowe K1 i K2 sterowane przez elektrohydrauliczny blok mechatroniki."
       },
       custom: {
         name: "Własna",
-        desc: "🛠 <b>Własne stopniowanie:</b> Dopasuj przełożenia poszczególnych biegów oraz dyferencjału do charakterystyki silnika."
+        desc: "<b>Własne stopniowanie:</b> Dopasuj przełożenia poszczególnych biegów oraz dyferencjału do charakterystyki silnika."
       }
     },
 
@@ -393,22 +399,22 @@ export const i18n = {
     // Raporty wyważenia silnika
     balanceReports: {
       perfect: {
-        title: "🌟 Perfekcyjny Balans (Złoty Standard)",
+        title: "Perfekcyjny Balans (Złoty Standard)",
         message: "Wszystkie wektory sił I i II rzędu oraz momenty znoszą się wzajemnie do zera.",
         recommendation: "Przykład: R6, V12 lub Boxer 6 – najwyższa kultura pracy w inżynierii motoryzacyjnej."
       },
       warningSecondary: {
-        title: "⚡ Drgania Wtórne (Siły II Rzędu)",
+        title: "Drgania Wtórne (Siły II Rzędu)",
         messageTemplate: "Siły I rzędu zneutralizowane, lecz powstaje wypadkowa siła II rzędu ({percent}%).",
         recommendation: "Cechuje to silniki R4 i V8 Flat-Plane – w autach cywilnych wymaga wałków Lanchester kręcących się z 2x RPM."
       },
       warningMoment: {
-        title: "🔄 Moment Kiwający (Rocking Couple)",
+        title: "Moment Kiwający (Rocking Couple)",
         message: "Wypadkowa sił wynosi zero, lecz powstaje moment obrotowy przechylający silnik wzdłuż osi Z.",
         recommendation: "Dostosuj przeciwległe czopy skrajne (symetria lustrzana) lub dodaj wałek wyrównoważający (np. w R3 / R5)."
       },
       errorPrimary: {
-        title: "⚠️ Niezrównoważone Siły I Rzędu",
+        title: "Niezrównoważone Siły I Rzędu",
         messageTemplate: "Wykryto silną wypadkową siłę poprzeczną/pionową I rzędu ({percent}%).",
         recommendation: "Przesuń czopy na tarczy, aby uzyskać symetrię kątową (np. rozstaw co 360°/N lub przeciwsobne pary)."
       },
@@ -733,6 +739,8 @@ export const i18n = {
       valvetrain: "Valvetrain:",
       valvetrainOHCBtn: "OHC (Overhead Cam)",
       valvetrainOHVBtn: "OHV (Pushrod)",
+      camAngleLabel: "Camshaft & Valve Inclination:",
+      counterweightLabel: "Crankshaft Counterweight Mechanics:",
       enginePlacement: "Engine placement in chassis:",
       placementFrontBtn: "Front",
       placementMidBtn: "Mid",
@@ -868,15 +876,19 @@ export const i18n = {
       },
       cvt_multitronic: {
         name: "CVT (Variator)",
-        desc: "⚡ <b>Continuously Variable Transmission (CVT):</b> Two pairs of sliding cones and a Van Doorne steel push belt seamlessly vary ratios from 2.60:1 (launch) to 0.60:1 (overdrive) without power interruption."
+        desc: "<b>Continuously Variable Transmission (CVT):</b> Two pairs of sliding cones and a Van Doorne steel push belt seamlessly vary ratios from 2.60:1 (launch) to 0.60:1 (overdrive) without power interruption."
       },
       zf_8hp: {
         name: "Automatic (8-spd)",
-        desc: "⚡ <b>Planetary Automatic Transmission:</b> Features a fluid torque converter, 3 Ravigneaux planetary gearsets, and multiple clutch drum packs (A-E) controlled by a hydraulic valve body."
+        desc: "<b>Planetary Automatic Transmission:</b> Features a fluid torque converter, 3 Ravigneaux planetary gearsets, and multiple clutch drum packs (A-E) controlled by a hydraulic valve body."
+      },
+      vw_dsg: {
+        name: "DSG (6-spd)",
+        desc: "<b>Dual-Clutch Transmission (DSG):</b> Dual concentric input shafts and twin wet multi-plate clutch packs K1 and K2 controlled by an electrohydraulic mechatronics unit."
       },
       custom: {
         name: "Custom",
-        desc: "🛠 <b>Custom Gearing:</b> Adjust individual gear ratios and final drive."
+        desc: "<b>Custom Gearing:</b> Adjust individual gear ratios and final drive."
       }
     },
 
@@ -980,22 +992,22 @@ export const i18n = {
     // Engine balance reports
     balanceReports: {
       perfect: {
-        title: "🌟 Perfect Balance (Gold Standard)",
+        title: "Perfect Balance (Gold Standard)",
         message: "All primary and secondary mass force vectors and rocking moments cancel out to zero.",
         recommendation: "Examples: I6, V12, or Boxer 6 – unmatched mechanical refinement in automotive engineering."
       },
       warningSecondary: {
-        title: "⚡ Secondary Vibrations (2nd-Order Forces)",
+        title: "Secondary Vibrations (2nd-Order Forces)",
         messageTemplate: "Primary forces neutralized, but residual 2nd-order force present ({percent}%).",
         recommendation: "Characteristic of I4 and Flat-Plane V8 engines – production road cars utilize twin Lanchester shafts spinning at 2x RPM."
       },
       warningMoment: {
-        title: "🔄 Rocking Couple (End-to-End Moment)",
+        title: "Rocking Couple (End-to-End Moment)",
         message: "Net force vector is zero, but a dynamic pitching moment acts along the engine's Z-axis.",
         recommendation: "Mirror opposing crank pins or incorporate a counter-rotating balance shaft (standard on I3 / I5)."
       },
       errorPrimary: {
-        title: "⚠️ Unbalanced 1st-Order Primary Forces",
+        title: "Unbalanced 1st-Order Primary Forces",
         messageTemplate: "Strong lateral or vertical 1st-order net force detected ({percent}%).",
         recommendation: "Adjust crank pin angles on the dial to achieve angular symmetry (e.g., 360°/N spacing or opposed pairs)."
       },
