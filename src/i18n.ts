@@ -263,10 +263,6 @@ export const i18n = {
         name: "Passat B5 1.9 (5b)",
         desc: "Legendarna 5-biegowa skrzynia wzdłużna (Passat B5). Długie przełożenia i pancerne łożyska."
       },
-      passat_b5: {
-        name: "Passat B5 1.9 (5-spd)",
-        desc: "Legendary 5-speed longitudinal gearbox (Passat B5). Long ratios and bulletproof bearings."
-      },
       opel_f17: {
         name: "Saab 9-3 (5b)",
         desc: "Klasyczna 5-biegowa skrzynia (bazowe przełożenia Saab 9-3 1.8i). Dobre stopniowanie miejskie."
@@ -850,6 +846,10 @@ export const i18n = {
 
     // Dynamic Presets Descriptions
     gearboxPresets: {
+      passat_b5: {
+        name: "Passat B5 1.9 (5-spd)",
+        desc: "Legendary 5-speed longitudinal gearbox (Passat B5). Long ratios and bulletproof bearings."
+      },
       opel_f17: {
         name: "Saab 9-3 (5-spd)",
         desc: "Classic 5-speed manual gearbox (Saab 9-3 1.8i baseline). Well-spaced city gearing."
